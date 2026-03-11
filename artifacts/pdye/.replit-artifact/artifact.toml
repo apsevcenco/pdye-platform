@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Private Distressed Yacht Exchange"
+version = "1.0.0"
+id = "artifacts/pdye"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 22500
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/pdye run dev"
+
+[services.env]
+PORT = "22500"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/pdye", "run", "build"]
+publicDir = "artifacts/pdye/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

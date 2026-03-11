@@ -1,0 +1,9 @@
+packages:
+  "framer-motion": "For premium smooth page transitions and scroll animations matching the luxury aesthetic"
+  "react-hook-form": "For robust form state management"
+  "@hookform/resolvers": "For Zod validation integration with react-hook-form"
+  "zod": "For form validation schemas"
+
+notes:
+  - No backend connected yet, using local state and toasts for form submissions.
+  - Using public/fonts for Gilroy and DM Sans local typography.
