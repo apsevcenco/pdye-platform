@@ -32,7 +32,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-6 md:px-12 h-24 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <Anchor size={22} className="text-primary group-hover:text-white transition-colors duration-300 flex-shrink-0" strokeWidth={2} />
-          <span className="font-display font-bold text-3xl tracking-widest text-white group-hover:text-primary transition-colors duration-300">
+          <span className="font-display font-normal text-3xl tracking-widest text-white group-hover:text-primary transition-colors duration-300">
             PDYE<span className="text-primary">.</span>
           </span>
         </Link>

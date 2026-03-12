@@ -512,7 +512,7 @@ export default function Admin() {
           <Link href="/">
             <div className="flex items-center gap-2 group cursor-pointer">
               <Anchor size={18} className="text-primary group-hover:text-white transition-colors flex-shrink-0" strokeWidth={2} />
-              <span className="font-display font-bold text-2xl tracking-widest text-white group-hover:text-primary transition-colors">
+              <span className="font-display font-normal text-2xl tracking-widest text-white group-hover:text-primary transition-colors">
                 PDYE<span className="text-primary">.</span>
               </span>
             </div>
