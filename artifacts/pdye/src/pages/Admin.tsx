@@ -676,6 +676,7 @@ const views: Record<string, JSX.Element> = {
   brokers: <BrokersView />,
   documents: <DocumentsView />,
   messages: <MessagesView />,
+  content: <ContentView />,
   settings: <SettingsView />,
 };
 
