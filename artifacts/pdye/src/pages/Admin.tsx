@@ -511,9 +511,9 @@ export default function Admin() {
         <div className="px-6 py-6 border-b border-white/5">
           <Link href="/">
             <div className="flex items-center gap-2 group cursor-pointer">
-              <Anchor size={18} className="text-primary group-hover:text-white transition-colors flex-shrink-0" strokeWidth={2} />
+              <Anchor size={24} className="text-primary group-hover:text-white transition-colors flex-shrink-0" strokeWidth={2} />
               <span className="font-display font-normal text-2xl tracking-widest text-white group-hover:text-primary transition-colors">
-                PDYE<span className="text-primary">.</span>
+                PDYE
               </span>
             </div>
           </Link>

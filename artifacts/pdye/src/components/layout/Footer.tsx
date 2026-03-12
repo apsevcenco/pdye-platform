@@ -6,8 +6,8 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-1 md:col-span-2">
-            <span className="font-display font-bold text-3xl tracking-widest text-white block mb-6">
-              PDYE<span className="text-primary">.</span>
+            <span className="font-display font-normal text-3xl tracking-widest text-white block mb-6">
+              PDYE
             </span>
             <p className="text-white/60 max-w-sm font-sans leading-relaxed">
               The premier private marketplace for distressed and off-market Mediterranean yacht opportunities. Confidential brokerage for qualified investors.
