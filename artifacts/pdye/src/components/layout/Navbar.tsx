@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Anchor } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function Navbar() {
@@ -31,6 +31,7 @@ export function Navbar() {
     <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${navBackground}`}>
       <div className="max-w-7xl mx-auto px-6 md:px-12 h-24 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
+          <Anchor size={22} className="text-primary group-hover:text-white transition-colors duration-300 flex-shrink-0" strokeWidth={2} />
           <span className="font-display font-bold text-3xl tracking-widest text-white group-hover:text-primary transition-colors duration-300">
             PDYE<span className="text-primary">.</span>
           </span>

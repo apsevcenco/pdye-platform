@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   TrendingUp,
+  Anchor,
   Bell,
   Search,
   Plus,
@@ -509,9 +510,12 @@ export default function Admin() {
       <aside className="w-64 flex-shrink-0 bg-[#050c16] border-r border-white/5 flex flex-col">
         <div className="px-6 py-6 border-b border-white/5">
           <Link href="/">
-            <span className="font-display font-bold text-2xl tracking-widest text-white cursor-pointer hover:text-primary transition-colors">
-              PDYE<span className="text-primary">.</span>
-            </span>
+            <div className="flex items-center gap-2 group cursor-pointer">
+              <Anchor size={18} className="text-primary group-hover:text-white transition-colors flex-shrink-0" strokeWidth={2} />
+              <span className="font-display font-bold text-2xl tracking-widest text-white group-hover:text-primary transition-colors">
+                PDYE<span className="text-primary">.</span>
+              </span>
+            </div>
           </Link>
           <p className="text-white/30 text-[10px] uppercase tracking-widest mt-1 font-sans">Admin Console</p>
         </div>
