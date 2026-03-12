@@ -44,12 +44,14 @@ export default function Home() {
             <span className="text-primary font-bold tracking-[0.2em] text-sm md:text-base uppercase mb-6 inline-block border border-primary/30 px-4 py-1.5 bg-background/30 backdrop-blur-md">
               Exclusive Network
             </span>
-            <h1 className={`${hero.titleFont} ${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}>
-              {hero.title}
-            </h1>
-            <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-sans font-light leading-relaxed mb-10">
-              {hero.subtitle}
-            </p>
+            <h1
+              className={`${hero.titleFont} ${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}
+              dangerouslySetInnerHTML={{ __html: hero.title }}
+            />
+            <p
+              className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-sans font-light leading-relaxed mb-10"
+              dangerouslySetInnerHTML={{ __html: hero.subtitle }}
+            />
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
               <Link 
                 href="/access"

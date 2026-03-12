@@ -22,9 +22,9 @@ export default function Private() {
             className="flex items-center gap-4 mb-4"
           >
             <Lock className="text-primary w-8 h-8" />
-            <h1 className="font-display text-4xl md:text-5xl text-white">{content.heading}</h1>
+            <h1 className="font-display text-4xl md:text-5xl text-white" dangerouslySetInnerHTML={{ __html: content.heading }} />
           </motion.div>
-          <p className="text-white/60 max-w-2xl font-sans text-lg">{content.subheading}</p>
+          <p className="text-white/60 max-w-2xl font-sans text-lg" dangerouslySetInnerHTML={{ __html: content.subheading }} />
         </div>
       </div>
 

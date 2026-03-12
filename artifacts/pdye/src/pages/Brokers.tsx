@@ -52,8 +52,8 @@ export default function Brokers() {
             <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-4 block">
               Broker Portal
             </span>
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-6">{content.heading}</h1>
-            <p className="text-white/60 font-sans text-lg">{content.subheading}</p>
+            <h1 className="font-display text-4xl md:text-5xl text-white mb-6" dangerouslySetInnerHTML={{ __html: content.heading }} />
+            <p className="text-white/60 font-sans text-lg" dangerouslySetInnerHTML={{ __html: content.subheading }} />
           </motion.div>
         </div>
       </div>

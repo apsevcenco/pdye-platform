@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "wouter";
 import { ALL_YACHTS } from "@/lib/data";
 import {
@@ -470,6 +470,66 @@ function PrivateDealsView() {
   );
 }
 
+function applyFormat(tag: string, value: string, onChange: (v: string) => void, ref: React.RefObject<HTMLTextAreaElement | HTMLInputElement>) {
+  const el = ref.current;
+  if (!el) return;
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  const newVal = value.slice(0, start) + `<${tag}>${value.slice(start, end)}</${tag}>` + value.slice(end);
+  onChange(newVal);
+  setTimeout(() => { el.focus(); }, 0);
+}
+
+const fmtButtons = [
+  { tag: "b", label: "B", cls: "font-bold" },
+  { tag: "i", label: "I", cls: "italic" },
+  { tag: "u", label: "U", cls: "underline" },
+];
+
+function FormatBar({ onApply }: { onApply: (tag: string) => void }) {
+  return (
+    <div className="flex gap-1 mb-1.5">
+      {fmtButtons.map(({ tag, label, cls }) => (
+        <button
+          key={tag}
+          type="button"
+          onMouseDown={e => { e.preventDefault(); onApply(tag); }}
+          className={`bg-[#050c16] border border-white/10 hover:border-primary text-white/60 hover:text-primary w-8 h-8 text-sm transition-colors ${cls}`}
+          title={tag === "b" ? "Bold" : tag === "i" ? "Italic" : "Underline"}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RichTextInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      {label && <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">{label}</label>}
+      <FormatBar onApply={tag => applyFormat(tag, value, onChange, ref as React.RefObject<HTMLTextAreaElement | HTMLInputElement>)} />
+      <input ref={ref} value={value} onChange={e => onChange(e.target.value)}
+        className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
+      />
+    </div>
+  );
+}
+
+function RichTextArea({ value, onChange, label, rows = 3 }: { value: string; onChange: (v: string) => void; label?: string; rows?: number }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  return (
+    <div>
+      {label && <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">{label}</label>}
+      <FormatBar onApply={tag => applyFormat(tag, value, onChange, ref as React.RefObject<HTMLTextAreaElement | HTMLInputElement>)} />
+      <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} rows={rows}
+        className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors resize-none"
+      />
+    </div>
+  );
+}
+
 function ContentView() {
   const pages = [
     { key: "yachts", label: "Yachts Page" },
@@ -524,23 +584,8 @@ function ContentView() {
       </div>
 
       <div className="bg-[#0f1d33] border border-white/5 p-6 space-y-4">
-        <div>
-          <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Heading</label>
-          <input
-            value={fields.heading}
-            onChange={e => setFields(f => ({ ...f, heading: e.target.value }))}
-            className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
-          />
-        </div>
-        <div>
-          <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Subtitle</label>
-          <textarea
-            value={fields.subheading}
-            onChange={e => setFields(f => ({ ...f, subheading: e.target.value }))}
-            rows={3}
-            className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors resize-none"
-          />
-        </div>
+        <RichTextInput label="Heading" value={fields.heading} onChange={v => setFields(f => ({ ...f, heading: v }))} />
+        <RichTextArea label="Subtitle" value={fields.subheading} onChange={v => setFields(f => ({ ...f, subheading: v }))} rows={3} />
         <div className="flex gap-3 pt-2">
           <button onClick={handleSave} className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
             {saved ? "Saved ✓" : "Save Changes"}
@@ -588,23 +633,8 @@ function SettingsView() {
           <h2 className="font-display text-lg text-white mb-1">Homepage Hero</h2>
           <p className="text-white/40 text-xs mb-6 font-sans">Edit the headline, subtitle, font, and size displayed on the homepage hero.</p>
           <div className="space-y-4">
-            <div>
-              <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Headline</label>
-              <input
-                value={heroTitle}
-                onChange={e => setHeroTitle(e.target.value)}
-                className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Subtitle</label>
-              <textarea
-                value={heroSubtitle}
-                onChange={e => setHeroSubtitle(e.target.value)}
-                rows={3}
-                className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors resize-none"
-              />
-            </div>
+            <RichTextInput label="Headline" value={heroTitle} onChange={setHeroTitle} />
+            <RichTextArea label="Subtitle" value={heroSubtitle} onChange={setHeroSubtitle} rows={3} />
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Font</label>

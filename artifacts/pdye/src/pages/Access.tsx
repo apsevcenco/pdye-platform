@@ -66,8 +66,8 @@ export default function Access() {
             <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-4 block">
               Investor Relations
             </span>
-            <h1 className="font-display text-4xl text-white mb-4">{content.heading}</h1>
-            <p className="text-white/60 mb-10 font-sans leading-relaxed">{content.subheading}</p>
+            <h1 className="font-display text-4xl text-white mb-4" dangerouslySetInnerHTML={{ __html: content.heading }} />
+            <p className="text-white/60 mb-10 font-sans leading-relaxed" dangerouslySetInnerHTML={{ __html: content.subheading }} />
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div>

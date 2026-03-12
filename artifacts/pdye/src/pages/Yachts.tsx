@@ -18,8 +18,8 @@ export default function Yachts() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-4">{content.heading}</h1>
-            <p className="text-white/60 max-w-2xl font-sans text-lg">{content.subheading}</p>
+            <h1 className="font-display text-4xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: content.heading }} />
+            <p className="text-white/60 max-w-2xl font-sans text-lg" dangerouslySetInnerHTML={{ __html: content.subheading }} />
           </motion.div>
         </div>
       </div>
