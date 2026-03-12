@@ -45,7 +45,8 @@ export default function Home() {
               Exclusive Network
             </span>
             <h1
-              className={`${hero.titleFont} ${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}
+              className={`${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}
+              style={{ fontFamily: hero.titleFont }}
               dangerouslySetInnerHTML={{ __html: hero.title }}
             />
             <p

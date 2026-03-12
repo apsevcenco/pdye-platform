@@ -10,9 +10,14 @@ export interface HeroContent {
   titleSize: string;
 }
 
-export const FONT_OPTIONS = [
-  { label: "Gilroy (Display)", value: "font-display" },
-  { label: "DM Sans (Body)", value: "font-sans" },
+export interface CustomFont {
+  name: string;
+  family: string;
+}
+
+export const DEFAULT_FONT_OPTIONS = [
+  { label: "Gilroy (Display)", value: "'Gilroy', sans-serif" },
+  { label: "DM Sans (Body)", value: "'DM Sans', sans-serif" },
 ];
 
 export const SIZE_OPTIONS = [
@@ -49,9 +54,41 @@ export const PAGE_DEFAULTS: Record<string, PageContent> = {
 export const HERO_DEFAULTS: HeroContent = {
   title: "Private Access To Off-Market Yachts",
   subtitle: "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.",
-  titleFont: "font-display",
+  titleFont: "'Gilroy', sans-serif",
   titleSize: "text-7xl md:text-8xl",
 };
+
+export function getCustomFonts(): CustomFont[] {
+  try {
+    return JSON.parse(localStorage.getItem("custom_fonts") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomFonts(fonts: CustomFont[]) {
+  localStorage.setItem("custom_fonts", JSON.stringify(fonts));
+}
+
+export function getAllFontOptions() {
+  const custom = getCustomFonts().map(f => ({ label: `${f.name} (Custom)`, value: f.family }));
+  return [...DEFAULT_FONT_OPTIONS, ...custom];
+}
+
+export function injectGoogleFont(name: string) {
+  const id = `gfont-${name.replace(/\s+/g, "-").toLowerCase()}`;
+  if (document.getElementById(id)) return;
+  const link = document.createElement("link");
+  link.id = id;
+  link.rel = "stylesheet";
+  const encoded = name.replace(/\s+/g, "+");
+  link.href = `https://fonts.googleapis.com/css2?family=${encoded}:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap`;
+  document.head.appendChild(link);
+}
+
+export function loadAllCustomFonts() {
+  getCustomFonts().forEach(f => injectGoogleFont(f.name));
+}
 
 export function getHeroContent(): HeroContent {
   return {

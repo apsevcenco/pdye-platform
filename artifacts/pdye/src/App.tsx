@@ -3,6 +3,8 @@ import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useEffect } from "react";
+import { loadAllCustomFonts } from "@/lib/content";
 import NotFound from "@/pages/not-found";
 
 // Pages
@@ -16,6 +18,11 @@ import DealRoom from "./pages/DealRoom";
 import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
+
+function FontLoader() {
+  useEffect(() => { loadAllCustomFonts(); }, []);
+  return null;
+}
 
 function Router() {
   return (
@@ -37,6 +44,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <FontLoader />
         <WouterRouter hook={useHashLocation}>
           <Router />
         </WouterRouter>

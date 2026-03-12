@@ -25,13 +25,18 @@ import {
   PenLine,
 } from "lucide-react";
 import {
-  FONT_OPTIONS,
   SIZE_OPTIONS,
   PAGE_DEFAULTS,
   getHeroContent,
   saveHeroContent,
   getPageContent,
   savePageContent,
+  DEFAULT_FONT_OPTIONS,
+  getCustomFonts,
+  saveCustomFonts,
+  injectGoogleFont,
+  HERO_DEFAULTS,
+  type CustomFont,
 } from "@/lib/content";
 
 const navItems = [
@@ -607,6 +612,16 @@ function SettingsView() {
   const [titleSize, setTitleSize] = useState(init.titleSize);
   const [saved, setSaved] = useState(false);
 
+  const [customFonts, setCustomFonts] = useState<CustomFont[]>(getCustomFonts);
+  const [newFontName, setNewFontName] = useState("");
+  const [fontError, setFontError] = useState("");
+  const [fontAdded, setFontAdded] = useState(false);
+
+  const fontOptions = [
+    ...DEFAULT_FONT_OPTIONS,
+    ...customFonts.map(f => ({ label: `${f.name} (Custom)`, value: f.family })),
+  ];
+
   const handleSave = () => {
     saveHeroContent({ title: heroTitle, subtitle: heroSubtitle, titleFont, titleSize });
     setSaved(true);
@@ -614,11 +629,35 @@ function SettingsView() {
   };
 
   const handleReset = () => {
-    setHeroTitle("Private Access To Off-Market Yachts");
-    setHeroSubtitle("Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.");
-    setTitleFont("font-display");
-    setTitleSize("text-7xl md:text-8xl");
-    saveHeroContent({ title: "Private Access To Off-Market Yachts", subtitle: "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.", titleFont: "font-display", titleSize: "text-7xl md:text-8xl" });
+    setHeroTitle(HERO_DEFAULTS.title);
+    setHeroSubtitle(HERO_DEFAULTS.subtitle);
+    setTitleFont(HERO_DEFAULTS.titleFont);
+    setTitleSize(HERO_DEFAULTS.titleSize);
+    saveHeroContent(HERO_DEFAULTS);
+  };
+
+  const handleAddFont = () => {
+    const name = newFontName.trim();
+    if (!name) { setFontError("Please enter a font name."); return; }
+    if (customFonts.some(f => f.name.toLowerCase() === name.toLowerCase())) {
+      setFontError("This font has already been added."); return;
+    }
+    const family = `'${name}', sans-serif`;
+    const updated = [...customFonts, { name, family }];
+    saveCustomFonts(updated);
+    setCustomFonts(updated);
+    injectGoogleFont(name);
+    setNewFontName("");
+    setFontError("");
+    setFontAdded(true);
+    setTimeout(() => setFontAdded(false), 2500);
+  };
+
+  const handleRemoveFont = (name: string) => {
+    const updated = customFonts.filter(f => f.name !== name);
+    saveCustomFonts(updated);
+    setCustomFonts(updated);
+    if (titleFont === `'${name}', sans-serif`) setTitleFont(HERO_DEFAULTS.titleFont);
   };
 
   return (
@@ -643,7 +682,7 @@ function SettingsView() {
                   onChange={e => setTitleFont(e.target.value)}
                   className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
                 >
-                  {FONT_OPTIONS.map(f => (
+                  {fontOptions.map(f => (
                     <option key={f.value} value={f.value}>{f.label}</option>
                   ))}
                 </select>
@@ -669,6 +708,52 @@ function SettingsView() {
                 Reset to Default
               </button>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-[#0f1d33] border border-white/5 p-6">
+          <h2 className="font-display text-lg text-white mb-1">Custom Fonts</h2>
+          <p className="text-white/40 text-xs mb-6 font-sans">Add any Google Fonts typeface by name. It becomes available instantly in the Font selector above.</p>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <input
+                  value={newFontName}
+                  onChange={e => { setNewFontName(e.target.value); setFontError(""); }}
+                  onKeyDown={e => e.key === "Enter" && handleAddFont()}
+                  placeholder="e.g. Playfair Display, Cormorant Garamond…"
+                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
+                />
+              </div>
+              <button
+                onClick={handleAddFont}
+                className="bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors whitespace-nowrap"
+              >
+                {fontAdded ? "Added ✓" : "Add Font"}
+              </button>
+            </div>
+            {fontError && <p className="text-red-400 text-xs font-sans">{fontError}</p>}
+            {customFonts.length > 0 && (
+              <div className="space-y-2 pt-1">
+                {customFonts.map(f => (
+                  <div key={f.name} className="flex items-center justify-between bg-background/50 border border-white/5 px-4 py-3">
+                    <div>
+                      <span className="text-white text-sm font-sans" style={{ fontFamily: f.family }}>{f.name}</span>
+                      <span className="text-white/30 text-xs font-sans ml-3">{f.family}</span>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveFont(f.name)}
+                      className="text-white/30 hover:text-red-400 text-xs uppercase tracking-widest font-bold font-sans transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {customFonts.length === 0 && (
+              <p className="text-white/20 text-xs font-sans italic">No custom fonts added yet.</p>
+            )}
           </div>
         </div>
 
