@@ -1,34 +1,25 @@
 import { Link } from "wouter";
 import { MapPin, Ruler, Calendar } from "lucide-react";
+import { Yacht } from "@/lib/data";
 
 interface YachtCardProps {
-  yacht: {
-    id: string;
-    name: string;
-    length: string;
-    year: number;
-    builder: string;
-    location: string;
-    price: string;
-    image: string;
-    status: string;
-    description: string;
-  };
+  yacht: Yacht;
   isPrivate?: boolean;
 }
 
 export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
+  const hasDistressed = yacht.distressedPrice && yacht.marketPrice;
+
   return (
     <div className="group bg-card border border-white/5 hover:border-primary/50 transition-all duration-500 overflow-hidden flex flex-col h-full">
       <div className="relative aspect-[4/3] overflow-hidden">
-        {/* fallback to an unsplash image dynamically based on id if needed, but we have images */}
-        <img 
-          src={yacht.image} 
-          alt={yacht.name} 
+        <img
+          src={yacht.image}
+          alt={yacht.name}
           className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-in-out"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-60"></div>
-        
+
         <div className="absolute top-4 left-4 flex gap-2">
           <span className="bg-background/80 backdrop-blur-sm border border-white/10 text-white text-xs font-bold tracking-wider uppercase px-3 py-1">
             {yacht.status}
@@ -40,16 +31,25 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
           )}
         </div>
       </div>
-      
+
       <div className="p-6 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-4">
           <div>
             <h3 className="font-display text-2xl text-white mb-1 group-hover:text-primary transition-colors">{yacht.name}</h3>
             <p className="text-white/60 text-sm font-sans tracking-wide uppercase">{yacht.builder}</p>
           </div>
-          <p className="font-display text-lg text-primary">{yacht.price}</p>
+          <div className="text-right">
+            {hasDistressed ? (
+              <>
+                <p className="font-display text-lg text-primary">{yacht.distressedPrice}</p>
+                <p className="text-white/40 text-xs line-through font-sans mt-0.5">{yacht.marketPrice}</p>
+              </>
+            ) : (
+              <p className="font-display text-lg text-primary">{yacht.price}</p>
+            )}
+          </div>
         </div>
-        
+
         <div className="flex flex-wrap gap-4 text-sm text-white/70 mb-6 font-sans">
           <div className="flex items-center gap-1.5">
             <Ruler size={16} className="text-primary/70" />
@@ -64,12 +64,12 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
             <span>{yacht.location}</span>
           </div>
         </div>
-        
+
         <p className="text-white/50 text-sm leading-relaxed mb-8 flex-1 line-clamp-2">
           {yacht.description}
         </p>
-        
-        <Link 
+
+        <Link
           href={`/dealroom`}
           className="w-full block text-center border border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground py-3 text-sm font-bold tracking-widest uppercase transition-all duration-300 mt-auto"
         >

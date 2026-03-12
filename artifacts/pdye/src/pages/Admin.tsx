@@ -460,30 +460,93 @@ function PrivateDealsView() {
 }
 
 function SettingsView() {
+  const [heroTitle, setHeroTitle] = useState(localStorage.getItem("heroTitle") || "Private Access To Off-Market Yachts");
+  const [heroSubtitle, setHeroSubtitle] = useState(localStorage.getItem("heroSubtitle") || "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.");
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    localStorage.setItem("heroTitle", heroTitle);
+    localStorage.setItem("heroSubtitle", heroSubtitle);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleReset = () => {
+    const defaultTitle = "Private Access To Off-Market Yachts";
+    const defaultSubtitle = "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.";
+    setHeroTitle(defaultTitle);
+    setHeroSubtitle(defaultSubtitle);
+    localStorage.setItem("heroTitle", defaultTitle);
+    localStorage.setItem("heroSubtitle", defaultSubtitle);
+  };
+
   return (
     <div>
       <div className="mb-8">
         <h1 className="font-display text-3xl text-white font-bold">Settings</h1>
         <p className="text-white/50 text-sm font-sans mt-1">Platform configuration</p>
       </div>
-      <div className="space-y-4">
-        {[
-          { label: "Platform Name", value: "Private Distressed Yacht Exchange", desc: "Displayed in header and communications" },
-          { label: "Admin Email", value: "admin@pdye.com", desc: "Used for system notifications" },
-          { label: "NDA Template", value: "PDYE_NDA_v3.pdf", desc: "Default NDA sent to investors" },
-          { label: "Access Mode", value: "Invitation Only", desc: "Controls who can register on the platform" },
-        ].map((setting, i) => (
-          <div key={i} className="bg-[#0f1d33] border border-white/5 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+
+      <div className="space-y-6">
+        <div className="bg-[#0f1d33] border border-white/5 p-6">
+          <h2 className="font-display text-lg text-white mb-1">Hero Section</h2>
+          <p className="text-white/40 text-xs mb-6 font-sans">Edit the homepage headline and subtitle visible to all visitors.</p>
+          <div className="space-y-4">
             <div>
-              <p className="text-white font-medium font-sans text-sm">{setting.label}</p>
-              <p className="text-white/40 text-xs mt-0.5">{setting.desc}</p>
+              <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Headline</label>
+              <input
+                value={heroTitle}
+                onChange={e => setHeroTitle(e.target.value)}
+                className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
+              />
             </div>
-            <div className="flex items-center gap-3">
-              <p className="text-white/70 text-sm font-mono">{setting.value}</p>
-              <button className="text-xs border border-white/10 text-white/50 px-3 py-1 hover:border-primary hover:text-primary transition-colors font-bold uppercase tracking-wider">Edit</button>
+            <div>
+              <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Subtitle</label>
+              <textarea
+                value={heroSubtitle}
+                onChange={e => setHeroSubtitle(e.target.value)}
+                rows={3}
+                className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors resize-none"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleSave}
+                className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
+              >
+                {saved ? "Saved ✓" : "Save Changes"}
+              </button>
+              <button
+                onClick={handleReset}
+                className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors"
+              >
+                Reset to Default
+              </button>
             </div>
           </div>
-        ))}
+        </div>
+
+        <div className="bg-[#0f1d33] border border-white/5 p-6">
+          <h2 className="font-display text-lg text-white mb-4">Platform</h2>
+          <div className="space-y-4">
+            {[
+              { label: "Admin Email", value: "admin@pdye.com", desc: "Used for system notifications" },
+              { label: "NDA Template", value: "PDYE_NDA_v3.pdf", desc: "Default NDA sent to investors" },
+              { label: "Access Mode", value: "Invitation Only", desc: "Controls who can register" },
+            ].map((setting, i) => (
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-white/5 last:border-0">
+                <div>
+                  <p className="text-white font-medium font-sans text-sm">{setting.label}</p>
+                  <p className="text-white/40 text-xs mt-0.5">{setting.desc}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-white/70 text-sm font-mono">{setting.value}</p>
+                  <button className="text-xs border border-white/10 text-white/50 px-3 py-1 hover:border-primary hover:text-primary transition-colors font-bold uppercase tracking-wider">Edit</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
