@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   PenLine,
 } from "lucide-react";
+import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
   SIZE_OPTIONS,
   PAGE_DEFAULTS,
@@ -713,17 +714,21 @@ function SettingsView() {
 
         <div className="bg-[#0f1d33] border border-white/5 p-6">
           <h2 className="font-display text-lg text-white mb-1">Custom Fonts</h2>
-          <p className="text-white/40 text-xs mb-6 font-sans">Add any Google Fonts typeface by name. It becomes available instantly in the Font selector above.</p>
+          <p className="text-white/40 text-xs mb-6 font-sans">Search from 1,400+ Google Fonts. Start typing to see suggestions, select one, then click Add Font. It becomes available in the Font selector above.</p>
           <div className="space-y-4">
             <div className="flex gap-2">
               <div className="flex-1">
                 <input
+                  list="google-fonts-list"
                   value={newFontName}
                   onChange={e => { setNewFontName(e.target.value); setFontError(""); }}
                   onKeyDown={e => e.key === "Enter" && handleAddFont()}
-                  placeholder="e.g. Playfair Display, Cormorant Garamond…"
+                  placeholder="Search Google Fonts… e.g. Playfair Display"
                   className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
                 />
+                <datalist id="google-fonts-list">
+                  {GOOGLE_FONTS.map(f => <option key={f} value={f} />)}
+                </datalist>
               </div>
               <button
                 onClick={handleAddFont}
