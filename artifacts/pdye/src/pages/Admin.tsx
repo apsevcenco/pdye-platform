@@ -22,7 +22,17 @@ import {
   AlertCircle,
   ChevronRight,
   ArrowUpRight,
+  PenLine,
 } from "lucide-react";
+import {
+  FONT_OPTIONS,
+  SIZE_OPTIONS,
+  PAGE_DEFAULTS,
+  getHeroContent,
+  saveHeroContent,
+  getPageContent,
+  savePageContent,
+} from "@/lib/content";
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,6 +42,7 @@ const navItems = [
   { id: "brokers", label: "Brokers", icon: Briefcase },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "messages", label: "Messages", icon: MessageSquare },
+  { id: "content", label: "Page Content", icon: PenLine },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -459,25 +470,110 @@ function PrivateDealsView() {
   );
 }
 
-function SettingsView() {
-  const [heroTitle, setHeroTitle] = useState(localStorage.getItem("heroTitle") || "Private Access To Off-Market Yachts");
-  const [heroSubtitle, setHeroSubtitle] = useState(localStorage.getItem("heroSubtitle") || "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.");
+function ContentView() {
+  const pages = [
+    { key: "yachts", label: "Yachts Page" },
+    { key: "access", label: "Investor Access Page" },
+    { key: "private", label: "Private Deals Page" },
+    { key: "brokers", label: "Brokers Page" },
+    { key: "dealroom", label: "Deal Room Page" },
+  ];
+  const [activePage, setActivePage] = useState("yachts");
+  const [fields, setFields] = useState(() => getPageContent(activePage));
   const [saved, setSaved] = useState(false);
 
+  const switchPage = (key: string) => {
+    setActivePage(key);
+    setFields(getPageContent(key));
+    setSaved(false);
+  };
+
   const handleSave = () => {
-    localStorage.setItem("heroTitle", heroTitle);
-    localStorage.setItem("heroSubtitle", heroSubtitle);
+    savePageContent(activePage, fields);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
   const handleReset = () => {
-    const defaultTitle = "Private Access To Off-Market Yachts";
-    const defaultSubtitle = "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.";
-    setHeroTitle(defaultTitle);
-    setHeroSubtitle(defaultSubtitle);
-    localStorage.setItem("heroTitle", defaultTitle);
-    localStorage.setItem("heroSubtitle", defaultSubtitle);
+    const defaults = PAGE_DEFAULTS[activePage];
+    setFields({ ...defaults });
+    savePageContent(activePage, defaults);
+  };
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="font-display text-3xl text-white font-bold">Page Content</h1>
+        <p className="text-white/50 text-sm font-sans mt-1">Edit headings and subtitles across all public pages</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {pages.map(p => (
+          <button
+            key={p.key}
+            onClick={() => switchPage(p.key)}
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+              activePage === p.key
+                ? "bg-primary text-background"
+                : "border border-white/10 text-white/50 hover:border-primary hover:text-primary"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-[#0f1d33] border border-white/5 p-6 space-y-4">
+        <div>
+          <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Heading</label>
+          <input
+            value={fields.heading}
+            onChange={e => setFields(f => ({ ...f, heading: e.target.value }))}
+            className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
+          />
+        </div>
+        <div>
+          <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Subtitle</label>
+          <textarea
+            value={fields.subheading}
+            onChange={e => setFields(f => ({ ...f, subheading: e.target.value }))}
+            rows={3}
+            className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors resize-none"
+          />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button onClick={handleSave} className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
+            {saved ? "Saved ✓" : "Save Changes"}
+          </button>
+          <button onClick={handleReset} className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors">
+            Reset to Default
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsView() {
+  const init = getHeroContent();
+  const [heroTitle, setHeroTitle] = useState(init.title);
+  const [heroSubtitle, setHeroSubtitle] = useState(init.subtitle);
+  const [titleFont, setTitleFont] = useState(init.titleFont);
+  const [titleSize, setTitleSize] = useState(init.titleSize);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    saveHeroContent({ title: heroTitle, subtitle: heroSubtitle, titleFont, titleSize });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleReset = () => {
+    setHeroTitle("Private Access To Off-Market Yachts");
+    setHeroSubtitle("Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.");
+    setTitleFont("font-display");
+    setTitleSize("text-7xl md:text-8xl");
+    saveHeroContent({ title: "Private Access To Off-Market Yachts", subtitle: "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.", titleFont: "font-display", titleSize: "text-7xl md:text-8xl" });
   };
 
   return (
@@ -489,8 +585,8 @@ function SettingsView() {
 
       <div className="space-y-6">
         <div className="bg-[#0f1d33] border border-white/5 p-6">
-          <h2 className="font-display text-lg text-white mb-1">Hero Section</h2>
-          <p className="text-white/40 text-xs mb-6 font-sans">Edit the homepage headline and subtitle visible to all visitors.</p>
+          <h2 className="font-display text-lg text-white mb-1">Homepage Hero</h2>
+          <p className="text-white/40 text-xs mb-6 font-sans">Edit the headline, subtitle, font, and size displayed on the homepage hero.</p>
           <div className="space-y-4">
             <div>
               <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Headline</label>
@@ -509,17 +605,37 @@ function SettingsView() {
                 className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors resize-none"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Font</label>
+                <select
+                  value={titleFont}
+                  onChange={e => setTitleFont(e.target.value)}
+                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
+                >
+                  {FONT_OPTIONS.map(f => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Size</label>
+                <select
+                  value={titleSize}
+                  onChange={e => setTitleSize(e.target.value)}
+                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
+                >
+                  {SIZE_OPTIONS.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="flex gap-3 pt-2">
-              <button
-                onClick={handleSave}
-                className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
-              >
+              <button onClick={handleSave} className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
                 {saved ? "Saved ✓" : "Save Changes"}
               </button>
-              <button
-                onClick={handleReset}
-                className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors"
-              >
+              <button onClick={handleReset} className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors">
                 Reset to Default
               </button>
             </div>

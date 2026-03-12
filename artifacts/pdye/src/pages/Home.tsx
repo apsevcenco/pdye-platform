@@ -5,24 +5,18 @@ import { Shield, TrendingUp, Anchor, FileCheck } from "lucide-react";
 import { YachtCard } from "@/components/ui/YachtCard";
 import { FEATURED_YACHTS } from "@/lib/data";
 import { useState, useEffect } from "react";
+import { getHeroContent, type HeroContent } from "@/lib/content";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
 
-const DEFAULT_TITLE = "Private Access To Off-Market Yachts";
-const DEFAULT_SUBTITLE = "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.";
-
 export default function Home() {
-  const [heroTitle, setHeroTitle] = useState(DEFAULT_TITLE);
-  const [heroSubtitle, setHeroSubtitle] = useState(DEFAULT_SUBTITLE);
+  const [hero, setHero] = useState<HeroContent>(getHeroContent());
 
   useEffect(() => {
-    const savedTitle = localStorage.getItem("heroTitle");
-    const savedSubtitle = localStorage.getItem("heroSubtitle");
-    if (savedTitle) setHeroTitle(savedTitle);
-    if (savedSubtitle) setHeroSubtitle(savedSubtitle);
+    setHero(getHeroContent());
   }, []);
 
   return (
@@ -50,11 +44,11 @@ export default function Home() {
             <span className="text-primary font-bold tracking-[0.2em] text-sm md:text-base uppercase mb-6 inline-block border border-primary/30 px-4 py-1.5 bg-background/30 backdrop-blur-md">
               Exclusive Network
             </span>
-            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl text-white font-bold leading-[1.1] mb-6">
-              {heroTitle}
+            <h1 className={`${hero.titleFont} ${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}>
+              {hero.title}
             </h1>
             <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-sans font-light leading-relaxed mb-10">
-              {heroSubtitle}
+              {hero.subtitle}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
               <Link 

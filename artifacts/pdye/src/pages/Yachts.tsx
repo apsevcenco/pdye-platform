@@ -2,8 +2,13 @@ import { Layout } from "@/components/layout/Layout";
 import { YachtCard } from "@/components/ui/YachtCard";
 import { ALL_YACHTS } from "@/lib/data";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { getPageContent, type PageContent } from "@/lib/content";
 
 export default function Yachts() {
+  const [content, setContent] = useState<PageContent>(getPageContent("yachts"));
+  useEffect(() => { setContent(getPageContent("yachts")); }, []);
+
   return (
     <Layout>
       <div className="pt-32 pb-12 bg-secondary border-b border-white/5">
@@ -13,11 +18,8 @@ export default function Yachts() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-4">Available Inventory</h1>
-            <p className="text-white/60 max-w-2xl font-sans text-lg">
-              Explore our current selection of premium Mediterranean motor and sailing yachts. 
-              Certain highly confidential listings are reserved for approved clients only.
-            </p>
+            <h1 className="font-display text-4xl md:text-5xl text-white mb-4">{content.heading}</h1>
+            <p className="text-white/60 max-w-2xl font-sans text-lg">{content.subheading}</p>
           </motion.div>
         </div>
       </div>

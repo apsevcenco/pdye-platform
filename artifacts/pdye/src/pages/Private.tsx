@@ -3,8 +3,13 @@ import { YachtCard } from "@/components/ui/YachtCard";
 import { FEATURED_YACHTS } from "@/lib/data";
 import { motion } from "framer-motion";
 import { Lock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { getPageContent, type PageContent } from "@/lib/content";
 
 export default function Private() {
+  const [content, setContent] = useState<PageContent>(getPageContent("private"));
+  useEffect(() => { setContent(getPageContent("private")); }, []);
+
   return (
     <Layout>
       <div className="pt-32 pb-12 bg-card border-b border-white/5 relative overflow-hidden">
@@ -17,11 +22,9 @@ export default function Private() {
             className="flex items-center gap-4 mb-4"
           >
             <Lock className="text-primary w-8 h-8" />
-            <h1 className="font-display text-4xl md:text-5xl text-white">Private Deals</h1>
+            <h1 className="font-display text-4xl md:text-5xl text-white">{content.heading}</h1>
           </motion.div>
-          <p className="text-white/60 max-w-2xl font-sans text-lg">
-            Highly confidential opportunities restricted to vetted network members. These assets are strictly off-market and not publicly advertised elsewhere.
-          </p>
+          <p className="text-white/60 max-w-2xl font-sans text-lg">{content.subheading}</p>
         </div>
       </div>
 

@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+import { getPageContent, type PageContent } from "@/lib/content";
 
 const brokerSchema = z.object({
   yachtName: z.string().min(1, "Yacht name is required"),
@@ -18,6 +20,8 @@ type BrokerForm = z.infer<typeof brokerSchema>;
 
 export default function Brokers() {
   const { toast } = useToast();
+  const [content, setContent] = useState<PageContent>(getPageContent("brokers"));
+  useEffect(() => { setContent(getPageContent("brokers")); }, []);
   
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<BrokerForm>({
     resolver: zodResolver(brokerSchema)
@@ -48,10 +52,8 @@ export default function Brokers() {
             <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-4 block">
               Broker Portal
             </span>
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-6">Submit Off-Market Asset</h1>
-            <p className="text-white/60 font-sans text-lg">
-              Partner with PDYE to discreetly expose distressed or highly motivated sales to our vetted network of capable buyers. We respect all co-brokerage agreements.
-            </p>
+            <h1 className="font-display text-4xl md:text-5xl text-white mb-6">{content.heading}</h1>
+            <p className="text-white/60 font-sans text-lg">{content.subheading}</p>
           </motion.div>
         </div>
       </div>

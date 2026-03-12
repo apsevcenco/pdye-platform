@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+import { getPageContent, type PageContent } from "@/lib/content";
 
 const accessSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -17,6 +19,8 @@ type AccessForm = z.infer<typeof accessSchema>;
 
 export default function Access() {
   const { toast } = useToast();
+  const [content, setContent] = useState<PageContent>(getPageContent("access"));
+  useEffect(() => { setContent(getPageContent("access")); }, []);
   
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<AccessForm>({
     resolver: zodResolver(accessSchema)
@@ -62,10 +66,8 @@ export default function Access() {
             <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-4 block">
               Investor Relations
             </span>
-            <h1 className="font-display text-4xl text-white mb-4">Request Access</h1>
-            <p className="text-white/60 mb-10 font-sans leading-relaxed">
-              Membership to the Private Distressed Yacht Exchange is strictly vetted. Please provide your details below to initiate the approval process.
-            </p>
+            <h1 className="font-display text-4xl text-white mb-4">{content.heading}</h1>
+            <p className="text-white/60 mb-10 font-sans leading-relaxed">{content.subheading}</p>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div>
