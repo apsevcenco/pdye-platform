@@ -12,6 +12,7 @@ import Private from "./pages/Private";
 import Brokers from "./pages/Brokers";
 import Login from "./pages/Login";
 import DealRoom from "./pages/DealRoom";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/brokers" component={Brokers} />
       <Route path="/login" component={Login} />
       <Route path="/dealroom" component={DealRoom} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

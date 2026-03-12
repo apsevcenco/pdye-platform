@@ -1,0 +1,64 @@
+body{
+margin:0;
+font-family:DM Sans, sans-serif;
+background:#0b1c2c;
+color:white;
+}
+
+.admin-container{
+display:flex;
+height:100vh;
+}
+
+.sidebar{
+width:250px;
+background:#091523;
+padding:30px;
+display:flex;
+flex-direction:column;
+}
+
+.sidebar h2{
+color:#d4af37;
+margin-bottom:40px;
+}
+
+.sidebar a{
+color:white;
+text-decoration:none;
+margin:10px 0;
+font-size:16px;
+opacity:0.8;
+}
+
+.sidebar a:hover{
+opacity:1;
+color:#d4af37;
+}
+
+.main{
+flex:1;
+padding:40px;
+}
+
+.cards{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:20px;
+margin-top:30px;
+}
+
+.card{
+background:#13283c;
+padding:30px;
+border-radius:8px;
+}
+
+.card h3{
+margin-bottom:10px;
+}
+
+.card p{
+font-size:32px;
+color:#d4af37;
+}
