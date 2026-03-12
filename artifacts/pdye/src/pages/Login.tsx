@@ -49,7 +49,7 @@ export default function Login() {
         >
           <div className="text-center mb-10">
             <span className="font-display font-normal text-4xl tracking-widest text-white mb-2 block">
-              P<span className="text-primary">.</span>D<span className="text-primary">.</span>Y<span className="text-primary">.</span>E<span className="text-primary">.</span>
+              PDYE
             </span>
             <p className="text-white/50 font-sans tracking-wide uppercase text-xs">Secure Client Portal</p>
           </div>
