@@ -513,7 +513,7 @@ export default function Admin() {
             <div className="flex items-center gap-2 group cursor-pointer">
               <Anchor size={24} className="text-primary group-hover:text-white transition-colors flex-shrink-0" strokeWidth={2} />
               <span className="font-display font-normal text-2xl tracking-widest text-white group-hover:text-primary transition-colors">
-                PDYE
+                P<span className="text-primary">.</span>D<span className="text-primary">.</span>Y<span className="text-primary">.</span>E<span className="text-primary">.</span>
               </span>
             </div>
           </Link>
