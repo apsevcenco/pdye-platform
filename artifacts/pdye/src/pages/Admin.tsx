@@ -295,17 +295,50 @@ function YachtsView() {
   const [expandedPhotoYacht, setExpandedPhotoYacht] = useState<string | null>(null);
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [photoSaving, setPhotoSaving] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleAddPhoto(yacht: Yacht) {
+  const BUCKET = "yacht-photos";
+
+  async function ensureBucket() {
+    const { error } = await supabase.storage.createBucket(BUCKET, { public: true });
+    if (error && !error.message.includes("already exists")) throw error;
+  }
+
+  async function handleAddPhotoUrl(yacht: Yacht) {
     const url = newPhotoUrl.trim();
     if (!url) return;
     const current: string[] = yacht.photos || [];
-    if (current.length >= 30) { alert("Maximum 30 photos per yacht."); return; }
+    if (current.length >= 30) { setUploadError("Maximum 30 photos per yacht."); return; }
     setPhotoSaving(true);
+    setUploadError("");
     await supabase.from("yachts").update({ photos: [...current, url] }).eq("id", yacht.id);
     setNewPhotoUrl("");
     setPhotoSaving(false);
     load();
+  }
+
+  async function handleFileUpload(yacht: Yacht, file: File) {
+    const current: string[] = yacht.photos || [];
+    if (current.length >= 30) { setUploadError("Maximum 30 photos per yacht."); return; }
+    setPhotoSaving(true);
+    setUploadError("");
+    try {
+      await ensureBucket();
+      const ext = file.name.split(".").pop();
+      const path = `${yacht.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      const publicUrl = data.publicUrl;
+      await supabase.from("yachts").update({ photos: [...current, publicUrl] }).eq("id", yacht.id);
+      load();
+    } catch (e: any) {
+      setUploadError(e.message || "Upload failed. Ensure the 'yacht-photos' bucket exists in Supabase Storage.");
+    } finally {
+      setPhotoSaving(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   async function handleRemovePhoto(yacht: Yacht, url: string) {
@@ -691,27 +724,58 @@ function YachtsView() {
                           <p className="text-white/20 text-xs font-sans mb-4">No photos yet. Add the first one below.</p>
                         )}
 
-                        {/* Add photo input */}
-                        {(yacht.photos?.length || 0) < 30 && (
-                          <div className="flex gap-2">
-                            <input
-                              value={newPhotoUrl}
-                              onChange={e => setNewPhotoUrl(e.target.value)}
-                              onKeyDown={e => e.key === "Enter" && handleAddPhoto(yacht)}
-                              placeholder="Paste image URL here (https://...)"
-                              className="flex-1 bg-background border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
-                            />
-                            <button
-                              onClick={() => handleAddPhoto(yacht)}
-                              disabled={photoSaving || !newPhotoUrl.trim()}
-                              className="flex items-center gap-2 bg-primary text-background px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-40 whitespace-nowrap"
-                            >
-                              <ImagePlus size={13} />
-                              {photoSaving ? "Adding..." : "Add Photo"}
-                            </button>
+                        {/* Add photo — upload or URL */}
+                        {(yacht.photos?.length || 0) < 30 ? (
+                          <div className="space-y-2">
+                            {/* Row 1: file upload button */}
+                            <div className="flex items-center gap-2">
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={async e => {
+                                  const files = Array.from(e.target.files || []);
+                                  for (const f of files) await handleFileUpload(yacht, f);
+                                }}
+                              />
+                              <button
+                                onClick={() => { setUploadError(""); fileInputRef.current?.click(); }}
+                                disabled={photoSaving}
+                                className="flex items-center gap-2 border border-primary/50 text-primary px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary hover:text-background transition-colors disabled:opacity-40 whitespace-nowrap"
+                              >
+                                <Camera size={13} />
+                                {photoSaving ? "Uploading..." : "Upload Files"}
+                              </button>
+                              <span className="text-white/20 text-xs font-sans">or paste a URL below</span>
+                            </div>
+
+                            {/* Row 2: URL paste */}
+                            <div className="flex gap-2">
+                              <input
+                                value={newPhotoUrl}
+                                onChange={e => setNewPhotoUrl(e.target.value)}
+                                onKeyDown={e => e.key === "Enter" && handleAddPhotoUrl(yacht)}
+                                placeholder="https://example.com/photo.jpg"
+                                className="flex-1 bg-background border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
+                              />
+                              <button
+                                onClick={() => handleAddPhotoUrl(yacht)}
+                                disabled={photoSaving || !newPhotoUrl.trim()}
+                                className="flex items-center gap-2 bg-primary text-background px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-40 whitespace-nowrap"
+                              >
+                                <ImagePlus size={13} />
+                                Add URL
+                              </button>
+                            </div>
+
+                            {/* Error */}
+                            {uploadError && (
+                              <p className="text-red-400 text-xs font-sans">{uploadError}</p>
+                            )}
                           </div>
-                        )}
-                        {(yacht.photos?.length || 0) >= 30 && (
+                        ) : (
                           <p className="text-yellow-400/60 text-xs font-sans">Maximum of 30 photos reached.</p>
                         )}
                       </td>
