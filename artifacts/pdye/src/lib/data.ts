@@ -41,6 +41,7 @@ export interface Yacht {
   distressed_price?: string;
   // Media & Status
   image?: string;
+  photos?: string[];      // Up to 30 gallery photos
   status: string;
   description?: string;
 }

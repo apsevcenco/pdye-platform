@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { Link } from "wouter";
 import { ALL_YACHTS, type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
@@ -25,6 +25,9 @@ import {
   ArrowUpRight,
   PenLine,
   Trash2,
+  Camera,
+  X,
+  ImagePlus,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -286,6 +289,28 @@ function YachtsView() {
   async function handleDelete(id: string) {
     if (!window.confirm("Remove this listing from the database?")) return;
     await supabase.from("yachts").delete().eq("id", id);
+    load();
+  }
+
+  const [expandedPhotoYacht, setExpandedPhotoYacht] = useState<string | null>(null);
+  const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const [photoSaving, setPhotoSaving] = useState(false);
+
+  async function handleAddPhoto(yacht: Yacht) {
+    const url = newPhotoUrl.trim();
+    if (!url) return;
+    const current: string[] = yacht.photos || [];
+    if (current.length >= 30) { alert("Maximum 30 photos per yacht."); return; }
+    setPhotoSaving(true);
+    await supabase.from("yachts").update({ photos: [...current, url] }).eq("id", yacht.id);
+    setNewPhotoUrl("");
+    setPhotoSaving(false);
+    load();
+  }
+
+  async function handleRemovePhoto(yacht: Yacht, url: string) {
+    const updated = (yacht.photos || []).filter(p => p !== url);
+    await supabase.from("yachts").update({ photos: updated }).eq("id", yacht.id);
     load();
   }
 
@@ -575,50 +600,124 @@ function YachtsView() {
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden md:table-cell">Builder</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Location</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Price</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Photos</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Status</th>
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody>
               {yachts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-white/30 text-sm font-sans">
+                  <td colSpan={7} className="px-6 py-16 text-center text-white/30 text-sm font-sans">
                     No listings yet. Click "Add Yacht" to create the first one.
                   </td>
                 </tr>
               )}
               {yachts.map((yacht) => (
-                <tr key={yacht.id} className="hover:bg-white/2 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 overflow-hidden flex-shrink-0 hidden sm:block">
-                        <img src={yacht.image} alt={yacht.name} className="w-full h-full object-cover" />
+                <Fragment key={yacht.id}>
+                  <tr className="border-b border-white/5 hover:bg-white/2 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 overflow-hidden flex-shrink-0 hidden sm:block">
+                          <img src={yacht.image || yacht.photos?.[0]} alt={yacht.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium font-sans text-sm">{yacht.name}</p>
+                          <p className="text-white/40 text-xs">{yacht.length}{yacht.length && yacht.year ? " · " : ""}{yacht.year}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-white font-medium font-sans text-sm">{yacht.name}</p>
-                        <p className="text-white/40 text-xs">{yacht.length}{yacht.length && yacht.year ? " · " : ""}{yacht.year}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{yacht.builder}</td>
-                  <td className="px-6 py-4 text-white/60 text-sm hidden lg:table-cell">{yacht.location}</td>
-                  <td className="px-6 py-4 text-primary text-sm font-medium">{yacht.price}</td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={
-                      yacht.status === "Distressed Sale" ? "review" :
-                      yacht.status === "Confidential" ? "pending" : "active"
-                    } />
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleDelete(yacht.id)}
-                      className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                      title="Delete listing"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{yacht.builder}</td>
+                    <td className="px-6 py-4 text-white/60 text-sm hidden lg:table-cell">{yacht.location}</td>
+                    <td className="px-6 py-4 text-primary text-sm font-medium">{yacht.price}</td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => {
+                          setExpandedPhotoYacht(expandedPhotoYacht === yacht.id ? null : yacht.id);
+                          setNewPhotoUrl("");
+                        }}
+                        className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                          expandedPhotoYacht === yacht.id ? "text-primary" : "text-white/40 hover:text-primary"
+                        }`}
+                      >
+                        <Camera size={13} />
+                        {(yacht.photos?.length || 0)}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={
+                        yacht.status === "Distressed Sale" ? "review" :
+                        yacht.status === "Confidential" ? "pending" : "active"
+                      } />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDelete(yacht.id)}
+                        className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete listing"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Photo management panel */}
+                  {expandedPhotoYacht === yacht.id && (
+                    <tr>
+                      <td colSpan={7} className="bg-[#070f1a] border-b border-white/5 px-6 py-5">
+                        <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-4">
+                          Photo Gallery — {yacht.name} ({yacht.photos?.length || 0} / 30)
+                        </p>
+
+                        {/* Thumbnail grid */}
+                        {yacht.photos && yacht.photos.length > 0 ? (
+                          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2 mb-4">
+                            {yacht.photos.map((url, i) => (
+                              <div key={i} className="relative group/photo aspect-square">
+                                <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-background/60 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                                  <button
+                                    onClick={() => handleRemovePhoto(yacht, url)}
+                                    className="w-6 h-6 bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white transition-colors"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                                <span className="absolute bottom-0 left-0 right-0 text-center text-[9px] text-white/50 bg-background/50 py-0.5">{i + 1}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-white/20 text-xs font-sans mb-4">No photos yet. Add the first one below.</p>
+                        )}
+
+                        {/* Add photo input */}
+                        {(yacht.photos?.length || 0) < 30 && (
+                          <div className="flex gap-2">
+                            <input
+                              value={newPhotoUrl}
+                              onChange={e => setNewPhotoUrl(e.target.value)}
+                              onKeyDown={e => e.key === "Enter" && handleAddPhoto(yacht)}
+                              placeholder="Paste image URL here (https://...)"
+                              className="flex-1 bg-background border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
+                            />
+                            <button
+                              onClick={() => handleAddPhoto(yacht)}
+                              disabled={photoSaving || !newPhotoUrl.trim()}
+                              className="flex items-center gap-2 bg-primary text-background px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-40 whitespace-nowrap"
+                            >
+                              <ImagePlus size={13} />
+                              {photoSaving ? "Adding..." : "Add Photo"}
+                            </button>
+                          </div>
+                        )}
+                        {(yacht.photos?.length || 0) >= 30 && (
+                          <p className="text-yellow-400/60 text-xs font-sans">Maximum of 30 photos reached.</p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
