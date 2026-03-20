@@ -168,7 +168,7 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
         </div>
 
         {/* Secondary specs */}
-        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-white/50 mb-5 font-sans border-t border-white/5 pt-4">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-white/50 mb-4 font-sans border-t border-white/5 pt-4">
           {yacht.cabins != null && (
             <div className="flex items-center gap-1">
               <Bed size={12} className="text-primary/50" />
@@ -193,15 +193,71 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
           {yacht.fuel_type && <span className="text-white/30">{yacht.fuel_type}</span>}
         </div>
 
+        {/* Technical specification grid */}
+        {(yacht.engines || yacht.horse_power || yacht.displacement || yacht.gross_tonnage || yacht.fuel_capacity || yacht.berths != null || yacht.crew != null) && (
+          <div className="border border-white/5 bg-white/2 mb-4">
+            <div className="grid grid-cols-2 divide-x divide-y divide-white/5">
+              {yacht.engines && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Engines</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.engines}</p>
+                </div>
+              )}
+              {yacht.horse_power && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Power</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.horse_power}</p>
+                </div>
+              )}
+              {yacht.displacement && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Displacement</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.displacement}</p>
+                </div>
+              )}
+              {yacht.gross_tonnage && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Gross Tonnage</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.gross_tonnage}</p>
+                </div>
+              )}
+              {yacht.fuel_capacity && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Fuel Capacity</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.fuel_capacity}</p>
+                </div>
+              )}
+              {yacht.berths != null && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Berths</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.berths}</p>
+                </div>
+              )}
+              {yacht.crew != null && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Crew</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.crew}</p>
+                </div>
+              )}
+              {yacht.water_capacity && (
+                <div className="px-3 py-2">
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-sans mb-0.5">Water</p>
+                  <p className="text-white/65 text-[11px] font-sans leading-tight">{yacht.water_capacity}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <p className="text-white/50 text-sm leading-relaxed mb-8 flex-1 line-clamp-2">
           {yacht.description}
         </p>
 
         <Link
-          href={`/yacht/${yacht.id}`}
+          href="/dealroom"
           className="w-full block text-center border border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground py-3 text-sm font-bold tracking-widest uppercase transition-all duration-300 mt-auto"
         >
-          View Details
+          View Deal
         </Link>
       </div>
     </div>
