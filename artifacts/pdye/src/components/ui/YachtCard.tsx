@@ -36,6 +36,7 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
     <div className="group bg-card border border-white/5 hover:border-primary/50 transition-all duration-500 overflow-hidden flex flex-col h-full">
 
       {/* Photo area */}
+      <Link href={`/yacht/${yacht.id}`} className="block">
       <div
         className="relative aspect-[4/3] overflow-hidden"
         onMouseEnter={() => setHovered(true)}
@@ -117,6 +118,7 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
           </div>
         )}
       </div>
+      </Link>
 
       {/* Card body */}
       <div className="p-6 flex flex-col flex-1">
@@ -196,10 +198,10 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
         </p>
 
         <Link
-          href={`/dealroom`}
+          href={`/yacht/${yacht.id}`}
           className="w-full block text-center border border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground py-3 text-sm font-bold tracking-widest uppercase transition-all duration-300 mt-auto"
         >
-          View Deal
+          View Details
         </Link>
       </div>
     </div>
