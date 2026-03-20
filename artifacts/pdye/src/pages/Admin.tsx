@@ -28,6 +28,7 @@ import {
   Trash2,
   Camera,
   X,
+  Sparkles,
   ImagePlus,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
@@ -219,6 +220,29 @@ function YachtsView() {
   const [formPhotoError, setFormPhotoError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const formFileRef = useRef<HTMLInputElement>(null);
+  const [aiEstimating, setAiEstimating] = useState(false);
+  const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number } | null>(null);
+
+  async function estimateWithAI() {
+    setAiEstimating(true);
+    setAiNote(null);
+    try {
+      const payload = { ...form, photos: formPhotos };
+      const res = await fetch("/api/estimate-market-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setF("market_price", data.market_price);
+      setAiNote({ reasoning: data.reasoning, confidence: data.confidence, comparables: data.comparables_count });
+    } catch (e: unknown) {
+      setFormError("AI оценка не удалась: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setAiEstimating(false);
+    }
+  }
 
   useEffect(() => { load(); }, []);
 
@@ -662,9 +686,41 @@ function YachtsView() {
                 <label className={labelCls}>Asking Price *</label>
                 <input className={inputCls} placeholder="€ 12,500,000" value={form.price} onChange={e => setF("price", e.target.value)} />
               </div>
-              <div>
+              <div className="sm:col-span-2 lg:col-span-1">
                 <label className={labelCls}>Market Price</label>
-                <input className={inputCls} placeholder="€ 18,000,000" value={form.market_price} onChange={e => setF("market_price", e.target.value)} />
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls + " flex-1 min-w-0"}
+                    placeholder="€ 18,000,000"
+                    value={form.market_price}
+                    onChange={e => { setF("market_price", e.target.value); setAiNote(null); }}
+                  />
+                  <button
+                    type="button"
+                    onClick={estimateWithAI}
+                    disabled={aiEstimating || !form.name}
+                    title={!form.name ? "Сначала введите название яхты" : "Оценить рыночную цену с помощью ИИ"}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/30 text-primary text-xs font-bold tracking-wider uppercase hover:bg-primary/20 hover:border-primary/60 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {aiEstimating
+                      ? <span className="w-3.5 h-3.5 border border-primary/40 border-t-primary rounded-full animate-spin" />
+                      : <Sparkles size={13} />
+                    }
+                    {aiEstimating ? "..." : "AI"}
+                  </button>
+                </div>
+                {aiNote && (
+                  <div className="mt-2 p-3 bg-primary/5 border border-primary/15 text-xs font-sans">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles size={10} className="text-primary flex-shrink-0" />
+                      <span className="text-primary font-bold uppercase tracking-widest text-[10px]">
+                        ИИ-оценка · Точность: {aiNote.confidence}
+                        {aiNote.comparables > 0 && ` · ${aiNote.comparables} объектов для сравнения`}
+                      </span>
+                    </div>
+                    <p className="text-white/55 leading-relaxed">{aiNote.reasoning}</p>
+                  </div>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Distressed Price</label>
