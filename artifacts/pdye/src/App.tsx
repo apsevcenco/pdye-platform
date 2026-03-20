@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { loadAllCustomFonts } from "@/lib/content";
-import { supabase } from "@/lib/supabase";
 import NotFound from "@/pages/not-found";
 
 // Pages
@@ -25,16 +24,6 @@ function FontLoader() {
   return null;
 }
 
-function SupabaseTest() {
-  useEffect(() => {
-    async function test() {
-      const { data, error } = await supabase.from("yachts").select("*");
-      console.log("Supabase test — data:", data, "| error:", error);
-    }
-    test();
-  }, []);
-  return null;
-}
 
 function Router() {
   return (
@@ -57,7 +46,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <FontLoader />
-        <SupabaseTest />
         <WouterRouter hook={useHashLocation}>
           <Router />
         </WouterRouter>
