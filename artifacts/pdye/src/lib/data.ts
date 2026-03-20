@@ -1,3 +1,10 @@
+export interface YachtDocument {
+  name: string;
+  url: string;
+  size?: string;
+  type?: string;  // PDF, ZIP, DOC, XLS, etc.
+}
+
 export interface Yacht {
   id: string;
   name: string;
@@ -42,6 +49,7 @@ export interface Yacht {
   // Media & Status
   image?: string;
   photos?: string[];      // Up to 30 gallery photos
+  documents?: YachtDocument[];  // Deal room documents
   status: string;
   description?: string;
 }

@@ -306,7 +306,7 @@ export default function YachtDetail() {
 
               <div className="mt-8 space-y-3">
                 <Link
-                  href="/dealroom"
+                  href={`/dealroom/${yacht.id}`}
                   className="block w-full text-center bg-primary text-primary-foreground py-4 font-bold tracking-widest uppercase text-sm hover:bg-primary/90 transition-all duration-300"
                 >
                   Enquire Now

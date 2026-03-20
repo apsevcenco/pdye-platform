@@ -36,6 +36,7 @@ function Router() {
       <Route path="/brokers" component={Brokers} />
       <Route path="/login" component={Login} />
       <Route path="/dealroom" component={DealRoom} />
+      <Route path="/dealroom/:id" component={DealRoom} />
       <Route path="/admin" component={Admin} />
       <Route path="/yacht/:id" component={YachtDetail} />
       <Route component={NotFound} />

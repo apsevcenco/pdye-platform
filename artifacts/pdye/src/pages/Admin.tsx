@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, Fragment } from "react";
 import { Link } from "wouter";
-import { ALL_YACHTS, type Yacht } from "@/lib/data";
+import { ALL_YACHTS, type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
@@ -341,6 +341,11 @@ function YachtsView() {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [expandedDocYacht, setExpandedDocYacht] = useState<string | null>(null);
+  const [docSaving, setDocSaving] = useState(false);
+  const [docError, setDocError] = useState("");
+  const docFileRef = useRef<HTMLInputElement>(null);
+
   const BUCKET = "yacht-photos";
 
   async function savePhotos(yachtId: string, photos: string[]) {
@@ -382,6 +387,52 @@ function YachtsView() {
   async function handleRemovePhoto(yacht: Yacht, url: string) {
     const updated = (yacht.photos || []).filter(p => p !== url);
     await savePhotos(yacht.id, updated);
+  }
+
+  async function saveDocs(yachtId: string, docs: YachtDocument[]) {
+    await supabaseAdmin.from("yachts").update({ documents: docs }).eq("id", yachtId);
+    load();
+  }
+
+  async function handleDocUpload(yacht: Yacht, files: File[]) {
+    setDocSaving(true);
+    setDocError("");
+    try {
+      const current: YachtDocument[] = yacht.documents || [];
+      const newDocs: YachtDocument[] = [];
+      for (const file of files) {
+        const ext = (file.name.split(".").pop() || "bin").toUpperCase();
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("yachtId", yacht.id);
+        fd.append("folder", "docs");
+        const res = await fetch("/api/upload-photo", { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(err.error || "Upload failed");
+        }
+        const { url } = await res.json();
+        const sizeKB = Math.round(file.size / 1024);
+        const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+        newDocs.push({ name: file.name.replace(/\.[^/.]+$/, ""), url, size: sizeStr, type: ext });
+      }
+      await saveDocs(yacht.id, [...current, ...newDocs]);
+    } catch (e: any) {
+      setDocError(e.message || "Upload failed");
+    } finally {
+      setDocSaving(false);
+      if (docFileRef.current) docFileRef.current.value = "";
+    }
+  }
+
+  async function handleRemoveDoc(yacht: Yacht, docUrl: string) {
+    const updated = (yacht.documents || []).filter(d => d.url !== docUrl);
+    await saveDocs(yacht.id, updated);
+  }
+
+  async function handleRenameDoc(yacht: Yacht, docUrl: string, newName: string) {
+    const updated = (yacht.documents || []).map(d => d.url === docUrl ? { ...d, name: newName } : d);
+    await saveDocs(yacht.id, updated);
   }
 
   const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
@@ -765,21 +816,39 @@ function YachtsView() {
                     <td className="px-6 py-4 text-white/60 text-sm hidden lg:table-cell">{yacht.location}</td>
                     <td className="px-6 py-4 text-primary text-sm font-medium">{yacht.price}</td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => {
-                          setExpandedPhotoYacht(expandedPhotoYacht === yacht.id ? null : yacht.id);
-                          setNewPhotoUrl("");
-                          setUploadError("");
-                        }}
-                        className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                          expandedPhotoYacht === yacht.id
-                            ? "border-primary text-primary bg-primary/10"
-                            : "border-white/10 text-white/50 hover:border-primary hover:text-primary"
-                        }`}
-                      >
-                        <Camera size={11} />
-                        {(yacht.photos?.length || 0)} Photos
-                      </button>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => {
+                            setExpandedPhotoYacht(expandedPhotoYacht === yacht.id ? null : yacht.id);
+                            setExpandedDocYacht(null);
+                            setNewPhotoUrl("");
+                            setUploadError("");
+                          }}
+                          className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                            expandedPhotoYacht === yacht.id
+                              ? "border-primary text-primary bg-primary/10"
+                              : "border-white/10 text-white/50 hover:border-primary hover:text-primary"
+                          }`}
+                        >
+                          <Camera size={11} />
+                          {(yacht.photos?.length || 0)} Photos
+                        </button>
+                        <button
+                          onClick={() => {
+                            setExpandedDocYacht(expandedDocYacht === yacht.id ? null : yacht.id);
+                            setExpandedPhotoYacht(null);
+                            setDocError("");
+                          }}
+                          className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                            expandedDocYacht === yacht.id
+                              ? "border-primary text-primary bg-primary/10"
+                              : "border-white/10 text-white/50 hover:border-primary hover:text-primary"
+                          }`}
+                        >
+                          <FileText size={11} />
+                          {(yacht.documents?.length || 0)} Docs
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={
@@ -882,6 +951,84 @@ function YachtsView() {
                         ) : (
                           <p className="text-yellow-400/60 text-xs font-sans">Maximum of 30 photos reached.</p>
                         )}
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* Document management panel */}
+                  {expandedDocYacht === yacht.id && (
+                    <tr>
+                      <td colSpan={7} className="bg-[#070f1a] border-b border-white/5 px-6 py-5">
+                        <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-4">
+                          Deal Room Documents — {yacht.name} ({yacht.documents?.length || 0} files)
+                        </p>
+
+                        {/* Document list */}
+                        {yacht.documents && yacht.documents.length > 0 ? (
+                          <div className="border border-white/5 mb-4">
+                            {yacht.documents.map((doc, i) => (
+                              <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/2 group/doc">
+                                <FileText size={14} className="text-primary/50 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    defaultValue={doc.name}
+                                    onBlur={e => {
+                                      const newName = e.target.value.trim();
+                                      if (newName && newName !== doc.name) handleRenameDoc(yacht, doc.url, newName);
+                                    }}
+                                    className="bg-transparent text-white/80 text-sm font-sans w-full focus:outline-none focus:text-white border-b border-transparent focus:border-white/20 transition-colors"
+                                  />
+                                  <p className="text-white/30 text-[10px] font-sans mt-0.5">
+                                    {doc.type} {doc.size ? `· ${doc.size}` : ""}
+                                  </p>
+                                </div>
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-white/20 hover:text-primary transition-colors opacity-0 group-hover/doc:opacity-100"
+                                  title="Open file"
+                                >
+                                  <Eye size={14} />
+                                </a>
+                                <button
+                                  onClick={() => handleRemoveDoc(yacht, doc.url)}
+                                  className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover/doc:opacity-100"
+                                  title="Remove document"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-white/20 text-xs font-sans mb-4">No documents yet. Upload files below.</p>
+                        )}
+
+                        {/* Upload documents */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={docFileRef}
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,.png,.jpg"
+                            multiple
+                            className="hidden"
+                            onChange={async e => {
+                              const files = Array.from(e.target.files || []);
+                              if (files.length > 0) await handleDocUpload(yacht, files);
+                            }}
+                          />
+                          <button
+                            onClick={() => { setDocError(""); docFileRef.current?.click(); }}
+                            disabled={docSaving}
+                            className="flex items-center gap-2 border border-primary/50 text-primary px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary hover:text-background transition-colors disabled:opacity-40 whitespace-nowrap"
+                          >
+                            <FileText size={13} />
+                            {docSaving ? "Uploading..." : "Upload Documents"}
+                          </button>
+                          <span className="text-white/20 text-xs font-sans">PDF, DOC, XLS, ZIP и другие форматы</span>
+                        </div>
+                        {docError && <p className="text-red-400 text-xs font-sans mt-2">{docError}</p>}
                       </td>
                     </tr>
                   )}

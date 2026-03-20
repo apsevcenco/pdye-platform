@@ -23,8 +23,12 @@ router.post("/upload-photo", upload.single("file"), async (req, res) => {
 
     const supabase = getSupabaseAdmin();
     const yachtId = (req.body.yachtId as string) || "misc";
-    const ext = req.file.originalname.split(".").pop() || "jpg";
-    const path = `${yachtId}/${Date.now()}.${ext}`;
+    const folder = (req.body.folder as string) || "";
+    const ext = req.file.originalname.split(".").pop() || "bin";
+    const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = folder
+      ? `${yachtId}/${folder}/${Date.now()}-${safeName}`
+      : `${yachtId}/${Date.now()}.${ext}`;
 
     const { error: bucketErr } = await supabase.storage.createBucket(BUCKET, { public: true });
     if (bucketErr && !bucketErr.message.includes("already exists")) {
