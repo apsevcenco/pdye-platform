@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Yacht, FEATURED_YACHTS } from "@/lib/data";
+import { useCurrency } from "@/lib/currency";
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80";
 
@@ -35,6 +36,7 @@ export default function YachtDetail() {
   const [loading, setLoading] = useState(true);
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const { formatPrice } = useCurrency();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -288,9 +290,9 @@ export default function YachtDetail() {
               {hasDistressed ? (
                 <>
                   <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-1">Market Value</p>
-                  <p className="font-sans text-white/40 text-lg line-through mb-4">{yacht.market_price}</p>
+                  <p className="font-sans text-white/40 text-lg line-through mb-4">{formatPrice(yacht.market_price!)}</p>
                   <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-1">Distressed Asking Price</p>
-                  <p className="font-display text-4xl text-primary mb-2">{yacht.distressed_price}</p>
+                  <p className="font-display text-4xl text-primary mb-2">{formatPrice(yacht.distressed_price!)}</p>
                   <div className="bg-primary/10 border border-primary/20 px-4 py-2 mt-4">
                     <p className="text-primary text-xs font-sans tracking-widest uppercase text-center font-bold">
                       Distressed Sale Opportunity
@@ -300,7 +302,7 @@ export default function YachtDetail() {
               ) : (
                 <>
                   <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-2">Asking Price</p>
-                  <p className="font-display text-4xl text-primary">{yacht.price}</p>
+                  <p className="font-display text-4xl text-primary">{formatPrice(yacht.price)}</p>
                 </>
               )}
 

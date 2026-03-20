@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Anchor } from "lucide-react";
 import { motion } from "framer-motion";
+import { CurrencySelector } from "@/components/ui/CurrencySelector";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -51,6 +52,8 @@ export function Navbar() {
             </Link>
           ))}
           <div className="h-6 w-[1px] bg-white/20 mx-2"></div>
+          <CurrencySelector compact />
+          <div className="h-6 w-[1px] bg-white/20 mx-2"></div>
           <Link
             href="/login"
             className="text-white/80 hover:text-white font-medium text-sm tracking-wide uppercase transition-colors"
@@ -89,6 +92,11 @@ export function Navbar() {
               {link.name}
             </Link>
           ))}
+          <div className="h-[1px] w-full bg-white/10 my-2"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-white/40 text-xs font-sans tracking-widest uppercase">Currency</span>
+            <CurrencySelector />
+          </div>
           <div className="h-[1px] w-full bg-white/10 my-2"></div>
           <Link
             href="/login"

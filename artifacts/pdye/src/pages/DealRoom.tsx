@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Download, FileText, Activity, ShieldCheck, AlertCircle, ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Yacht, YachtDocument, FEATURED_YACHTS } from "@/lib/data";
+import { useCurrency } from "@/lib/currency";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   PDF: FileText,
@@ -21,6 +22,7 @@ export default function DealRoom() {
   const { id } = useParams<{ id?: string }>();
   const [yacht, setYacht] = useState<Yacht | null>(null);
   const [loading, setLoading] = useState(true);
+  const { formatPrice } = useCurrency();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -245,13 +247,13 @@ export default function DealRoom() {
                   <div className="flex justify-between pt-3">
                     <span className="text-white/50">Asking Price</span>
                     <span className="text-primary font-bold font-display text-lg">
-                      {yacht.distressed_price || yacht.price}
+                      {formatPrice(yacht.distressed_price || yacht.price)}
                     </span>
                   </div>
                   {yacht.distressed_price && yacht.market_price && (
                     <div className="flex justify-between">
                       <span className="text-white/30 text-xs">Market Value</span>
-                      <span className="text-white/30 text-xs line-through">{yacht.market_price}</span>
+                      <span className="text-white/30 text-xs line-through">{formatPrice(yacht.market_price)}</span>
                     </div>
                   )}
                 </div>

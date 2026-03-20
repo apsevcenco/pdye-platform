@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { loadAllCustomFonts } from "@/lib/content";
+import { CurrencyProvider } from "@/lib/currency";
 import NotFound from "@/pages/not-found";
 
 // Pages
@@ -47,13 +48,15 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <FontLoader />
-        <WouterRouter hook={useHashLocation}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <CurrencyProvider>
+        <TooltipProvider>
+          <FontLoader />
+          <WouterRouter hook={useHashLocation}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </CurrencyProvider>
     </QueryClientProvider>
   );
 }

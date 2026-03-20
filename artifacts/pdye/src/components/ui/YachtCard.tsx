@@ -1,7 +1,8 @@
 import { Link } from "wouter";
-import { MapPin, Ruler, Calendar, Anchor, Bed, Bath, Zap, ChevronLeft, ChevronRight, Images } from "lucide-react";
+import { MapPin, Ruler, Anchor, Bed, Bath, Zap, ChevronLeft, ChevronRight, Images } from "lucide-react";
 import { Yacht } from "@/lib/data";
 import { useState } from "react";
+import { useCurrency } from "@/lib/currency";
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80";
 
@@ -11,6 +12,7 @@ interface YachtCardProps {
 }
 
 export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
+  const { formatPrice } = useCurrency();
   const hasDistressed = yacht.distressed_price && yacht.market_price;
 
   const allPhotos: string[] = (() => {
@@ -130,11 +132,11 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
           <div className="text-right">
             {hasDistressed ? (
               <>
-                <p className="font-display text-lg text-primary">{yacht.distressed_price}</p>
-                <p className="text-white/40 text-xs line-through font-sans mt-0.5">{yacht.market_price}</p>
+                <p className="font-display text-lg text-primary">{formatPrice(yacht.distressed_price!)}</p>
+                <p className="text-white/40 text-xs line-through font-sans mt-0.5">{formatPrice(yacht.market_price!)}</p>
               </>
             ) : (
-              <p className="font-display text-lg text-primary">{yacht.price}</p>
+              <p className="font-display text-lg text-primary">{formatPrice(yacht.price)}</p>
             )}
           </div>
         </div>
