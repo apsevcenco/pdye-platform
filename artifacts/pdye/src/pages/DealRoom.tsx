@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { Download, FileText, Activity, ShieldCheck, AlertCircle, ArrowLeft, Anchor } from "lucide-react";
+import { Download, FileText, Activity, ShieldCheck, AlertCircle, ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Yacht, YachtDocument, FEATURED_YACHTS } from "@/lib/data";
 
@@ -67,8 +67,25 @@ export default function DealRoom() {
     );
   }
 
-  const documents: YachtDocument[] = yacht.documents || [];
+  const uploadedDocs: YachtDocument[] = yacht.documents || [];
   const coverImage = yacht.photos?.[0] || yacht.image;
+
+  const DEFAULT_DOCS = [
+    { name: "General Arrangement & Specs", type: "PDF", size: "2.4 MB", Icon: FileText, url: null },
+    { name: "Recent Condition Survey", type: "PDF", size: "14.1 MB", Icon: Activity, url: null },
+    { name: "Registration & Title Docs", type: "ZIP", size: "5.2 MB", Icon: ShieldCheck, url: null },
+    { name: "Terms of Sale / NDA", type: "PDF", size: "1.1 MB", Icon: AlertCircle, url: null },
+  ];
+
+  const displayDocs = uploadedDocs.length > 0
+    ? uploadedDocs.map(d => ({
+        name: d.name,
+        type: d.type || "FILE",
+        size: d.size || "",
+        Icon: ICON_MAP[d.type || ""] || ICON_MAP.default,
+        url: d.url,
+      }))
+    : DEFAULT_DOCS;
 
   return (
     <Layout>
@@ -119,55 +136,46 @@ export default function DealRoom() {
           <div className="w-full lg:w-2/3">
             <h2 className="font-display text-2xl text-white mb-6">Due Diligence Documents</h2>
 
-            {documents.length > 0 ? (
-              <div className="bg-card border border-white/5 flex flex-col">
-                {documents.map((doc, idx) => {
-                  const Icon = ICON_MAP[doc.type || ""] || ICON_MAP.default;
-                  return (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.08 }}
-                      className="flex items-center justify-between p-6 border-b border-white/5 hover:bg-white/[0.02] transition-colors group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-background flex items-center justify-center border border-white/10 text-primary flex-shrink-0">
-                          <Icon size={20} />
-                        </div>
-                        <div>
-                          <h4 className="text-white font-medium font-sans group-hover:text-primary transition-colors">{doc.name}</h4>
-                          <p className="text-white/40 text-xs uppercase tracking-wider mt-1">
-                            {doc.type || "FILE"}{doc.size ? ` · ${doc.size}` : ""}
-                          </p>
-                        </div>
-                      </div>
+            <div className="bg-card border border-white/5 flex flex-col">
+              {displayDocs.map((doc, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.08 }}
+                  className="flex items-center justify-between p-6 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-background flex items-center justify-center border border-white/10 text-primary flex-shrink-0">
+                      <doc.Icon size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-white font-medium font-sans group-hover:text-primary transition-colors">{doc.name}</h4>
+                      <p className="text-white/40 text-xs uppercase tracking-wider mt-1">
+                        {doc.type}{doc.size ? ` · ${doc.size}` : ""}
+                      </p>
+                    </div>
+                  </div>
 
-                      <a
-                        href={doc.url}
-                        download
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/60 hover:bg-primary hover:text-background hover:border-primary transition-all duration-300 flex-shrink-0"
-                        title="Download"
-                      >
-                        <Download size={18} />
-                      </a>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="bg-card border border-white/5 p-12 text-center">
-                <FileText size={32} className="text-white/15 mx-auto mb-4" />
-                <p className="text-white/40 font-sans text-sm">
-                  Documents for this vessel have not been uploaded yet.
-                </p>
-                <p className="text-white/25 font-sans text-xs mt-2">
-                  Contact our brokers to request due diligence materials.
-                </p>
-              </div>
-            )}
+                  {doc.url ? (
+                    <a
+                      href={doc.url}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/60 hover:bg-primary hover:text-background hover:border-primary transition-all duration-300 flex-shrink-0"
+                      title="Download"
+                    >
+                      <Download size={18} />
+                    </a>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-white/20 flex-shrink-0">
+                      <Download size={18} />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
 
             <div className="mt-8 bg-primary/10 border border-primary/20 p-6">
               <h4 className="text-primary font-bold uppercase tracking-wider text-sm mb-2">Confidentiality Notice</h4>
