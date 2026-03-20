@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
-import { ALL_YACHTS } from "@/lib/data";
+import { ALL_YACHTS, type Yacht } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
   Ship,
@@ -23,6 +24,7 @@ import {
   ChevronRight,
   ArrowUpRight,
   PenLine,
+  Trash2,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -189,57 +191,224 @@ function Dashboard() {
 }
 
 function YachtsView() {
+  const [yachts, setYachts] = useState<Yacht[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: "", length: "", year: "", builder: "", location: "",
+    price: "", marketPrice: "", distressedPrice: "",
+    image: "", status: "Off-Market", description: "",
+  });
+  const [formError, setFormError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabase.from("yachts").select("*");
+    setYachts((data as Yacht[]) || []);
+    setLoading(false);
+  }
+
+  function setF(key: string, val: string) {
+    setForm(f => ({ ...f, [key]: val }));
+  }
+
+  async function handleAdd() {
+    if (!form.name.trim() || !form.price.trim()) {
+      setFormError("Vessel name and asking price are required.");
+      return;
+    }
+    setSaving(true);
+    setFormError("");
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      length: form.length,
+      year: form.year ? parseInt(form.year) : null,
+      builder: form.builder,
+      location: form.location,
+      price: form.price,
+      status: form.status,
+      description: form.description,
+      image: form.image || "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80",
+    };
+    if (form.marketPrice) payload.marketPrice = form.marketPrice;
+    if (form.distressedPrice) payload.distressedPrice = form.distressedPrice;
+
+    const { error } = await supabase.from("yachts").insert([payload]);
+    setSaving(false);
+    if (error) {
+      setFormError(error.message);
+    } else {
+      setSuccessMsg("Yacht added to database.");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      setForm({ name: "", length: "", year: "", builder: "", location: "", price: "", marketPrice: "", distressedPrice: "", image: "", status: "Off-Market", description: "" });
+      setShowForm(false);
+      load();
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Remove this listing from the database?")) return;
+    await supabase.from("yachts").delete().eq("id", id);
+    load();
+  }
+
+  const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+  const labelCls = "block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-sans";
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-3xl text-white font-bold">Yachts</h1>
-          <p className="text-white/50 text-sm font-sans mt-1">{ALL_YACHTS.length} listings in database</p>
+          <p className="text-white/50 text-sm font-sans mt-1">{loading ? "Loading..." : `${yachts.length} listings in database`}</p>
         </div>
-        <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">
-          <Plus size={14} /> Add Yacht
+        <button
+          onClick={() => { setShowForm(s => !s); setFormError(""); }}
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors"
+        >
+          <Plus size={14} /> {showForm ? "Cancel" : "Add Yacht"}
         </button>
       </div>
-      <div className="bg-[#0f1d33] border border-white/5">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-white/5">
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Vessel</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden md:table-cell">Builder</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Location</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Price</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Status</th>
-              <th className="px-6 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {ALL_YACHTS.map((yacht) => (
-              <tr key={yacht.id} className="hover:bg-white/2 transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 overflow-hidden flex-shrink-0 hidden sm:block">
-                      <img src={yacht.image} alt={yacht.name} className="w-full h-full object-cover" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium font-sans text-sm">{yacht.name}</p>
-                      <p className="text-white/40 text-xs">{yacht.length} · {yacht.year}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{yacht.builder}</td>
-                <td className="px-6 py-4 text-white/60 text-sm hidden lg:table-cell">{yacht.location}</td>
-                <td className="px-6 py-4 text-primary text-sm font-medium">{yacht.price}</td>
-                <td className="px-6 py-4"><StatusBadge status={yacht.status.toLowerCase().replace(" ", "-") === "off-market" ? "active" : "review"} /></td>
-                <td className="px-6 py-4 text-right">
-                  <button className="text-white/30 hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
-                    <Eye size={16} />
-                  </button>
-                </td>
+
+      {showForm && (
+        <div className="bg-[#0f1d33] border border-white/5 p-6 mb-6">
+          <h2 className="font-display text-lg text-white mb-5">New Listing</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="lg:col-span-2">
+              <label className={labelCls}>Vessel Name *</label>
+              <input className={inputCls} placeholder="e.g. AURELIA" value={form.name} onChange={e => setF("name", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Status *</label>
+              <select className={inputCls} value={form.status} onChange={e => setF("status", e.target.value)}>
+                <option>Off-Market</option>
+                <option>Distressed Sale</option>
+                <option>Confidential</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Builder</label>
+              <input className={inputCls} placeholder="e.g. Sunseeker" value={form.builder} onChange={e => setF("builder", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Length</label>
+              <input className={inputCls} placeholder="e.g. 38.5m" value={form.length} onChange={e => setF("length", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Year</label>
+              <input className={inputCls} placeholder="e.g. 2019" value={form.year} onChange={e => setF("year", e.target.value)} type="number" />
+            </div>
+            <div>
+              <label className={labelCls}>Location</label>
+              <input className={inputCls} placeholder="e.g. Monaco" value={form.location} onChange={e => setF("location", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Asking Price *</label>
+              <input className={inputCls} placeholder="e.g. € 12,500,000" value={form.price} onChange={e => setF("price", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Market Price (optional)</label>
+              <input className={inputCls} placeholder="e.g. € 18,000,000" value={form.marketPrice} onChange={e => setF("marketPrice", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Distressed Price (optional)</label>
+              <input className={inputCls} placeholder="e.g. € 10,000,000" value={form.distressedPrice} onChange={e => setF("distressedPrice", e.target.value)} />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className={labelCls}>Image URL (leave blank for default)</label>
+              <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className={labelCls}>Description</label>
+              <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Short description for the listing..." value={form.description} onChange={e => setF("description", e.target.value)} />
+            </div>
+          </div>
+          {formError && <p className="text-red-400 text-xs font-sans mb-4">{formError}</p>}
+          {successMsg && <p className="text-green-400 text-xs font-sans mb-4">{successMsg}</p>}
+          <div className="flex gap-3">
+            <button
+              onClick={handleAdd}
+              disabled={saving}
+              className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save to Database"}
+            </button>
+            <button
+              onClick={() => { setShowForm(false); setFormError(""); }}
+              className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-[#0f1d33] border border-white/5 flex items-center justify-center py-16">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="bg-[#0f1d33] border border-white/5">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/5">
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Vessel</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden md:table-cell">Builder</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Location</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Price</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Status</th>
+                <th className="px-6 py-4"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {yachts.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center text-white/30 text-sm font-sans">
+                    No listings yet. Click "Add Yacht" to create the first one.
+                  </td>
+                </tr>
+              )}
+              {yachts.map((yacht) => (
+                <tr key={yacht.id} className="hover:bg-white/2 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 overflow-hidden flex-shrink-0 hidden sm:block">
+                        <img src={yacht.image} alt={yacht.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <p className="text-white font-medium font-sans text-sm">{yacht.name}</p>
+                        <p className="text-white/40 text-xs">{yacht.length}{yacht.length && yacht.year ? " · " : ""}{yacht.year}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{yacht.builder}</td>
+                  <td className="px-6 py-4 text-white/60 text-sm hidden lg:table-cell">{yacht.location}</td>
+                  <td className="px-6 py-4 text-primary text-sm font-medium">{yacht.price}</td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={
+                      yacht.status === "Distressed Sale" ? "review" :
+                      yacht.status === "Confidential" ? "pending" : "active"
+                    } />
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => handleDelete(yacht.id)}
+                      className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete listing"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
