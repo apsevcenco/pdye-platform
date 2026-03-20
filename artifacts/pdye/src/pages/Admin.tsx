@@ -221,7 +221,7 @@ function YachtsView() {
   const [dragOver, setDragOver] = useState(false);
   const formFileRef = useRef<HTMLInputElement>(null);
   const [aiEstimating, setAiEstimating] = useState(false);
-  const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number } | null>(null);
+  const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
 
   async function estimateWithAI() {
     setAiEstimating(true);
@@ -236,7 +236,7 @@ function YachtsView() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setF("market_price", data.market_price);
-      setAiNote({ reasoning: data.reasoning, confidence: data.confidence, comparables: data.comparables_count });
+      setAiNote({ reasoning: data.reasoning, confidence: data.confidence, comparables: 0, sources: data.sources });
     } catch (e: unknown) {
       setFormError("AI оценка не удалась: " + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -699,26 +699,35 @@ function YachtsView() {
                     type="button"
                     onClick={estimateWithAI}
                     disabled={aiEstimating || !form.name}
-                    title={!form.name ? "Сначала введите название яхты" : "Оценить рыночную цену с помощью ИИ"}
+                    title={!form.name ? "Сначала введите название яхты" : "Найти цены на рынке и оценить стоимость"}
                     className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/30 text-primary text-xs font-bold tracking-wider uppercase hover:bg-primary/20 hover:border-primary/60 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {aiEstimating
                       ? <span className="w-3.5 h-3.5 border border-primary/40 border-t-primary rounded-full animate-spin" />
                       : <Sparkles size={13} />
                     }
-                    {aiEstimating ? "..." : "AI"}
+                    {aiEstimating ? "Поиск..." : "AI"}
                   </button>
                 </div>
+                {aiEstimating && (
+                  <p className="mt-1.5 text-[10px] text-white/30 font-sans">
+                    Поиск актуальных цен на YachtWorld, RightBoat, TheYachtMarket... (30–60 сек)
+                  </p>
+                )}
                 {aiNote && (
-                  <div className="mt-2 p-3 bg-primary/5 border border-primary/15 text-xs font-sans">
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="mt-2 p-3 bg-primary/5 border border-primary/15 text-xs font-sans space-y-1.5">
+                    <div className="flex items-center gap-2">
                       <Sparkles size={10} className="text-primary flex-shrink-0" />
                       <span className="text-primary font-bold uppercase tracking-widest text-[10px]">
-                        ИИ-оценка · Точность: {aiNote.confidence}
-                        {aiNote.comparables > 0 && ` · ${aiNote.comparables} объектов для сравнения`}
+                        Оценка по живым данным рынка · Точность: {aiNote.confidence}
                       </span>
                     </div>
-                    <p className="text-white/55 leading-relaxed">{aiNote.reasoning}</p>
+                    <p className="text-white/65 leading-relaxed">{aiNote.reasoning}</p>
+                    {aiNote.sources && (
+                      <p className="text-white/35 text-[10px] leading-relaxed">
+                        Источники: {aiNote.sources}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
