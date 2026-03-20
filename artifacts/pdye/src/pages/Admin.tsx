@@ -214,6 +214,11 @@ function YachtsView() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [formPhotos, setFormPhotos] = useState<string[]>([]);
+  const [formPhotoSaving, setFormPhotoSaving] = useState(false);
+  const [formPhotoError, setFormPhotoError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const formFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -226,6 +231,36 @@ function YachtsView() {
 
   function setF(key: string, val: string) {
     setForm(f => ({ ...f, [key]: val }));
+  }
+
+  async function handleFormPhotoUpload(files: File[]) {
+    if (formPhotos.length + files.length > 30) {
+      setFormPhotoError(`Максимум 30 фото. Можно добавить ещё ${30 - formPhotos.length}.`);
+      return;
+    }
+    setFormPhotoSaving(true);
+    setFormPhotoError("");
+    const newUrls: string[] = [];
+    try {
+      const { error: bucketErr } = await supabaseAdmin.storage.createBucket("yacht-photos", { public: true });
+      if (bucketErr && !bucketErr.message.includes("already exists")) throw bucketErr;
+      for (const file of files) {
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `new/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabaseAdmin.storage
+          .from("yacht-photos")
+          .upload(path, file, { contentType: file.type, upsert: true });
+        if (upErr) throw upErr;
+        const { data } = supabaseAdmin.storage.from("yacht-photos").getPublicUrl(path);
+        newUrls.push(data.publicUrl);
+      }
+      setFormPhotos(prev => [...prev, ...newUrls]);
+    } catch (e: any) {
+      setFormPhotoError(e.message || "Ошибка загрузки");
+    } finally {
+      setFormPhotoSaving(false);
+      if (formFileRef.current) formFileRef.current.value = "";
+    }
   }
 
   async function handleAdd() {
@@ -270,8 +305,9 @@ function YachtsView() {
       price: form.price,
       market_price: str(form.market_price),
       distressed_price: str(form.distressed_price),
-      image: str(form.image) || "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80",
+      image: str(form.image) || (formPhotos[0] ?? "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80"),
       description: str(form.description),
+      photos: formPhotos.length > 0 ? formPhotos : null,
     };
 
     const { error } = await supabaseAdmin.from("yachts").insert([payload]);
@@ -282,6 +318,7 @@ function YachtsView() {
       setSuccessMsg("Yacht added to database.");
       setTimeout(() => setSuccessMsg(""), 3000);
       setForm(EMPTY_FORM);
+      setFormPhotos([]);
       setShowForm(false);
       load();
     }
@@ -594,12 +631,76 @@ function YachtsView() {
             </div>
           </div>
 
-          {/* Media & Description */}
+          {/* Photos & Description */}
           <div>
-            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Media & Description</p>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Photos & Description</p>
             <div className="space-y-4">
+
+              {/* Drag-and-drop upload zone */}
               <div>
-                <label className={labelCls}>Image URL (leave blank for default)</label>
+                <label className={labelCls}>Photos ({formPhotos.length}/30)</label>
+                <input
+                  ref={formFileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={e => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length > 0) handleFormPhotoUpload(files);
+                  }}
+                />
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+                    if (files.length > 0) handleFormPhotoUpload(files);
+                  }}
+                  onClick={() => formFileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center py-8 gap-3 ${
+                    dragOver ? "border-primary bg-primary/5" : "border-white/10 hover:border-primary/50 hover:bg-white/2"
+                  }`}
+                >
+                  {formPhotoSaving ? (
+                    <>
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <p className="text-white/50 text-sm font-sans">Загружаю...</p>
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={28} className="text-primary/50" />
+                      <div className="text-center">
+                        <p className="text-white/70 text-sm font-sans">Перетащи фото сюда или <span className="text-primary">нажми для выбора</span></p>
+                        <p className="text-white/30 text-xs font-sans mt-1">JPG, PNG, WebP — до 20 МБ каждый, максимум 30 фото</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {formPhotoError && <p className="text-red-400 text-xs font-sans mt-2">{formPhotoError}</p>}
+
+                {/* Preview thumbnails */}
+                {formPhotos.length > 0 && (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2 mt-3">
+                    {formPhotos.map((url, i) => (
+                      <div key={i} className="relative group/thumb aspect-square">
+                        <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={e => { e.stopPropagation(); setFormPhotos(prev => prev.filter((_, j) => j !== i)); }}
+                          className="absolute inset-0 bg-background/70 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity"
+                        >
+                          <X size={14} className="text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className={labelCls}>Image URL (если нет загруженных фото)</label>
                 <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
               </div>
               <div>
