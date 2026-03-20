@@ -35,8 +35,8 @@ export default function Yachts() {
   const filtered = yachts.filter((y) => {
     if (activeFilter === "All") return true;
     if (activeFilter === "Distressed Deals") return y.status === "Distressed Sale";
-    if (activeFilter === "Motor Yachts") return y.status !== "Distressed Sale" && y.status !== "Sailing";
-    if (activeFilter === "Sailing Yachts") return y.status === "Sailing";
+    if (activeFilter === "Motor Yachts") return y.type === "Motor Yacht" || y.type === "Sport Cruiser" || y.type === "Superyacht" || y.type === "Mega Yacht" || y.type === "Explorer";
+    if (activeFilter === "Sailing Yachts") return y.type === "Sailing Yacht" || y.type === "Catamaran";
     return true;
   });
 

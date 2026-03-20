@@ -195,11 +195,19 @@ function YachtsView() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "", length: "", year: "", builder: "", location: "",
-    price: "", marketPrice: "", distressedPrice: "",
-    image: "", status: "Off-Market", description: "",
-  });
+  const EMPTY_FORM = {
+    name: "", type: "Motor Yacht", status: "Off-Market", condition: "Used", flag: "",
+    builder: "", year: "", refit: "",
+    length: "", beam: "", draft: "", displacement: "", gross_tonnage: "",
+    hull_material: "Fiberglass", hull_type: "Monohull",
+    engines: "", engine_count: "", horse_power: "", fuel_type: "Diesel",
+    fuel_capacity: "", water_capacity: "",
+    max_speed: "", cruise_speed: "", range: "",
+    cabins: "", heads: "", berths: "", crew: "",
+    location: "", price: "", market_price: "", distressed_price: "",
+    image: "", description: "",
+  };
+  const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -223,19 +231,44 @@ function YachtsView() {
     }
     setSaving(true);
     setFormError("");
+    const num = (v: string) => v ? parseInt(v) : null;
+    const str = (v: string) => v.trim() || null;
     const payload: Record<string, unknown> = {
       name: form.name,
-      length: form.length,
-      year: form.year ? parseInt(form.year) : null,
-      builder: form.builder,
-      location: form.location,
-      price: form.price,
+      type: str(form.type),
       status: form.status,
-      description: form.description,
-      image: form.image || "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80",
+      condition: str(form.condition),
+      flag: str(form.flag),
+      builder: str(form.builder),
+      year: num(form.year),
+      refit: num(form.refit),
+      length: str(form.length),
+      beam: str(form.beam),
+      draft: str(form.draft),
+      displacement: str(form.displacement),
+      gross_tonnage: str(form.gross_tonnage),
+      hull_material: str(form.hull_material),
+      hull_type: str(form.hull_type),
+      engines: str(form.engines),
+      engine_count: num(form.engine_count),
+      horse_power: str(form.horse_power),
+      fuel_type: str(form.fuel_type),
+      fuel_capacity: str(form.fuel_capacity),
+      water_capacity: str(form.water_capacity),
+      max_speed: str(form.max_speed),
+      cruise_speed: str(form.cruise_speed),
+      range: str(form.range),
+      cabins: num(form.cabins),
+      heads: num(form.heads),
+      berths: num(form.berths),
+      crew: num(form.crew),
+      location: str(form.location),
+      price: form.price,
+      market_price: str(form.market_price),
+      distressed_price: str(form.distressed_price),
+      image: str(form.image) || "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80",
+      description: str(form.description),
     };
-    if (form.marketPrice) payload.marketPrice = form.marketPrice;
-    if (form.distressedPrice) payload.distressedPrice = form.distressedPrice;
 
     const { error } = await supabase.from("yachts").insert([payload]);
     setSaving(false);
@@ -244,7 +277,7 @@ function YachtsView() {
     } else {
       setSuccessMsg("Yacht added to database.");
       setTimeout(() => setSuccessMsg(""), 3000);
-      setForm({ name: "", length: "", year: "", builder: "", location: "", price: "", marketPrice: "", distressedPrice: "", image: "", status: "Off-Market", description: "" });
+      setForm(EMPTY_FORM);
       setShowForm(false);
       load();
     }
@@ -275,61 +308,243 @@ function YachtsView() {
       </div>
 
       {showForm && (
-        <div className="bg-[#0f1d33] border border-white/5 p-6 mb-6">
-          <h2 className="font-display text-lg text-white mb-5">New Listing</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-            <div className="lg:col-span-2">
-              <label className={labelCls}>Vessel Name *</label>
-              <input className={inputCls} placeholder="e.g. AURELIA" value={form.name} onChange={e => setF("name", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Status *</label>
-              <select className={inputCls} value={form.status} onChange={e => setF("status", e.target.value)}>
-                <option>Off-Market</option>
-                <option>Distressed Sale</option>
-                <option>Confidential</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Builder</label>
-              <input className={inputCls} placeholder="e.g. Sunseeker" value={form.builder} onChange={e => setF("builder", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Length</label>
-              <input className={inputCls} placeholder="e.g. 38.5m" value={form.length} onChange={e => setF("length", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Year</label>
-              <input className={inputCls} placeholder="e.g. 2019" value={form.year} onChange={e => setF("year", e.target.value)} type="number" />
-            </div>
-            <div>
-              <label className={labelCls}>Location</label>
-              <input className={inputCls} placeholder="e.g. Monaco" value={form.location} onChange={e => setF("location", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Asking Price *</label>
-              <input className={inputCls} placeholder="e.g. € 12,500,000" value={form.price} onChange={e => setF("price", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Market Price (optional)</label>
-              <input className={inputCls} placeholder="e.g. € 18,000,000" value={form.marketPrice} onChange={e => setF("marketPrice", e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Distressed Price (optional)</label>
-              <input className={inputCls} placeholder="e.g. € 10,000,000" value={form.distressedPrice} onChange={e => setF("distressedPrice", e.target.value)} />
-            </div>
-            <div className="sm:col-span-2 lg:col-span-3">
-              <label className={labelCls}>Image URL (leave blank for default)</label>
-              <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
-            </div>
-            <div className="sm:col-span-2 lg:col-span-3">
-              <label className={labelCls}>Description</label>
-              <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Short description for the listing..." value={form.description} onChange={e => setF("description", e.target.value)} />
+        <div className="bg-[#0f1d33] border border-white/5 p-6 mb-6 space-y-6">
+          <h2 className="font-display text-lg text-white">New Listing</h2>
+
+          {/* Classification */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Classification</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <label className={labelCls}>Vessel Name *</label>
+                <input className={inputCls} placeholder="e.g. AURELIA" value={form.name} onChange={e => setF("name", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Status *</label>
+                <select className={inputCls} value={form.status} onChange={e => setF("status", e.target.value)}>
+                  <option>Off-Market</option>
+                  <option>Distressed Sale</option>
+                  <option>Confidential</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Type</label>
+                <select className={inputCls} value={form.type} onChange={e => setF("type", e.target.value)}>
+                  <option>Motor Yacht</option>
+                  <option>Sailing Yacht</option>
+                  <option>Catamaran</option>
+                  <option>Sport Cruiser</option>
+                  <option>Superyacht</option>
+                  <option>Mega Yacht</option>
+                  <option>Explorer</option>
+                  <option>Classic Yacht</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Condition</label>
+                <select className={inputCls} value={form.condition} onChange={e => setF("condition", e.target.value)}>
+                  <option>Used</option>
+                  <option>New</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Flag / Registration</label>
+                <input className={inputCls} placeholder="e.g. Cayman Islands" value={form.flag} onChange={e => setF("flag", e.target.value)} />
+              </div>
             </div>
           </div>
-          {formError && <p className="text-red-400 text-xs font-sans mb-4">{formError}</p>}
-          {successMsg && <p className="text-green-400 text-xs font-sans mb-4">{successMsg}</p>}
-          <div className="flex gap-3">
+
+          {/* Builder */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Builder & Year</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className={labelCls}>Builder / Brand</label>
+                <input className={inputCls} placeholder="e.g. Sunseeker" value={form.builder} onChange={e => setF("builder", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Year Built</label>
+                <input className={inputCls} type="number" placeholder="e.g. 2019" value={form.year} onChange={e => setF("year", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Last Refit</label>
+                <input className={inputCls} type="number" placeholder="e.g. 2022" value={form.refit} onChange={e => setF("refit", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Dimensions */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Dimensions</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div>
+                <label className={labelCls}>Length (LOA)</label>
+                <input className={inputCls} placeholder="38.5m" value={form.length} onChange={e => setF("length", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Beam</label>
+                <input className={inputCls} placeholder="7.6m" value={form.beam} onChange={e => setF("beam", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Draft</label>
+                <input className={inputCls} placeholder="1.9m" value={form.draft} onChange={e => setF("draft", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Displacement</label>
+                <input className={inputCls} placeholder="145 t" value={form.displacement} onChange={e => setF("displacement", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Gross Tonnage</label>
+                <input className={inputCls} placeholder="420 GT" value={form.gross_tonnage} onChange={e => setF("gross_tonnage", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Hull */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Hull</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Hull Material</label>
+                <select className={inputCls} value={form.hull_material} onChange={e => setF("hull_material", e.target.value)}>
+                  <option>Fiberglass</option>
+                  <option>Steel</option>
+                  <option>Aluminum</option>
+                  <option>Composite</option>
+                  <option>Wood</option>
+                  <option>Ferro-Cement</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Hull Type</label>
+                <select className={inputCls} value={form.hull_type} onChange={e => setF("hull_type", e.target.value)}>
+                  <option>Monohull</option>
+                  <option>Catamaran</option>
+                  <option>Trimaran</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Engines & Fuel */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Engines & Fuel</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className={labelCls}>Engine Description</label>
+                <input className={inputCls} placeholder="e.g. Twin MTU 16V 2000 M94" value={form.engines} onChange={e => setF("engines", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>No. of Engines</label>
+                <input className={inputCls} type="number" placeholder="2" value={form.engine_count} onChange={e => setF("engine_count", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Total Horsepower</label>
+                <input className={inputCls} placeholder="e.g. 2 × 1,450 hp" value={form.horse_power} onChange={e => setF("horse_power", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Fuel Type</label>
+                <select className={inputCls} value={form.fuel_type} onChange={e => setF("fuel_type", e.target.value)}>
+                  <option>Diesel</option>
+                  <option>Gasoline</option>
+                  <option>Electric</option>
+                  <option>Hybrid</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Fuel Capacity</label>
+                <input className={inputCls} placeholder="e.g. 28,000 L" value={form.fuel_capacity} onChange={e => setF("fuel_capacity", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Water Capacity</label>
+                <input className={inputCls} placeholder="e.g. 4,000 L" value={form.water_capacity} onChange={e => setF("water_capacity", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Performance */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Performance</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className={labelCls}>Max Speed</label>
+                <input className={inputCls} placeholder="e.g. 18 kn" value={form.max_speed} onChange={e => setF("max_speed", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Cruise Speed</label>
+                <input className={inputCls} placeholder="e.g. 14 kn" value={form.cruise_speed} onChange={e => setF("cruise_speed", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Range</label>
+                <input className={inputCls} placeholder="e.g. 3,200 nm" value={form.range} onChange={e => setF("range", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Accommodation */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Accommodation</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <label className={labelCls}>Guest Cabins</label>
+                <input className={inputCls} type="number" placeholder="5" value={form.cabins} onChange={e => setF("cabins", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Heads (Bathrooms)</label>
+                <input className={inputCls} type="number" placeholder="5" value={form.heads} onChange={e => setF("heads", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Berths</label>
+                <input className={inputCls} type="number" placeholder="10" value={form.berths} onChange={e => setF("berths", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Crew Cabins</label>
+                <input className={inputCls} type="number" placeholder="4" value={form.crew} onChange={e => setF("crew", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Location & Pricing */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Location & Pricing</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className={labelCls}>Location</label>
+                <input className={inputCls} placeholder="e.g. Monaco" value={form.location} onChange={e => setF("location", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Asking Price *</label>
+                <input className={inputCls} placeholder="€ 12,500,000" value={form.price} onChange={e => setF("price", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Market Price</label>
+                <input className={inputCls} placeholder="€ 18,000,000" value={form.market_price} onChange={e => setF("market_price", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Distressed Price</label>
+                <input className={inputCls} placeholder="€ 10,000,000" value={form.distressed_price} onChange={e => setF("distressed_price", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Media & Description */}
+          <div>
+            <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Media & Description</p>
+            <div className="space-y-4">
+              <div>
+                <label className={labelCls}>Image URL (leave blank for default)</label>
+                <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Confidential notes for qualified buyers..." value={form.description} onChange={e => setF("description", e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {formError && <p className="text-red-400 text-xs font-sans">{formError}</p>}
+          {successMsg && <p className="text-green-400 text-xs font-sans">{successMsg}</p>}
+          <div className="flex gap-3 pt-2">
             <button
               onClick={handleAdd}
               disabled={saving}
