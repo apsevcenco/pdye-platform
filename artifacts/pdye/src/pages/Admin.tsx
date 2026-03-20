@@ -233,6 +233,23 @@ function YachtsView() {
     setForm(f => ({ ...f, [key]: val }));
   }
 
+  async function uploadFilesToServer(files: File[], yachtId = "new"): Promise<string[]> {
+    const urls: string[] = [];
+    for (const file of files) {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("yachtId", yachtId);
+      const res = await fetch("/api/upload-photo", { method: "POST", body: form });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || "Upload failed");
+      }
+      const { url } = await res.json();
+      urls.push(url);
+    }
+    return urls;
+  }
+
   async function handleFormPhotoUpload(files: File[]) {
     if (formPhotos.length + files.length > 30) {
       setFormPhotoError(`Максимум 30 фото. Можно добавить ещё ${30 - formPhotos.length}.`);
@@ -240,20 +257,8 @@ function YachtsView() {
     }
     setFormPhotoSaving(true);
     setFormPhotoError("");
-    const newUrls: string[] = [];
     try {
-      const { error: bucketErr } = await supabaseAdmin.storage.createBucket("yacht-photos", { public: true });
-      if (bucketErr && !bucketErr.message.includes("already exists")) throw bucketErr;
-      for (const file of files) {
-        const ext = file.name.split(".").pop() || "jpg";
-        const path = `new/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: upErr } = await supabaseAdmin.storage
-          .from("yacht-photos")
-          .upload(path, file, { contentType: file.type, upsert: true });
-        if (upErr) throw upErr;
-        const { data } = supabaseAdmin.storage.from("yacht-photos").getPublicUrl(path);
-        newUrls.push(data.publicUrl);
-      }
+      const newUrls = await uploadFilesToServer(files, "new");
       setFormPhotos(prev => [...prev, ...newUrls]);
     } catch (e: any) {
       setFormPhotoError(e.message || "Ошибка загрузки");
@@ -358,27 +363,13 @@ function YachtsView() {
   async function handleFileUpload(yacht: Yacht, files: File[]) {
     const current: string[] = yacht.photos || [];
     if (current.length + files.length > 30) {
-      setUploadError(`Can only add ${30 - current.length} more photo(s) — max 30 total.`);
+      setUploadError(`Можно добавить ещё ${30 - current.length} фото — максимум 30.`);
       return;
     }
     setPhotoSaving(true);
     setUploadError("");
-    const newUrls: string[] = [];
     try {
-      // Ensure bucket exists (admin client can create it)
-      const { error: bucketErr } = await supabaseAdmin.storage.createBucket(BUCKET, { public: true });
-      if (bucketErr && !bucketErr.message.includes("already exists")) throw bucketErr;
-
-      for (const file of files) {
-        const ext = file.name.split(".").pop() || "jpg";
-        const path = `${yacht.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: upErr } = await supabaseAdmin.storage
-          .from(BUCKET)
-          .upload(path, file, { contentType: file.type, upsert: true });
-        if (upErr) throw upErr;
-        const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
-        newUrls.push(data.publicUrl);
-      }
+      const newUrls = await uploadFilesToServer(files, yacht.id);
       await savePhotos(yacht.id, [...current, ...newUrls]);
     } catch (e: any) {
       setUploadError(e.message || "Upload failed");
