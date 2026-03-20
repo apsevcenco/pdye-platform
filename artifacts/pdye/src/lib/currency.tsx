@@ -93,7 +93,10 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     if (!parsed) return price;
     const converted = convertAmount(parsed.amount, parsed.from);
     const sym = CURRENCY_SYMBOLS[currency];
-    const formatted = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(converted));
+    const formatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(converted);
     return `${sym} ${formatted}`;
   }
 
