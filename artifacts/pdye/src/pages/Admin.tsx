@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, Fragment } from "react";
 import { Link } from "wouter";
 import { ALL_YACHTS, type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   LayoutDashboard,
   Ship,
@@ -273,7 +274,7 @@ function YachtsView() {
       description: str(form.description),
     };
 
-    const { error } = await supabase.from("yachts").insert([payload]);
+    const { error } = await supabaseAdmin.from("yachts").insert([payload]);
     setSaving(false);
     if (error) {
       setFormError(error.message);
@@ -288,7 +289,7 @@ function YachtsView() {
 
   async function handleDelete(id: string) {
     if (!window.confirm("Remove this listing from the database?")) return;
-    await supabase.from("yachts").delete().eq("id", id);
+    await supabaseAdmin.from("yachts").delete().eq("id", id);
     load();
   }
 
@@ -298,6 +299,13 @@ function YachtsView() {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const BUCKET = "yacht-photos";
+
+  async function savePhotos(yachtId: string, photos: string[]) {
+    await supabaseAdmin.from("yachts").update({ photos }).eq("id", yachtId);
+    load();
+  }
+
   async function handleAddPhotoUrl(yacht: Yacht) {
     const url = newPhotoUrl.trim();
     if (!url) return;
@@ -305,10 +313,9 @@ function YachtsView() {
     if (current.length >= 30) { setUploadError("Maximum 30 photos per yacht."); return; }
     setPhotoSaving(true);
     setUploadError("");
-    await supabase.from("yachts").update({ photos: [...current, url] }).eq("id", yacht.id);
+    await savePhotos(yacht.id, [...current, url]);
     setNewPhotoUrl("");
     setPhotoSaving(false);
-    load();
   }
 
   async function handleFileUpload(yacht: Yacht, files: File[]) {
@@ -321,20 +328,21 @@ function YachtsView() {
     setUploadError("");
     const newUrls: string[] = [];
     try {
+      // Ensure bucket exists (admin client can create it)
+      const { error: bucketErr } = await supabaseAdmin.storage.createBucket(BUCKET, { public: true });
+      if (bucketErr && !bucketErr.message.includes("already exists")) throw bucketErr;
+
       for (const file of files) {
-        const form = new FormData();
-        form.append("file", file);
-        form.append("yachtId", yacht.id);
-        const res = await fetch("/api/upload-photo", { method: "POST", body: form });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: res.statusText }));
-          throw new Error(err.error || "Upload failed");
-        }
-        const { url } = await res.json();
-        newUrls.push(url);
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `${yacht.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabaseAdmin.storage
+          .from(BUCKET)
+          .upload(path, file, { contentType: file.type, upsert: true });
+        if (upErr) throw upErr;
+        const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
+        newUrls.push(data.publicUrl);
       }
-      await supabase.from("yachts").update({ photos: [...current, ...newUrls] }).eq("id", yacht.id);
-      load();
+      await savePhotos(yacht.id, [...current, ...newUrls]);
     } catch (e: any) {
       setUploadError(e.message || "Upload failed");
     } finally {
@@ -345,8 +353,7 @@ function YachtsView() {
 
   async function handleRemovePhoto(yacht: Yacht, url: string) {
     const updated = (yacht.photos || []).filter(p => p !== url);
-    await supabase.from("yachts").update({ photos: updated }).eq("id", yacht.id);
-    load();
+    await savePhotos(yacht.id, updated);
   }
 
   const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
@@ -670,13 +677,16 @@ function YachtsView() {
                         onClick={() => {
                           setExpandedPhotoYacht(expandedPhotoYacht === yacht.id ? null : yacht.id);
                           setNewPhotoUrl("");
+                          setUploadError("");
                         }}
-                        className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
-                          expandedPhotoYacht === yacht.id ? "text-primary" : "text-white/40 hover:text-primary"
+                        className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                          expandedPhotoYacht === yacht.id
+                            ? "border-primary text-primary bg-primary/10"
+                            : "border-white/10 text-white/50 hover:border-primary hover:text-primary"
                         }`}
                       >
-                        <Camera size={13} />
-                        {(yacht.photos?.length || 0)}
+                        <Camera size={11} />
+                        {(yacht.photos?.length || 0)} Photos
                       </button>
                     </td>
                     <td className="px-6 py-4">
