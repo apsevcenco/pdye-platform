@@ -298,13 +298,6 @@ function YachtsView() {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const BUCKET = "yacht-photos";
-
-  async function ensureBucket() {
-    const { error } = await supabase.storage.createBucket(BUCKET, { public: true });
-    if (error && !error.message.includes("already exists")) throw error;
-  }
-
   async function handleAddPhotoUrl(yacht: Yacht) {
     const url = newPhotoUrl.trim();
     if (!url) return;
@@ -318,23 +311,32 @@ function YachtsView() {
     load();
   }
 
-  async function handleFileUpload(yacht: Yacht, file: File) {
+  async function handleFileUpload(yacht: Yacht, files: File[]) {
     const current: string[] = yacht.photos || [];
-    if (current.length >= 30) { setUploadError("Maximum 30 photos per yacht."); return; }
+    if (current.length + files.length > 30) {
+      setUploadError(`Can only add ${30 - current.length} more photo(s) — max 30 total.`);
+      return;
+    }
     setPhotoSaving(true);
     setUploadError("");
+    const newUrls: string[] = [];
     try {
-      await ensureBucket();
-      const ext = file.name.split(".").pop();
-      const path = `${yacht.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const publicUrl = data.publicUrl;
-      await supabase.from("yachts").update({ photos: [...current, publicUrl] }).eq("id", yacht.id);
+      for (const file of files) {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("yachtId", yacht.id);
+        const res = await fetch("/api/upload-photo", { method: "POST", body: form });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(err.error || "Upload failed");
+        }
+        const { url } = await res.json();
+        newUrls.push(url);
+      }
+      await supabase.from("yachts").update({ photos: [...current, ...newUrls] }).eq("id", yacht.id);
       load();
     } catch (e: any) {
-      setUploadError(e.message || "Upload failed. Ensure the 'yacht-photos' bucket exists in Supabase Storage.");
+      setUploadError(e.message || "Upload failed");
     } finally {
       setPhotoSaving(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -737,7 +739,7 @@ function YachtsView() {
                                 className="hidden"
                                 onChange={async e => {
                                   const files = Array.from(e.target.files || []);
-                                  for (const f of files) await handleFileUpload(yacht, f);
+                                  if (files.length > 0) await handleFileUpload(yacht, files);
                                 }}
                               />
                               <button
