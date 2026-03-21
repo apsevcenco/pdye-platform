@@ -23,9 +23,9 @@ export function Navbar() {
   const navLinks = [
     { name: "Yachts", href: "/yachts" },
     { name: "Private Deals", href: "/private" },
-    { name: "Brokers", href: "/brokers" },
     { name: "Deal Room", href: "/dealroom" },
-    { name: "Investor Access", href: "/access" },
+    { name: "Boat Owners", href: "/boat-owners" },
+    { name: "Brokers", href: "/brokers" },
   ];
 
   const navBackground = (isScrolled || !isHome) ? "bg-background/95 backdrop-blur-md border-b border-white/5" : "bg-transparent";
