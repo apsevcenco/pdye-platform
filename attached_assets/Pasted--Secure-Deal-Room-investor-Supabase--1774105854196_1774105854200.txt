@@ -1,0 +1,135 @@
+ЗАДАЧА: Реализовать Secure Deal Room для закрытых сделок с ролью investor и защитой через Supabase
+
+У МЕНЯ УЖЕ ЕСТЬ:
+- Supabase Auth (login, роли, approval)
+- таблица yachts (с is_private)
+- пользователи с ролями (investor, broker, owner, admin)
+
+-----------------------------------
+1. СОЗДАТЬ ТАБЛИЦУ DEALS
+-----------------------------------
+
+create table if not exists deals (
+  id uuid default uuid_generate_v4() primary key,
+  yacht_id uuid references yachts(id),
+  title text,
+  description text,
+  market_price text,
+  deal_price text,
+  location text,
+  status text default 'active',
+  created_at timestamp default now()
+);
+
+-----------------------------------
+2. СОЗДАТЬ ТАБЛИЦУ ДОКУМЕНТОВ
+-----------------------------------
+
+create table if not exists deal_documents (
+  id uuid default uuid_generate_v4() primary key,
+  deal_id uuid references deals(id),
+  name text,
+  file_url text,
+  created_at timestamp default now()
+);
+
+-----------------------------------
+3. СТРАНИЦА DEAL ROOM
+-----------------------------------
+
+Создать:
+
+src/pages/DealRoom.tsx
+
+Функционал:
+
+- список сделок (deals)
+- карточки:
+
+  title
+  location
+  market_price
+  deal_price
+  статус (Active / Under Offer / Closed)
+
+- кнопка:
+  "View Deal"
+
+-----------------------------------
+4. СТРАНИЦА ОТДЕЛЬНОЙ СДЕЛКИ
+-----------------------------------
+
+src/pages/DealDetails.tsx
+
+Показывать:
+
+- название сделки
+- описание
+- цены:
+  Market vs Deal (с акцентом на скидку)
+- локация
+- список документов
+
+Документы:
+- список ссылок
+- кнопка Download
+
+-----------------------------------
+5. ЗАГРУЗКА ДОКУМЕНТОВ
+-----------------------------------
+
+Использовать Supabase Storage
+
+- broker/admin может загружать PDF
+- сохранять ссылку в deal_documents
+
+-----------------------------------
+6. ДОСТУП (ВАЖНО)
+-----------------------------------
+
+Только:
+
+- залогиненные пользователи
+- approved = true
+- role = investor или admin
+
+Если нет доступа:
+- показать "Restricted Access"
+
+-----------------------------------
+7. UI
+-----------------------------------
+
+- темный стиль (как сайт)
+- минимализм
+- акцент на цифры (цена)
+- premium feel
+
+-----------------------------------
+8. КНОПКА КОНТАКТА
+-----------------------------------
+
+На странице сделки:
+
+кнопка:
+"Request Deal Access"
+
+или
+"Contact Advisor"
+
+(пока просто alert или форма)
+
+-----------------------------------
+9. НЕ ЛОМАТЬ ПРОЕКТ
+
+- встроить в текущую структуру
+- не переписывать существующие страницы
+
+-----------------------------------
+РЕЗУЛЬТАТ:
+
+Я хочу:
+- список сделок
+- страница сделки
+- документы
+- ограниченный доступ

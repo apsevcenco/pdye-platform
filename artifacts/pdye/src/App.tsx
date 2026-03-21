@@ -18,6 +18,7 @@ import Private from "./pages/Private";
 import Brokers from "./pages/Brokers";
 import Login from "./pages/Login";
 import DealRoom from "./pages/DealRoom";
+import DealDetails from "./pages/DealDetails";
 import Admin from "./pages/Admin";
 import AdminUsers from "./pages/AdminUsers";
 import YachtDetail from "./pages/YachtDetail";
@@ -105,7 +106,7 @@ function Router() {
       <Route path="/yacht/:id" component={() => <ProtectedRoute component={YachtDetail} />} />
       <Route path="/private" component={() => <ProtectedRoute component={Private} />} />
       <Route path="/dealroom" component={() => <ProtectedRoute component={DealRoom} />} />
-      <Route path="/dealroom/:id" component={() => <ProtectedRoute component={DealRoom} />} />
+      <Route path="/dealroom/:id" component={() => <ProtectedRoute component={DealDetails} />} />
 
       {/* Admin only */}
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} adminOnly />} />

@@ -56,6 +56,7 @@ const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "yachts", label: "Yachts", icon: Ship },
   { id: "private", label: "Private Deals", icon: Lock },
+  { id: "dealroom", label: "Deal Room", icon: TrendingUp },
   { id: "leads", label: "Leads", icon: Inbox },
   { id: "investors", label: "Investors", icon: Users },
   { id: "brokers", label: "Brokers", icon: Briefcase },
@@ -1349,6 +1350,185 @@ function YachtsView() {
   );
 }
 
+type Deal = {
+  id: string;
+  title: string;
+  description: string | null;
+  market_price: string | null;
+  deal_price: string | null;
+  location: string | null;
+  status: string;
+  image_url: string | null;
+  created_at: string;
+};
+
+const DEAL_STATUS_OPTIONS = ["active", "under_offer", "closed"];
+const DEAL_STATUS_LABELS: Record<string, string> = { active: "Active", under_offer: "Under Offer", closed: "Closed" };
+const DEAL_STATUS_STYLE: Record<string, string> = {
+  active: "text-green-400 bg-green-500/10 border-green-500/20",
+  under_offer: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+  closed: "text-white/30 bg-white/5 border-white/10",
+};
+
+const DEAL_EMPTY: Omit<Deal, "id" | "created_at"> = {
+  title: "", description: "", market_price: "", deal_price: "", location: "", status: "active", image_url: "",
+};
+
+function DealsManageView() {
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState<typeof DEAL_EMPTY>(DEAL_EMPTY);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const load = () => {
+    supabaseAdmin.from("deals").select("*").order("created_at", { ascending: false })
+      .then(({ data }) => { setDeals((data as Deal[]) || []); setLoading(false); });
+  };
+
+  useEffect(() => { load(); }, []);
+
+  function openNew() { setForm(DEAL_EMPTY); setEditingId(null); setShowForm(true); setErr(""); }
+  function openEdit(d: Deal) {
+    setForm({ title: d.title, description: d.description || "", market_price: d.market_price || "", deal_price: d.deal_price || "", location: d.location || "", status: d.status, image_url: d.image_url || "" });
+    setEditingId(d.id); setShowForm(true); setErr("");
+  }
+
+  async function save() {
+    if (!form.title.trim()) { setErr("Title is required"); return; }
+    setSaving(true); setErr("");
+    const payload = { ...form, title: form.title.trim(), description: form.description || null, market_price: form.market_price || null, deal_price: form.deal_price || null, location: form.location || null, image_url: form.image_url || null };
+    if (editingId) {
+      const { error } = await supabaseAdmin.from("deals").update(payload).eq("id", editingId);
+      if (error) { setErr(error.message); setSaving(false); return; }
+    } else {
+      const { error } = await supabaseAdmin.from("deals").insert([payload]);
+      if (error) { setErr(error.message); setSaving(false); return; }
+    }
+    setSaving(false); setShowForm(false); load();
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Delete this deal?")) return;
+    await supabaseAdmin.from("deals").delete().eq("id", id);
+    load();
+  }
+
+  const inp = "w-full bg-white/5 border border-white/10 text-white text-sm px-4 py-2.5 font-sans focus:outline-none focus:border-primary/40 placeholder:text-white/20";
+  const lbl = "block text-white/40 text-[10px] uppercase tracking-widest mb-1.5 font-sans";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-display text-3xl text-white font-bold">Deal Room</h1>
+          <p className="text-white/50 text-sm font-sans mt-1">{deals.length} deals</p>
+        </div>
+        <button onClick={openNew} className="flex items-center gap-2 bg-primary text-background px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">
+          <Plus size={14} /> New Deal
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-[#0f1d33] border border-white/8 p-6 mb-6">
+          <h2 className="font-display text-xl text-white mb-5">{editingId ? "Edit Deal" : "New Deal"}</h2>
+          {err && <p className="text-red-400 text-sm mb-4">{err}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="md:col-span-2">
+              <label className={lbl}>Title *</label>
+              <input className={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Project Neptune — 42m Feadship" />
+            </div>
+            <div>
+              <label className={lbl}>Market Price</label>
+              <input className={inp} value={form.market_price || ""} onChange={e => setForm(f => ({ ...f, market_price: e.target.value }))} placeholder="€ 18,500,000" />
+            </div>
+            <div>
+              <label className={lbl}>Deal Price</label>
+              <input className={inp} value={form.deal_price || ""} onChange={e => setForm(f => ({ ...f, deal_price: e.target.value }))} placeholder="€ 12,000,000" />
+            </div>
+            <div>
+              <label className={lbl}>Location</label>
+              <input className={inp} value={form.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Monaco, France" />
+            </div>
+            <div>
+              <label className={lbl}>Status</label>
+              <select className={inp + " cursor-pointer"} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                {DEAL_STATUS_OPTIONS.map(s => <option key={s} value={s}>{DEAL_STATUS_LABELS[s]}</option>)}
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className={lbl}>Image URL</label>
+              <input className={inp} value={form.image_url || ""} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+            </div>
+            <div className="md:col-span-2">
+              <label className={lbl}>Description</label>
+              <textarea className={inp + " resize-none"} rows={3} value={form.description || ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief description of this opportunity..." />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={save} disabled={saving} className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {saving ? "Saving…" : editingId ? "Update Deal" : "Create Deal"}
+            </button>
+            <button onClick={() => setShowForm(false)} className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>
+      ) : deals.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-white/30">
+          <TrendingUp size={36} className="mb-3 opacity-20" />
+          <p className="text-sm">No deals yet. Create one above.</p>
+        </div>
+      ) : (
+        <div className="bg-[#0f1d33] border border-white/5">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/5">
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Title</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Location</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Deal Price</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Status</th>
+                <th className="px-5 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {deals.map(deal => (
+                <tr key={deal.id} className="hover:bg-white/2 transition-colors group">
+                  <td className="px-5 py-3.5">
+                    <p className="text-white font-medium text-sm">{deal.title}</p>
+                    {deal.market_price && <p className="text-white/30 text-xs line-through mt-0.5">{deal.market_price}</p>}
+                  </td>
+                  <td className="px-5 py-3.5 text-white/50 text-sm hidden md:table-cell">{deal.location || "—"}</td>
+                  <td className="px-5 py-3.5">
+                    <span className="text-primary font-medium font-sans text-sm">{deal.deal_price || "—"}</span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${DEAL_STATUS_STYLE[deal.status] || ""}`}>
+                      {DEAL_STATUS_LABELS[deal.status] || deal.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEdit(deal)} className="text-white/30 hover:text-primary transition-colors p-1"><PenLine size={14} /></button>
+                      <button onClick={() => remove(deal.id)} className="text-white/30 hover:text-red-400 transition-colors p-1"><Trash2 size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Lead = {
   id: number;
   name: string;
@@ -2087,6 +2267,7 @@ const views: Record<string, JSX.Element> = {
   dashboard: <Dashboard />,
   yachts: <YachtsView />,
   private: <PrivateDealsView />,
+  dealroom: <DealsManageView />,
   leads: <LeadsView />,
   investors: <InvestorsView />,
   brokers: <BrokersView />,
