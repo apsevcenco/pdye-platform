@@ -160,36 +160,92 @@ router.post("/valuation", async (req, res) => {
       return;
     }
 
+    const yearNum = parseInt(String(specs.match(/Build year: (\d+)/)?.[1] || "0"));
+    const yearMin = yearNum > 0 ? yearNum - 3 : null;
+    const yearMax = yearNum > 0 ? yearNum + 3 : null;
+    const yearRange = yearMin && yearMax ? `${yearMin}–${yearMax}` : "similar year";
+
     const modeNote = mode === "builder"
-      ? "Take into account this specific builder's brand premium and typical pricing."
-      : "Evaluate purely on technical specs — do not assume a brand premium.";
+      ? "Factor in this builder's specific brand premium and reputation in the current market."
+      : "Assess purely on technical specifications — do not infer or assume any brand.";
 
-    const prompt = `You are an expert superyacht market appraiser. Estimate the fair market value for a vessel with these specs and provide 5 realistic comparable market examples.
+    const prompt = `You are a professional superyacht market appraiser with access to live yacht listing databases. Your task is to find REAL, CURRENTLY LISTED OR RECENTLY SOLD yachts that closely match the target vessel, and use them to determine its fair market value.
 
-VESSEL SPECIFICATIONS:
+TARGET VESSEL SPECIFICATIONS:
 ${specs}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — SEARCH INSTRUCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Perform multiple targeted web searches on the following platforms. Search each one:
+- YachtWorld (yachtworld.com)
+- Boat Trader / boats.com
+- RightBoat (rightboat.com)
+- Boat24 (boat24.com)
+- YachtBroker (yachtbroker.com)
+- Apollo Duck (apolloduck.com)
+- YachtCharterFleet / YachtSales
+
+Use search queries like:
+- "[type] for sale [year range] [length]"
+- "[builder] [model] for sale [year]"
+- "[length]m [type] [year] for sale EUR"
+- "[engine maker] [engine model] yacht for sale"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — STRICT MATCHING CRITERIA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Only include a vessel as a comparable if it meets ALL of these criteria:
+✓ Same vessel type (or closely related category)
+✓ Build year within ${yearRange} (±3 years maximum)
+✓ Length within ±15% of the target vessel's length
+✓ Similar engine configuration, power range, or fuel type (if specified)
+✓ Similar accommodation layout (cabins ±1–2) — if specified
+✓ Price is confirmed: listed asking price OR confirmed recent sale price
+✗ DO NOT include vessels that don't match on year AND length simultaneously
+✗ DO NOT fabricate or estimate vessel data — only use what you actually found on the listing page
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — VISIT LISTING PAGES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For each candidate you find in search results, visit the actual listing page to verify:
+- Exact year, length, engine specs and condition
+- Confirmed asking price (or sold price)
+- Any recent refit or known issues that affect value
+
+If a listing page's specs don't match the target criteria strictly, discard it and search for another.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4 — VALUATION & OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${modeNote}
 
-Return ONLY this JSON (no markdown, no extra text):
+Based on the 5 verified comparable listings, determine the fair market value of the target vessel. The price must reflect actual market evidence — not a theoretical estimate.
+
+Return ONLY this JSON (absolutely no markdown, no text before or after):
 {
   "estimated_price": "€ X,XXX,XXX",
   "confidence": "high|medium|low",
-  "reasoning": "2-3 sentences explaining the valuation methodology and key value drivers.",
+  "reasoning": "3–4 sentences: cite the comparable listings found, explain how the target vessel's specs compare to them (better/worse condition, newer/older, more/fewer engines etc.), and justify the final price.",
   "comparables": [
     {
-      "builder": "Builder name",
-      "model": "Model / Series name",
+      "builder": "Exact builder name from listing",
+      "model": "Exact model/series from listing",
       "year": 2018,
-      "length": "28m",
+      "length": "28.5m",
       "condition": "Good",
-      "price": "€ 2,800,000",
-      "note": "One sentence about why this is comparable"
+      "price": "€ 2,850,000",
+      "note": "Specific spec differences vs target vessel — e.g. twin MTU 1800HP, recent 2022 refit, 5 cabins"
     }
   ]
 }
 
-The comparables array must have EXACTLY 5 entries. These must be realistic vessels plausibly found on the market. Do NOT include vessel names, owner names, or broker/seller information.`;
+RULES:
+- The comparables array must have EXACTLY 5 entries from real listings you visited
+- If you cannot find 5 real matches within the strict criteria, widen year range by ±1 year and search again
+- Set confidence to "low" if you had to widen search criteria significantly
+- DO NOT include vessel names, owner names, flag, or registration country
+- DO NOT invent pricing — every price must come from a real listing or confirmed sale`;
 
     const openai = getOpenAI();
     let result: Record<string, unknown>;
@@ -200,7 +256,7 @@ The comparables array must have EXACTLY 5 entries. These must be realistic vesse
           create: (p: Record<string, unknown>) => Promise<{ output_text?: string; output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> }>;
         };
       }).responses.create({
-        model: "gpt-5-mini",
+        model: "gpt-4o",
         tools: [{ type: "web_search_preview" }],
         input: prompt,
       });
@@ -213,11 +269,39 @@ The comparables array must have EXACTLY 5 entries. These must be realistic vesse
       if (!match) throw new Error("No JSON");
       result = JSON.parse(match[0]);
     } catch {
+      const fallbackPrompt = `You are an expert superyacht market appraiser with deep knowledge of the global brokerage market up to early 2025.
+
+TARGET VESSEL:
+${specs}
+
+${modeNote}
+
+Based on your knowledge of comparable vessels sold or listed on YachtWorld, RightBoat, Boat24 and similar platforms, provide 5 real comparable examples that closely match the target vessel (same type, ±3 years, ±15% length, similar engines if specified).
+
+Return ONLY valid JSON, no markdown:
+{
+  "estimated_price": "€ X,XXX,XXX",
+  "confidence": "low",
+  "reasoning": "3–4 sentences citing comparable vessels and explaining how the target's specs affect its value relative to them.",
+  "comparables": [
+    {
+      "builder": "Builder name",
+      "model": "Model/Series",
+      "year": 2018,
+      "length": "28m",
+      "condition": "Good",
+      "price": "€ 2,800,000",
+      "note": "Key spec differences vs target vessel"
+    }
+  ]
+}
+Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owner names or flag.`;
+
       const fallback = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: "You are an expert superyacht market appraiser. Reply ONLY with valid JSON, no markdown." },
-          { role: "user", content: prompt },
+          { role: "user", content: fallbackPrompt },
         ],
       });
       const raw = (fallback.choices[0]?.message?.content || "").trim();

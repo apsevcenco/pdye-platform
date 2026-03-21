@@ -423,7 +423,7 @@ export default function Valuation() {
                     </button>
                     {loading && (
                       <p className="text-white/20 text-[11px] text-center font-sans mt-3 leading-relaxed">
-                        Searching YachtWorld, Boat24, RightBoat, YachtBroker.com and 10+ sources... (30–60 sec)
+                        Searching and verifying real listings on YachtWorld, RightBoat, Boat24, Apollo Duck and more — visiting individual pages to check specs... (1–2 min)
                       </p>
                     )}
                   </div>
