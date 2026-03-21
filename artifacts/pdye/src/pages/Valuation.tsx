@@ -3,17 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
   Calculator, TrendingUp, ChevronRight, RotateCcw,
-  Building2, Sliders, Gauge, Anchor, Wind, Users
+  Building2, Sliders, Gauge, Anchor, Users
 } from "lucide-react";
 
 const YACHT_TYPES = ["Motor Yacht", "Sailing Yacht", "Catamaran", "Superyacht", "Explorer Yacht", "Sport Cruiser", "Trawler", "Classic Yacht", "Gulet", "Flybridge"];
-const CONDITIONS = ["New / Unused", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
+const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
 const HULL_MATERIALS = ["GRP / Fiberglass", "Steel", "Aluminium", "Carbon Fibre", "Wood / Composite", "Ferro-Cement"];
 const HULL_TYPES = ["Monohull", "Catamaran", "Trimaran", "SWATH", "Semi-Displacement", "Planing"];
 const ENGINE_CONFIGS = ["Single diesel", "Twin diesel", "Triple diesel", "Quad diesel", "IPS drives", "Sail (auxiliary)", "Electric / Hybrid", "Waterjet"];
 const FUEL_TYPES = ["Diesel", "Petrol / Gasoline", "Electric", "Hybrid", "LNG", "HFO"];
-const STATUSES = ["Private / Off-Market", "Listed for Sale", "Recently Relisted", "Bank Repo / Distressed"];
-
 type Mode = "builder" | "specs";
 type Units = "metric" | "imperial";
 
@@ -77,14 +75,14 @@ function conv(val: string, factor: number, dec = 1): string {
 }
 
 const EMPTY: Record<string, string> = {
-  type: "", builder: "", year: "", refit: "", status: "",
+  type: "", builder: "", year: "", refit: "",
   length: "", beam: "", draft: "", displacement: "", gross_tonnage: "",
   hull_material: "", hull_type: "",
   engines: "", engine_count: "", horse_power: "", fuel_type: "",
   fuel_capacity: "", water_capacity: "",
   max_speed: "", cruise_speed: "", range: "",
   cabins: "", heads: "", berths: "", crew: "",
-  condition: "", asking_price: "",
+  condition: "",
 };
 
 export default function Valuation() {
@@ -225,19 +223,10 @@ export default function Valuation() {
                   </div>
 
                   {mode === "builder" && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className={lbl}>Builder / Manufacturer</label>
-                        <input value={form.builder} onChange={e => setF("builder", e.target.value)}
-                          className={inp} placeholder="e.g. Ferretti, Sunseeker, Azimut, Benetti..." />
-                      </div>
-                      <div>
-                        <label className={lbl}>Market Status</label>
-                        <select value={form.status} onChange={e => setF("status", e.target.value)} className={sel}>
-                          <option value="">Select...</option>
-                          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </div>
+                    <div>
+                      <label className={lbl}>Builder / Manufacturer</label>
+                      <input value={form.builder} onChange={e => setF("builder", e.target.value)}
+                        className={inp} placeholder="e.g. Ferretti, Sunseeker, Azimut, Benetti..." />
                     </div>
                   )}
 
@@ -248,11 +237,6 @@ export default function Valuation() {
                         <option value="">Select condition...</option>
                         {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
-                    </div>
-                    <div>
-                      <label className={lbl}>Current Asking Price (optional)</label>
-                      <input value={form.asking_price} onChange={e => setF("asking_price", e.target.value)}
-                        className={inp} placeholder="e.g. € 3,500,000" />
                     </div>
                   </div>
 

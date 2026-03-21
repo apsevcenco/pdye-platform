@@ -130,7 +130,6 @@ router.post("/valuation", async (req, res) => {
       mode === "builder" && b.builder ? `Builder: ${b.builder}` : null,
       b.year          && `Build year: ${b.year}`,
       b.refit         && `Refit year: ${b.refit}`,
-      b.status        && `Market status: ${b.status}`,
       b.condition     && `Condition: ${b.condition}`,
       b.length        && `Length (LOA): ${b.length}${unitNote}`,
       b.beam          && `Beam: ${b.beam}${unitNote}`,
@@ -152,7 +151,6 @@ router.post("/valuation", async (req, res) => {
       b.heads         && `Heads (WC): ${b.heads}`,
       b.berths        && `Total berths: ${b.berths}`,
       b.crew          && `Crew capacity: ${b.crew}`,
-      b.asking_price  && `Current asking price (if listed): ${b.asking_price}`,
     ].filter(Boolean).join("\n");
 
     if (!specs) {
