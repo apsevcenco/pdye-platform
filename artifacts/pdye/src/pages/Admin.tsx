@@ -221,6 +221,7 @@ function YachtsView() {
   const [dragOver, setDragOver] = useState(false);
   const formFileRef = useRef<HTMLInputElement>(null);
   const [formIsPrivate, setFormIsPrivate] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
 
@@ -362,6 +363,117 @@ function YachtsView() {
     load();
   }
 
+  function startEdit(yacht: Yacht) {
+    setEditingId(yacht.id);
+    setForm({
+      name: yacht.name || "",
+      type: yacht.type || "Motor Yacht",
+      status: yacht.status || "Off-Market",
+      condition: yacht.condition || "Used",
+      flag: yacht.flag || "",
+      builder: yacht.builder || "",
+      year: yacht.year ? String(yacht.year) : "",
+      refit: yacht.refit ? String(yacht.refit) : "",
+      length: yacht.length || "",
+      beam: yacht.beam || "",
+      draft: yacht.draft || "",
+      displacement: yacht.displacement || "",
+      gross_tonnage: yacht.gross_tonnage || "",
+      hull_material: yacht.hull_material || "Fiberglass",
+      hull_type: yacht.hull_type || "Monohull",
+      engines: yacht.engines || "",
+      engine_count: yacht.engine_count ? String(yacht.engine_count) : "",
+      horse_power: yacht.horse_power || "",
+      fuel_type: yacht.fuel_type || "Diesel",
+      fuel_capacity: yacht.fuel_capacity || "",
+      water_capacity: yacht.water_capacity || "",
+      max_speed: yacht.max_speed || "",
+      cruise_speed: yacht.cruise_speed || "",
+      range: yacht.range || "",
+      cabins: yacht.cabins ? String(yacht.cabins) : "",
+      heads: yacht.heads ? String(yacht.heads) : "",
+      berths: yacht.berths ? String(yacht.berths) : "",
+      crew: yacht.crew ? String(yacht.crew) : "",
+      location: yacht.location || "",
+      price: yacht.price || "",
+      market_price: yacht.market_price || "",
+      distressed_price: yacht.distressed_price || "",
+      image: yacht.image || "",
+      description: yacht.description || "",
+    });
+    setFormPhotos(yacht.photos || []);
+    setFormIsPrivate(yacht.is_private || false);
+    setFormError("");
+    setAiNote(null);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleUpdate() {
+    if (!editingId) return;
+    if (!form.name.trim() || !form.price.trim()) {
+      setFormError("Vessel name and asking price are required.");
+      return;
+    }
+    setSaving(true);
+    setFormError("");
+    const num = (v: string) => v ? parseInt(v) : null;
+    const str = (v: string) => v.trim() || null;
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      type: str(form.type),
+      status: form.status,
+      condition: str(form.condition),
+      flag: str(form.flag),
+      builder: str(form.builder),
+      year: num(form.year),
+      refit: num(form.refit),
+      length: str(form.length),
+      beam: str(form.beam),
+      draft: str(form.draft),
+      displacement: str(form.displacement),
+      gross_tonnage: str(form.gross_tonnage),
+      hull_material: str(form.hull_material),
+      hull_type: str(form.hull_type),
+      engines: str(form.engines),
+      engine_count: num(form.engine_count),
+      horse_power: str(form.horse_power),
+      fuel_type: str(form.fuel_type),
+      fuel_capacity: str(form.fuel_capacity),
+      water_capacity: str(form.water_capacity),
+      max_speed: str(form.max_speed),
+      cruise_speed: str(form.cruise_speed),
+      range: str(form.range),
+      cabins: num(form.cabins),
+      heads: num(form.heads),
+      berths: num(form.berths),
+      crew: num(form.crew),
+      location: str(form.location),
+      price: form.price,
+      market_price: str(form.market_price),
+      distressed_price: str(form.distressed_price),
+      image: str(form.image) || (formPhotos[0] ?? null),
+      description: str(form.description),
+      photos: formPhotos.length > 0 ? formPhotos : null,
+      is_private: formIsPrivate,
+    };
+
+    const { error } = await supabaseAdmin.from("yachts").update(payload).eq("id", editingId);
+    setSaving(false);
+    if (error) {
+      setFormError(error.message);
+    } else {
+      setSuccessMsg("Yacht updated successfully.");
+      setTimeout(() => setSuccessMsg(""), 3000);
+      setForm(EMPTY_FORM);
+      setFormPhotos([]);
+      setFormIsPrivate(false);
+      setEditingId(null);
+      setShowForm(false);
+      load();
+    }
+  }
+
   const [expandedPhotoYacht, setExpandedPhotoYacht] = useState<string | null>(null);
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [photoSaving, setPhotoSaving] = useState(false);
@@ -473,7 +585,7 @@ function YachtsView() {
           <p className="text-white/50 text-sm font-sans mt-1">{loading ? "Loading..." : `${yachts.length} listings in database`}</p>
         </div>
         <button
-          onClick={() => { setShowForm(s => !s); setFormError(""); }}
+          onClick={() => { setShowForm(s => !s); setFormError(""); setEditingId(null); setForm(EMPTY_FORM); setFormPhotos([]); setFormIsPrivate(false); setAiNote(null); }}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors"
         >
           <Plus size={14} /> {showForm ? "Cancel" : "Add Yacht"}
@@ -482,7 +594,7 @@ function YachtsView() {
 
       {showForm && (
         <div className="bg-[#0f1d33] border border-white/5 p-6 mb-6 space-y-6">
-          <h2 className="font-display text-lg text-white">New Listing</h2>
+          <h2 className="font-display text-lg text-white">{editingId ? "Edit Listing" : "New Listing"}</h2>
 
           {/* Classification */}
           <div>
@@ -844,14 +956,14 @@ function YachtsView() {
           {successMsg && <p className="text-green-400 text-xs font-sans">{successMsg}</p>}
           <div className="flex gap-3 pt-2">
             <button
-              onClick={handleAdd}
+              onClick={editingId ? handleUpdate : handleAdd}
               disabled={saving}
               className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save to Database"}
+              {saving ? "Saving..." : editingId ? "Save Changes" : "Save to Database"}
             </button>
             <button
-              onClick={() => { setShowForm(false); setFormError(""); }}
+              onClick={() => { setShowForm(false); setFormError(""); setEditingId(null); setForm(EMPTY_FORM); setFormPhotos([]); setFormIsPrivate(false); setAiNote(null); }}
               className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors"
             >
               Cancel
@@ -945,13 +1057,22 @@ function YachtsView() {
                       } />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleDelete(yacht.id)}
-                        className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Delete listing"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => startEdit(yacht)}
+                          className="text-white/30 hover:text-primary transition-colors"
+                          title="Edit listing"
+                        >
+                          <PenLine size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(yacht.id)}
+                          className="text-white/20 hover:text-red-400 transition-colors"
+                          title="Delete listing"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
 
