@@ -224,6 +224,52 @@ function YachtsView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
+  const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">("metric");
+
+  const M = unitSystem === "metric";
+
+  function parseNum(s: string): number | null {
+    const n = parseFloat(s.replace(/[^0-9.-]/g, ""));
+    return isNaN(n) ? null : n;
+  }
+  function fmtN(n: number, dec = 1): string {
+    const r = parseFloat(n.toFixed(dec));
+    return r % 1 === 0 ? r.toString() : r.toFixed(dec);
+  }
+  function conv(val: string, factor: number, dec = 1): string {
+    const n = parseNum(val);
+    if (n === null || val.trim() === "") return val;
+    return fmtN(n * factor, dec);
+  }
+  function toggleUnits() {
+    const toImp = unitSystem === "metric";
+    const f = (factor: number, dec = 1) => (v: string) => conv(v, factor, dec);
+    const mToFt = f(3.28084, 1);
+    const ftToM = f(1 / 3.28084, 2);
+    const lToG = f(0.264172, 0);
+    const gToL = f(1 / 0.264172, 0);
+    const tToLT = f(0.984207, 1);
+    const ltToT = f(1 / 0.984207, 1);
+    setForm(prev => ({
+      ...prev,
+      length:         toImp ? mToFt(prev.length)       : ftToM(prev.length),
+      beam:           toImp ? mToFt(prev.beam)         : ftToM(prev.beam),
+      draft:          toImp ? mToFt(prev.draft)        : ftToM(prev.draft),
+      displacement:   toImp ? tToLT(prev.displacement) : ltToT(prev.displacement),
+      fuel_capacity:  toImp ? lToG(prev.fuel_capacity) : gToL(prev.fuel_capacity),
+      water_capacity: toImp ? lToG(prev.water_capacity): gToL(prev.water_capacity),
+    }));
+    setUnitSystem(toImp ? "imperial" : "metric");
+  }
+
+  const unitInputCls = "w-full bg-[#070f1a] border border-white/10 text-white pl-4 pr-14 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+  function UnitBadge({ unit }: { unit: string }) {
+    return (
+      <span className="absolute right-0 top-0 bottom-0 flex items-center px-3 text-[10px] font-bold text-primary/60 border-l border-white/10 pointer-events-none select-none tracking-wider">
+        {unit}
+      </span>
+    );
+  }
 
   async function estimateWithAI() {
     setAiEstimating(true);
@@ -405,6 +451,7 @@ function YachtsView() {
     setFormIsPrivate(yacht.is_private || false);
     setFormError("");
     setAiNote(null);
+    setUnitSystem("metric");
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -594,7 +641,18 @@ function YachtsView() {
 
       {showForm && (
         <div className="bg-[#0f1d33] border border-white/5 p-6 mb-6 space-y-6">
-          <h2 className="font-display text-lg text-white">{editingId ? "Edit Listing" : "New Listing"}</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg text-white">{editingId ? "Edit Listing" : "New Listing"}</h2>
+            <button
+              type="button"
+              onClick={toggleUnits}
+              className="flex items-center gap-2 border border-white/10 hover:border-primary/50 px-3 py-1.5 transition-colors group"
+            >
+              <span className={`text-[10px] font-bold tracking-widest uppercase transition-colors ${M ? "text-primary" : "text-white/30"}`}>Metric</span>
+              <span className="text-white/20 text-[10px]">/</span>
+              <span className={`text-[10px] font-bold tracking-widest uppercase transition-colors ${!M ? "text-primary" : "text-white/30"}`}>Imperial</span>
+            </button>
+          </div>
 
           {/* Classification */}
           <div>
@@ -684,23 +742,38 @@ function YachtsView() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               <div>
                 <label className={labelCls}>Length (LOA)</label>
-                <input className={inputCls} placeholder="38.5m" value={form.length} onChange={e => setF("length", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder={M ? "38.5" : "126.3"} value={form.length} onChange={e => setF("length", e.target.value)} />
+                  <UnitBadge unit={M ? "m" : "ft"} />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Beam</label>
-                <input className={inputCls} placeholder="7.6m" value={form.beam} onChange={e => setF("beam", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder={M ? "7.6" : "24.9"} value={form.beam} onChange={e => setF("beam", e.target.value)} />
+                  <UnitBadge unit={M ? "m" : "ft"} />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Draft</label>
-                <input className={inputCls} placeholder="1.9m" value={form.draft} onChange={e => setF("draft", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder={M ? "1.9" : "6.2"} value={form.draft} onChange={e => setF("draft", e.target.value)} />
+                  <UnitBadge unit={M ? "m" : "ft"} />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Displacement</label>
-                <input className={inputCls} placeholder="145 t" value={form.displacement} onChange={e => setF("displacement", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder={M ? "145" : "142.7"} value={form.displacement} onChange={e => setF("displacement", e.target.value)} />
+                  <UnitBadge unit={M ? "t" : "LT"} />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Gross Tonnage</label>
-                <input className={inputCls} placeholder="420 GT" value={form.gross_tonnage} onChange={e => setF("gross_tonnage", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder="420" value={form.gross_tonnage} onChange={e => setF("gross_tonnage", e.target.value)} />
+                  <UnitBadge unit="GT" />
+                </div>
               </div>
             </div>
           </div>
@@ -745,7 +818,10 @@ function YachtsView() {
               </div>
               <div>
                 <label className={labelCls}>Total Horsepower</label>
-                <input className={inputCls} placeholder="e.g. 2 × 1,450 hp" value={form.horse_power} onChange={e => setF("horse_power", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder="2 × 1450" value={form.horse_power} onChange={e => setF("horse_power", e.target.value)} />
+                  <UnitBadge unit="hp" />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Fuel Type</label>
@@ -758,11 +834,17 @@ function YachtsView() {
               </div>
               <div>
                 <label className={labelCls}>Fuel Capacity</label>
-                <input className={inputCls} placeholder="e.g. 28,000 L" value={form.fuel_capacity} onChange={e => setF("fuel_capacity", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder={M ? "28000" : "7396"} value={form.fuel_capacity} onChange={e => setF("fuel_capacity", e.target.value)} />
+                  <UnitBadge unit={M ? "L" : "gal"} />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Water Capacity</label>
-                <input className={inputCls} placeholder="e.g. 4,000 L" value={form.water_capacity} onChange={e => setF("water_capacity", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder={M ? "4000" : "1057"} value={form.water_capacity} onChange={e => setF("water_capacity", e.target.value)} />
+                  <UnitBadge unit={M ? "L" : "gal"} />
+                </div>
               </div>
             </div>
           </div>
@@ -773,15 +855,24 @@ function YachtsView() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelCls}>Max Speed</label>
-                <input className={inputCls} placeholder="e.g. 18 kn" value={form.max_speed} onChange={e => setF("max_speed", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder="18" value={form.max_speed} onChange={e => setF("max_speed", e.target.value)} />
+                  <UnitBadge unit="kn" />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Cruise Speed</label>
-                <input className={inputCls} placeholder="e.g. 14 kn" value={form.cruise_speed} onChange={e => setF("cruise_speed", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder="14" value={form.cruise_speed} onChange={e => setF("cruise_speed", e.target.value)} />
+                  <UnitBadge unit="kn" />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Range</label>
-                <input className={inputCls} placeholder="e.g. 3,200 nm" value={form.range} onChange={e => setF("range", e.target.value)} />
+                <div className="relative">
+                  <input className={unitInputCls} placeholder="3200" value={form.range} onChange={e => setF("range", e.target.value)} />
+                  <UnitBadge unit="nm" />
+                </div>
               </div>
             </div>
           </div>
