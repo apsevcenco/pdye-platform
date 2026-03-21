@@ -26,8 +26,7 @@ interface Comparable {
 }
 
 interface ValuationResult {
-  estimated_low: string;
-  estimated_high: string;
+  estimated_price: string;
   confidence: "high" | "medium" | "low";
   reasoning: string;
   comparables: Comparable[];
@@ -437,14 +436,10 @@ export default function Valuation() {
 
                 {/* Price estimate card */}
                 <div className="bg-[#0c1929] border border-primary/25 p-8">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
                     <div>
                       <p className="text-white/35 text-[9.5px] uppercase tracking-[0.22em] font-bold mb-3 font-sans">Market Value Estimate</p>
-                      <div className="flex flex-wrap items-end gap-3">
-                        <span className="font-display text-4xl text-primary">{result.estimated_low}</span>
-                        <span className="text-white/25 font-display text-2xl pb-0.5">—</span>
-                        <span className="font-display text-4xl text-white">{result.estimated_high}</span>
-                      </div>
+                      <span className="font-display text-5xl text-primary">{result.estimated_price}</span>
                     </div>
                     <div className="flex-shrink-0">
                       <span className={`text-[10px] font-bold uppercase tracking-widest border px-3 py-1.5 block text-center ${
@@ -456,14 +451,7 @@ export default function Valuation() {
                       </span>
                     </div>
                   </div>
-
-                  {/* Price bar */}
-                  <div className="h-1 bg-white/5 mb-6 relative">
-                    <div className="absolute left-[12%] right-[12%] h-full bg-gradient-to-r from-primary/50 to-primary" />
-                    <div className="absolute left-[12%] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-primary/60 shadow-[0_0_8px_rgba(200,164,107,0.4)]" />
-                    <div className="absolute right-[12%] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_10px_rgba(200,164,107,0.5)]" />
-                  </div>
-
+                  <div className="h-[1px] bg-white/6 mb-5" />
                   <p className="text-white/50 font-sans text-sm leading-relaxed">{result.reasoning}</p>
                 </div>
 

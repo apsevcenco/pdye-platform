@@ -173,8 +173,7 @@ ${modeNote}
 
 Return ONLY this JSON (no markdown, no extra text):
 {
-  "estimated_low": "€ X,XXX,XXX",
-  "estimated_high": "€ X,XXX,XXX",
+  "estimated_price": "€ X,XXX,XXX",
   "confidence": "high|medium|low",
   "reasoning": "2-3 sentences explaining the valuation methodology and key value drivers.",
   "comparables": [
