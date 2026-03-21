@@ -1354,18 +1354,9 @@ type Lead = {
   name: string;
   email: string | null;
   phone: string | null;
-  type: string;
-  company: string | null;
+  yacht_type: string;
   budget: string | null;
-  focus: string | null;
-  license: string | null;
-  experience: string | null;
-  partnership_type: string | null;
-  vessel: string | null;
-  vessel_length: string | null;
-  vessel_year: string | null;
   message: string | null;
-  notes: string | null;
   created_at: string;
 };
 
@@ -1378,22 +1369,24 @@ const LEAD_TYPE_STYLES: Record<string, string> = {
 function LeadsView() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Lead | null>(null);
 
   useEffect(() => {
-    supabase
+    supabaseAdmin
       .from("leads")
       .select("*")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) setLoadErr(error.message);
         setLeads((data as Lead[]) || []);
         setLoading(false);
       });
   }, []);
 
   const types = ["all", "Investor Application", "Broker Application", "Owner Submission"];
-  const filtered = filter === "all" ? leads : leads.filter(l => l.type === filter);
+  const filtered = filter === "all" ? leads : leads.filter(l => l.yacht_type === filter);
 
   return (
     <div className="flex gap-6 h-full">
@@ -1404,6 +1397,12 @@ function LeadsView() {
             <p className="text-white/50 text-sm font-sans mt-1">{leads.length} incoming requests</p>
           </div>
         </div>
+
+        {loadErr && (
+          <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            Error: {loadErr}
+          </div>
+        )}
 
         {/* Filter tabs */}
         <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
@@ -1436,7 +1435,7 @@ function LeadsView() {
                 <tr className="border-b border-white/5">
                   <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Name</th>
                   <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Type</th>
-                  <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden lg:table-cell">Phone</th>
+                  <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden lg:table-cell">Details</th>
                   <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Date</th>
                   <th className="px-5 py-3"></th>
                 </tr>
@@ -1464,11 +1463,11 @@ function LeadsView() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5 hidden md:table-cell">
-                      <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[lead.type] || "text-white/50 bg-white/5 border-white/10"}`}>
-                        {lead.type?.split(" ")[0]}
+                      <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[lead.yacht_type] || "text-white/50 bg-white/5 border-white/10"}`}>
+                        {lead.yacht_type?.split(" ")[0]}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-white/50 text-sm hidden lg:table-cell">{lead.phone || "—"}</td>
+                    <td className="px-5 py-3.5 text-white/50 text-xs hidden lg:table-cell max-w-[180px] truncate">{lead.budget || "—"}</td>
                     <td className="px-5 py-3.5 text-white/40 text-xs">
                       {lead.created_at ? new Date(lead.created_at).toLocaleDateString("ru-RU") : "—"}
                     </td>
@@ -1487,8 +1486,8 @@ function LeadsView() {
       {selected && (
         <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
-            <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[selected.type] || "text-white/50 bg-white/5 border-white/10"}`}>
-              {selected.type}
+            <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[selected.yacht_type] || "text-white/50 bg-white/5 border-white/10"}`}>
+              {selected.yacht_type}
             </span>
             <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors">
               <X size={16} />
@@ -1519,45 +1518,23 @@ function LeadsView() {
                 <span className="text-white/70">{selected.phone}</span>
               </div>
             )}
-            {selected.company && (
-              <div className="flex items-center gap-2 text-sm">
-                <Building2 size={13} className="text-primary flex-shrink-0" />
-                <span className="text-white/70">{selected.company}</span>
-              </div>
-            )}
           </div>
 
-          {(selected.budget || selected.focus || selected.license || selected.experience ||
-            selected.partnership_type || selected.vessel || selected.vessel_length || selected.vessel_year) && (
-            <div className="mt-5 pt-5 border-t border-white/8 space-y-2.5">
-              {selected.budget && <Row label="Budget" value={selected.budget} />}
-              {selected.focus && <Row label="Focus" value={selected.focus} />}
-              {selected.license && <Row label="License" value={selected.license} />}
-              {selected.experience && <Row label="Experience" value={selected.experience} />}
-              {selected.partnership_type && <Row label="Partnership" value={selected.partnership_type} />}
-              {selected.vessel && <Row label="Vessel" value={selected.vessel} />}
-              {selected.vessel_length && <Row label="Length" value={selected.vessel_length} />}
-              {selected.vessel_year && <Row label="Year" value={selected.vessel_year} />}
+          {selected.budget && (
+            <div className="mt-5 pt-5 border-t border-white/8">
+              <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Details</p>
+              <p className="text-white/70 text-sm leading-relaxed">{selected.budget}</p>
             </div>
           )}
 
-          {(selected.message || selected.notes) && (
+          {selected.message && (
             <div className="mt-5 pt-5 border-t border-white/8">
               <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Message</p>
-              <p className="text-white/60 text-sm leading-relaxed">{selected.message || selected.notes}</p>
+              <p className="text-white/60 text-sm leading-relaxed">{selected.message}</p>
             </div>
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <span className="text-white/30 text-xs uppercase tracking-wider flex-shrink-0">{label}</span>
-      <span className="text-white/70 text-xs text-right">{value}</span>
     </div>
   );
 }
