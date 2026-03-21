@@ -104,7 +104,7 @@ export default function Login() {
             leadMsg = message;
           }
 
-          await supabase.from("leads").insert([{
+          const { error: leadErr } = await supabase.from("leads").insert([{
             name: name.trim(),
             email: email.trim(),
             phone: phone.trim() || null,
@@ -112,7 +112,8 @@ export default function Login() {
             yacht_type,
             message: leadMsg.trim() || null,
           }]);
-        } catch (_) {}
+          if (leadErr) console.warn("Leads insert error:", leadErr.message);
+        } catch (e) { console.warn("Leads insert failed:", e); }
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
