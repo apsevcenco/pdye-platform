@@ -25,6 +25,7 @@ export function Navbar() {
     { name: "Private Deals", href: "/private" },
     { name: "Deal Room", href: "/dealroom" },
     { name: "Boat Owners", href: "/boat-owners" },
+    { name: "Value Yacht", href: "/valuation" },
     { name: "Brokers", href: "/brokers" },
     { name: "Investors", href: "/investors" },
   ];

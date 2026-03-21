@@ -114,6 +114,41 @@ export default function Home() {
         </div>
       </section>
 
+      {/* VALUATION CTA */}
+      <section className="py-20 bg-background relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            className="flex flex-col md:flex-row items-center justify-between gap-10 border border-white/8 p-10 md:p-14 bg-card"
+          >
+            <div className="flex-1">
+              <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Free AI Tool</span>
+              <h2 className="font-display text-3xl md:text-4xl text-white mb-4">Estimate Your Yacht's Value</h2>
+              <p className="text-white/50 font-sans text-sm leading-relaxed max-w-lg">
+                Enter your vessel specifications and our AI analyses current market data across global listing platforms — providing an independent price estimate with 5 real market comparables. No name, flag, or location required.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-5">
+                {["No registration required", "Results in 30–60 sec", "5 market comparables"].map(t => (
+                  <span key={t} className="border border-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5">{t}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <Link
+                href="/valuation"
+                className="flex items-center gap-3 bg-primary hover:bg-white text-[#070f1a] px-10 py-5 font-bold tracking-widest uppercase transition-all duration-300 text-sm shadow-[0_0_30px_rgba(200,164,107,0.25)] hover:shadow-none"
+              >
+                Get Free Valuation
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* FEATURED DEALS */}
       <section className="py-24 md:py-32 bg-background relative">
         {/* Subtle decorative background element */}

@@ -116,4 +116,110 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
   }
 });
 
+
+// Public valuation endpoint — no vessel name/flag/location required
+router.post("/valuation", async (req, res) => {
+  try {
+    const { mode, type, builder, year, length, beam, draft, cabins, condition, hull_material, engines } = req.body as Record<string, unknown>;
+
+    const specs = [
+      type          && `Type: ${type}`,
+      mode === "builder" && builder ? `Builder: ${builder}` : null,
+      year          && `Year: ${year}`,
+      length        && `Length: ${length}`,
+      beam          && `Beam: ${beam}`,
+      draft         && `Draft: ${draft}`,
+      cabins        && `Cabins: ${cabins}`,
+      condition     && `Condition: ${condition}`,
+      hull_material && `Hull material: ${hull_material}`,
+      engines       && `Engines: ${engines}`,
+    ].filter(Boolean).join("\n");
+
+    if (!specs) {
+      res.status(400).json({ error: "At least some specifications required" });
+      return;
+    }
+
+    const modeNote = mode === "builder"
+      ? "Take into account this specific builder's brand premium and typical pricing."
+      : "Evaluate purely on technical specs — do not assume a brand premium.";
+
+    const prompt = `You are an expert superyacht market appraiser. Estimate the fair market value for a vessel with these specs and provide 5 realistic comparable market examples.
+
+VESSEL SPECIFICATIONS:
+${specs}
+
+${modeNote}
+
+Return ONLY this JSON (no markdown, no extra text):
+{
+  "estimated_low": "€ X,XXX,XXX",
+  "estimated_high": "€ X,XXX,XXX",
+  "confidence": "high|medium|low",
+  "reasoning": "2-3 sentences explaining the valuation methodology and key value drivers.",
+  "comparables": [
+    {
+      "builder": "Builder name",
+      "model": "Model / Series name",
+      "year": 2018,
+      "length": "28m",
+      "condition": "Good",
+      "price": "€ 2,800,000",
+      "note": "One sentence about why this is comparable"
+    }
+  ]
+}
+
+The comparables array must have EXACTLY 5 entries. These must be realistic vessels plausibly found on the market. Do NOT include vessel names, owner names, or broker/seller information.`;
+
+    const openai = getOpenAI();
+    let result: Record<string, unknown>;
+
+    try {
+      const webResponse = await (openai as unknown as {
+        responses: {
+          create: (p: Record<string, unknown>) => Promise<{ output_text?: string; output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> }>;
+        };
+      }).responses.create({
+        model: "gpt-5-mini",
+        tools: [{ type: "web_search_preview" }],
+        input: prompt,
+      });
+
+      const rawText = webResponse.output_text ||
+        webResponse.output?.find(o => o.type === "message")
+          ?.content?.find(c => c.type === "output_text")?.text || "";
+      if (!rawText) throw new Error("Empty response");
+      const match = rawText.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("No JSON");
+      result = JSON.parse(match[0]);
+    } catch {
+      const fallback = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are an expert superyacht market appraiser. Reply ONLY with valid JSON, no markdown." },
+          { role: "user", content: prompt },
+        ],
+      });
+      const raw = (fallback.choices[0]?.message?.content || "").trim();
+      const match = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Could not parse JSON");
+      result = JSON.parse(match[0]);
+    }
+
+    // Clean markdown links from reasoning
+    if (typeof result.reasoning === "string") {
+      result.reasoning = result.reasoning
+        .replace(/\(\[([^\]]+)\]\([^)]+\)\)/g, "")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .trim();
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("Valuation error:", err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Valuation failed" });
+  }
+});
+
 export default router;

@@ -23,6 +23,7 @@ import AdminUsers from "./pages/AdminUsers";
 import YachtDetail from "./pages/YachtDetail";
 import BoatOwners from "./pages/BoatOwners";
 import Investors from "./pages/Investors";
+import Valuation from "./pages/Valuation";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +98,7 @@ function Router() {
       <Route path="/boat-owners" component={BoatOwners} />
       <Route path="/brokers" component={Brokers} />
       <Route path="/investors" component={Investors} />
+      <Route path="/valuation" component={Valuation} />
 
       {/* Protected */}
       <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
