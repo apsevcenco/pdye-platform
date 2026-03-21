@@ -42,8 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function register(email: string, password: string): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { error: error.message };
+    // If email confirmation is disabled, session is returned immediately — auto-login
+    if (data.session) {
+      setSession(data.session);
+      setUser(data.session.user);
+    }
     return { error: null };
   }
 

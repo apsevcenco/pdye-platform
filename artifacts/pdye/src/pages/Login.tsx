@@ -33,8 +33,18 @@ export default function Login() {
       if (error) {
         setError(error);
       } else {
-        setSuccess("Registration successful. Check your email to confirm your account, then login.");
-        setMode("login");
+        // If email confirmation is disabled, user is logged in immediately
+        // Otherwise show message to check email
+        import("@/lib/supabase").then(({ supabase }) => {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+              setLocation("/yachts");
+            } else {
+              setSuccess("Регистрация успешна. Проверьте почту и подтвердите аккаунт, затем войдите.");
+              setMode("login");
+            }
+          });
+        });
       }
     }
     setLoading(false);
