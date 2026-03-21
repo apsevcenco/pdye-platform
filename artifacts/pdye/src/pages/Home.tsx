@@ -22,7 +22,7 @@ export default function Home() {
   return (
     <Layout>
       {/* HERO SECTION */}
-      <section className="relative h-[90vh] min-h-[600px] flex items-center justify-center overflow-hidden">
+      <section className="relative h-[90vh] min-h-[600px] flex items-start sm:items-center justify-center overflow-hidden pt-28 sm:pt-0">
         {/* landing page hero scenic Mediterranean yacht offshore */}
         <div className="absolute inset-0 z-0">
           <img 
@@ -34,7 +34,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/20 to-background"></div>
         </div>
 
-        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center mt-20">
+        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center mt-4 sm:mt-20">
           <motion.div
             initial="hidden"
             animate="visible"
