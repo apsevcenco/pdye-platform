@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, Fragment } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ALL_YACHTS, type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -57,6 +57,7 @@ const navItems = [
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "content", label: "Page Content", icon: PenLine },
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
 ];
 
 const INVESTOR_REQUESTS = [
@@ -1901,6 +1902,7 @@ const views: Record<string, JSX.Element> = {
 export default function Admin() {
   const [activeView, setActiveView] = useState("dashboard");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   return (
     <div className="flex h-screen bg-[#070f1a] font-sans overflow-hidden">
@@ -1921,17 +1923,18 @@ export default function Admin() {
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
           {navItems.map((item) => {
             const active = activeView === item.id;
+            const hasHref = "href" in item && item.href;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id)}
+                onClick={() => hasHref ? setLocation(item.href as string) : setActiveView(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 mb-1 text-sm font-medium transition-all duration-200 text-left group ${
-                  active
+                  active && !hasHref
                     ? "bg-primary/10 text-primary border-l-2 border-primary pl-[10px]"
                     : "text-white/50 hover:text-white hover:bg-white/5 border-l-2 border-transparent"
                 }`}
               >
-                <item.icon size={16} className={active ? "text-primary" : "text-white/40 group-hover:text-white/70"} />
+                <item.icon size={16} className={active && !hasHref ? "text-primary" : "text-white/40 group-hover:text-white/70"} />
                 {item.label}
                 {item.id === "messages" && MESSAGES.filter(m => !m.read).length > 0 && (
                   <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">

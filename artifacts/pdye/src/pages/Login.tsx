@@ -3,7 +3,13 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { Anchor } from "lucide-react";
+import { Anchor, TrendingUp, Briefcase, Ship } from "lucide-react";
+
+const ROLES = [
+  { key: "investor", label: "Investor",    icon: TrendingUp, desc: "Access private listings & deal room" },
+  { key: "broker",   label: "Broker",      icon: Briefcase,  desc: "List and manage yacht transactions" },
+  { key: "owner",    label: "Yacht Owner", icon: Ship,       desc: "Sell your vessel confidentially" },
+];
 
 export default function Login() {
   const { login, register } = useAuth();
@@ -11,6 +17,7 @@ export default function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("investor");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,18 +36,16 @@ export default function Login() {
         setLocation("/yachts");
       }
     } else {
-      const { error } = await register(email, password);
+      const { error } = await register(email, password, role);
       if (error) {
         setError(error);
       } else {
-        // If email confirmation is disabled, user is logged in immediately
-        // Otherwise show message to check email
         import("@/lib/supabase").then(({ supabase }) => {
           supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
               setLocation("/yachts");
             } else {
-              setSuccess("Регистрация успешна. Проверьте почту и подтвердите аккаунт, затем войдите.");
+              setSuccess("Registration successful. Your application is under review.");
               setMode("login");
             }
           });
@@ -92,7 +97,35 @@ export default function Login() {
           </div>
 
           <div className="bg-card border border-white/10 p-8 shadow-2xl">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
+
+              {/* Role selector (register only) */}
+              {mode === "register" && (
+                <div>
+                  <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-3 font-sans">I am a</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ROLES.map(r => {
+                      const Icon = r.icon;
+                      return (
+                        <button
+                          key={r.key}
+                          type="button"
+                          onClick={() => setRole(r.key)}
+                          className={`flex flex-col items-center gap-1.5 py-3 px-2 border transition-all duration-200 ${
+                            role === r.key
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-white/10 text-white/40 hover:border-white/25 hover:text-white/60"
+                          }`}
+                        >
+                          <Icon size={16} strokeWidth={1.5} />
+                          <span className="text-[9px] font-bold uppercase tracking-widest leading-tight text-center">{r.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-white/70 text-xs font-bold mb-2 uppercase tracking-widest">
                   Email Address
@@ -109,9 +142,7 @@ export default function Login() {
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-white/70 text-xs font-bold uppercase tracking-widest">Password</label>
-                </div>
+                <label className="block text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Password</label>
                 <input
                   type="password"
                   value={password}
@@ -145,7 +176,7 @@ export default function Login() {
               >
                 {loading
                   ? (mode === "login" ? "Signing In..." : "Registering...")
-                  : (mode === "login" ? "Access Portal" : "Create Account")
+                  : (mode === "login" ? "Access Portal" : "Submit Application")
                 }
               </button>
             </form>
@@ -153,12 +184,12 @@ export default function Login() {
 
           <p className="text-center mt-8 text-white/30 text-xs font-sans tracking-wide">
             {mode === "login"
-              ? <>Not registered? <button onClick={() => setMode("register")} className="text-primary hover:underline">Create account</button></>
-              : <>Already have an account? <button onClick={() => setMode("login")} className="text-primary hover:underline">Sign in</button></>
+              ? <><button onClick={() => setMode("register")} className="text-primary hover:underline">Create account</button></>
+              : <><button onClick={() => setMode("login")} className="text-primary hover:underline">Already have an account? Sign in</button></>
             }
           </p>
           <p className="text-center mt-4 text-white/20 text-xs font-sans">
-            Need access? <a href="/access" className="text-primary/70 hover:text-primary transition-colors">Request invitation</a>
+            Need access? <a href="#/access" className="text-primary/70 hover:text-primary transition-colors">Request invitation</a>
           </p>
         </motion.div>
       </div>
