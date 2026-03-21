@@ -24,9 +24,19 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
   try {
-    const { data, error } = await supabase.from("users").select("*").eq("id", userId).single();
-    if (error) return null;
-    return (data as UserProfile) ?? null;
+    const queryPromise = supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single()
+      .then(({ data, error }) => {
+        if (error) return null;
+        return (data as UserProfile) ?? null;
+      });
+    const timeoutPromise = new Promise<null>(resolve =>
+      setTimeout(() => resolve(null), 4000)
+    );
+    return await Promise.race([queryPromise, timeoutPromise]);
   } catch {
     return null;
   }
@@ -39,30 +49,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
-        setUserProfile(profile);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
-        setUserProfile(profile);
-      } else {
-        setUserProfile(null);
+    async function initAuth() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id);
+          if (!mounted) return;
+          setUserProfile(profile);
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (mounted) setLoading(false);
       }
-    });
+    }
 
-    return () => subscription.unsubscribe();
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!mounted) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id);
+          if (!mounted) return;
+          setUserProfile(profile);
+        } else {
+          setUserProfile(null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function refreshProfile() {
