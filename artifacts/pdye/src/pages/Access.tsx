@@ -151,7 +151,7 @@ export default function Access() {
 
   return (
     <Layout>
-      <div className="min-h-[90vh] flex">
+      <div className="min-h-[90vh] flex pt-[72px]">
         {/* Left side — dynamic per role */}
         <div className="hidden lg:flex lg:w-5/12 relative overflow-hidden flex-col">
           <img
