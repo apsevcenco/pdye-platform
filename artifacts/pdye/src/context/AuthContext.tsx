@@ -23,8 +23,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
-  const { data } = await supabase.from("users").select("*").eq("id", userId).single();
-  return (data as UserProfile) ?? null;
+  try {
+    const { data, error } = await supabase.from("users").select("*").eq("id", userId).single();
+    if (error) return null;
+    return (data as UserProfile) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -41,6 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profile = await fetchProfile(session.user.id);
         setUserProfile(profile);
       }
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
 
