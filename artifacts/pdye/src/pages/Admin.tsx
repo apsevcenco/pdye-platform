@@ -30,6 +30,11 @@ import {
   X,
   Sparkles,
   ImagePlus,
+  Inbox,
+  Phone,
+  Mail,
+  Building2,
+  Calendar,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -51,6 +56,7 @@ const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "yachts", label: "Yachts", icon: Ship },
   { id: "private", label: "Private Deals", icon: Lock },
+  { id: "leads", label: "Leads", icon: Inbox },
   { id: "investors", label: "Investors", icon: Users },
   { id: "brokers", label: "Brokers", icon: Briefcase },
   { id: "documents", label: "Documents", icon: FileText },
@@ -1343,6 +1349,219 @@ function YachtsView() {
   );
 }
 
+type Lead = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  type: string;
+  company: string | null;
+  budget: string | null;
+  focus: string | null;
+  license: string | null;
+  experience: string | null;
+  partnership_type: string | null;
+  vessel: string | null;
+  vessel_length: string | null;
+  vessel_year: string | null;
+  message: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+const LEAD_TYPE_STYLES: Record<string, string> = {
+  "Investor Application": "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  "Broker Application":   "text-purple-400 bg-purple-500/10 border-purple-500/20",
+  "Owner Submission":     "text-green-400 bg-green-500/10 border-green-500/20",
+};
+
+function LeadsView() {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>("all");
+  const [selected, setSelected] = useState<Lead | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setLeads((data as Lead[]) || []);
+        setLoading(false);
+      });
+  }, []);
+
+  const types = ["all", "Investor Application", "Broker Application", "Owner Submission"];
+  const filtered = filter === "all" ? leads : leads.filter(l => l.type === filter);
+
+  return (
+    <div className="flex gap-6 h-full">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="font-display text-3xl text-white font-bold">Leads</h1>
+            <p className="text-white/50 text-sm font-sans mt-1">{leads.length} incoming requests</p>
+          </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
+          {types.map(t => (
+            <button
+              key={t}
+              onClick={() => setFilter(t)}
+              className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${
+                filter === t
+                  ? "bg-primary text-[#070f1a]"
+                  : "text-white/50 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              {t === "all" ? "All" : t.split(" ")[0]}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30">
+            <Inbox size={36} className="mb-3 opacity-30" />
+            <p className="text-sm">No leads yet</p>
+          </div>
+        ) : (
+          <div className="bg-[#0f1d33] border border-white/5">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Name</th>
+                  <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Type</th>
+                  <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden lg:table-cell">Phone</th>
+                  <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Date</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filtered.map(lead => (
+                  <tr
+                    key={lead.id}
+                    onClick={() => setSelected(lead)}
+                    className={`cursor-pointer transition-colors group ${
+                      selected?.id === lead.id ? "bg-primary/8 border-l-2 border-primary" : "hover:bg-white/2"
+                    }`}
+                  >
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-primary text-[11px] font-bold">
+                            {lead.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-white font-medium text-sm">{lead.name}</p>
+                          {lead.email && <p className="text-white/40 text-xs">{lead.email}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 hidden md:table-cell">
+                      <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[lead.type] || "text-white/50 bg-white/5 border-white/10"}`}>
+                        {lead.type?.split(" ")[0]}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-white/50 text-sm hidden lg:table-cell">{lead.phone || "—"}</td>
+                    <td className="px-5 py-3.5 text-white/40 text-xs">
+                      {lead.created_at ? new Date(lead.created_at).toLocaleDateString("ru-RU") : "—"}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <ChevronRight size={14} className="text-white/20 group-hover:text-primary transition-colors ml-auto" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Detail panel */}
+      {selected && (
+        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+          <div className="flex items-center justify-between mb-5">
+            <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[selected.type] || "text-white/50 bg-white/5 border-white/10"}`}>
+              {selected.type}
+            </span>
+            <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+            <span className="text-primary text-sm font-bold">
+              {selected.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+
+          <h2 className="font-display text-xl text-white mb-1">{selected.name}</h2>
+          <p className="text-white/40 text-xs mb-5">
+            {selected.created_at ? new Date(selected.created_at).toLocaleString("ru-RU") : ""}
+          </p>
+
+          <div className="space-y-3">
+            {selected.email && (
+              <div className="flex items-center gap-2 text-sm">
+                <Mail size={13} className="text-primary flex-shrink-0" />
+                <span className="text-white/70">{selected.email}</span>
+              </div>
+            )}
+            {selected.phone && (
+              <div className="flex items-center gap-2 text-sm">
+                <Phone size={13} className="text-primary flex-shrink-0" />
+                <span className="text-white/70">{selected.phone}</span>
+              </div>
+            )}
+            {selected.company && (
+              <div className="flex items-center gap-2 text-sm">
+                <Building2 size={13} className="text-primary flex-shrink-0" />
+                <span className="text-white/70">{selected.company}</span>
+              </div>
+            )}
+          </div>
+
+          {(selected.budget || selected.focus || selected.license || selected.experience ||
+            selected.partnership_type || selected.vessel || selected.vessel_length || selected.vessel_year) && (
+            <div className="mt-5 pt-5 border-t border-white/8 space-y-2.5">
+              {selected.budget && <Row label="Budget" value={selected.budget} />}
+              {selected.focus && <Row label="Focus" value={selected.focus} />}
+              {selected.license && <Row label="License" value={selected.license} />}
+              {selected.experience && <Row label="Experience" value={selected.experience} />}
+              {selected.partnership_type && <Row label="Partnership" value={selected.partnership_type} />}
+              {selected.vessel && <Row label="Vessel" value={selected.vessel} />}
+              {selected.vessel_length && <Row label="Length" value={selected.vessel_length} />}
+              {selected.vessel_year && <Row label="Year" value={selected.vessel_year} />}
+            </div>
+          )}
+
+          {(selected.message || selected.notes) && (
+            <div className="mt-5 pt-5 border-t border-white/8">
+              <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Message</p>
+              <p className="text-white/60 text-sm leading-relaxed">{selected.message || selected.notes}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-white/30 text-xs uppercase tracking-wider flex-shrink-0">{label}</span>
+      <span className="text-white/70 text-xs text-right">{value}</span>
+    </div>
+  );
+}
+
 function InvestorsView() {
   return (
     <div>
@@ -1891,6 +2110,7 @@ const views: Record<string, JSX.Element> = {
   dashboard: <Dashboard />,
   yachts: <YachtsView />,
   private: <PrivateDealsView />,
+  leads: <LeadsView />,
   investors: <InvestorsView />,
   brokers: <BrokersView />,
   documents: <DocumentsView />,
