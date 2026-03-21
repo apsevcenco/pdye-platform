@@ -9,6 +9,50 @@ import { supabase } from "@/lib/supabase";
 import { Yacht, FEATURED_YACHTS } from "@/lib/data";
 import { useCurrency } from "@/lib/currency";
 
+type UnitSystem = "metric" | "imperial";
+
+function parseNum(raw: string): number | null {
+  if (!raw) return null;
+  const n = parseFloat(String(raw).replace(/,/g, "").match(/[\d.]+/)?.[0] ?? "");
+  return isNaN(n) ? null : n;
+}
+
+function cvtLength(raw: string | number | null | undefined, sys: UnitSystem): string {
+  if (raw === null || raw === undefined || raw === "") return "";
+  const s = String(raw).trim();
+  const n = parseNum(s);
+  if (n === null) return s;
+  const lower = s.toLowerCase();
+  const storedImp = lower.includes("ft") || lower.includes("feet") || lower.includes("'");
+  const meters = storedImp ? n / 3.28084 : n;
+  if (sys === "metric") return `${meters % 1 === 0 ? meters : meters.toFixed(1)} m`;
+  return `${(meters * 3.28084).toFixed(1)} ft`;
+}
+
+function cvtCapacity(raw: string | number | null | undefined, sys: UnitSystem): string {
+  if (raw === null || raw === undefined || raw === "") return "";
+  const s = String(raw).trim();
+  const n = parseNum(s);
+  if (n === null) return s;
+  const lower = s.toLowerCase();
+  const storedImp = lower.includes("gal");
+  const liters = storedImp ? n / 0.264172 : n;
+  if (sys === "metric") return `${Math.round(liters).toLocaleString()} L`;
+  return `${Math.round(liters * 0.264172).toLocaleString()} gal`;
+}
+
+function cvtDisp(raw: string | number | null | undefined, sys: UnitSystem): string {
+  if (raw === null || raw === undefined || raw === "") return "";
+  const s = String(raw).trim();
+  const n = parseNum(s);
+  if (n === null) return s;
+  const lower = s.toLowerCase();
+  const storedImp = lower.includes("lt") || lower.includes("long ton");
+  const tonnes = storedImp ? n / 0.984207 : n;
+  if (sys === "metric") return `${tonnes.toFixed(1)} t`;
+  return `${(tonnes * 0.984207).toFixed(1)} LT`;
+}
+
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80";
 
 function SpecRow({ label, value }: { label: string; value?: string | number | null }) {
@@ -36,7 +80,9 @@ export default function YachtDetail() {
   const [loading, setLoading] = useState(true);
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [units, setUnits] = useState<UnitSystem>("metric");
   const { formatPrice } = useCurrency();
+  const M = units === "metric";
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -224,8 +270,8 @@ export default function YachtDetail() {
             {/* Quick stats bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/5">
               {[
-                { icon: <Ruler size={16} />, label: "Length", value: yacht.length },
-                { icon: <Anchor size={16} />, label: "Draft", value: yacht.draft },
+                { icon: <Ruler size={16} />, label: "Length", value: cvtLength(yacht.length, units) },
+                { icon: <Anchor size={16} />, label: "Draft", value: cvtLength(yacht.draft, units) },
                 { icon: <Bed size={16} />, label: "Cabins", value: yacht.cabins != null ? `${yacht.cabins}` : null },
                 { icon: <Users size={16} />, label: "Crew", value: yacht.crew != null ? `${yacht.crew}` : null },
               ].map(({ icon, label, value }) => value ? (
@@ -238,47 +284,65 @@ export default function YachtDetail() {
             </div>
 
             {/* Spec sections */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              {/* Unit toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-white/30 text-[10px] uppercase tracking-widest font-sans">Specifications</p>
+                <button
+                  onClick={() => setUnits(u => u === "metric" ? "imperial" : "metric")}
+                  className="flex items-center gap-0 border border-white/10 overflow-hidden hover:border-primary/30 transition-colors"
+                >
+                  <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>
+                    Metric
+                  </span>
+                  <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${!M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>
+                    Imperial
+                  </span>
+                </button>
+              </div>
 
-              <Section title="Dimensions">
-                <SpecRow label="Length Overall" value={yacht.length} />
-                <SpecRow label="Beam" value={yacht.beam} />
-                <SpecRow label="Draft" value={yacht.draft} />
-                <SpecRow label="Displacement" value={yacht.displacement} />
-                <SpecRow label="Gross Tonnage" value={yacht.gross_tonnage} />
-              </Section>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <Section title="Hull & Construction">
-                <SpecRow label="Hull Material" value={yacht.hull_material} />
-                <SpecRow label="Hull Type" value={yacht.hull_type} />
-                <SpecRow label="Condition" value={yacht.condition} />
-                <SpecRow label="Flag" value={yacht.flag} />
-                <SpecRow label="Year Built" value={yacht.year} />
-                <SpecRow label="Last Refit" value={yacht.refit} />
-              </Section>
+                <Section title="Dimensions">
+                  <SpecRow label={M ? "Length Overall" : "Length Overall"} value={cvtLength(yacht.length, units)} />
+                  <SpecRow label="Beam" value={cvtLength(yacht.beam, units)} />
+                  <SpecRow label="Draft" value={cvtLength(yacht.draft, units)} />
+                  <SpecRow label="Displacement" value={cvtDisp(yacht.displacement, units)} />
+                  <SpecRow label="Gross Tonnage" value={yacht.gross_tonnage ? `${parseNum(String(yacht.gross_tonnage)) ?? yacht.gross_tonnage} GT` : null} />
+                </Section>
 
-              <Section title="Performance">
-                <SpecRow label="Max Speed" value={yacht.max_speed} />
-                <SpecRow label="Cruise Speed" value={yacht.cruise_speed} />
-                <SpecRow label="Range" value={yacht.range} />
-                <SpecRow label="Fuel Type" value={yacht.fuel_type} />
-                <SpecRow label="Fuel Capacity" value={yacht.fuel_capacity} />
-                <SpecRow label="Water Capacity" value={yacht.water_capacity} />
-              </Section>
+                <Section title="Hull & Construction">
+                  <SpecRow label="Hull Material" value={yacht.hull_material} />
+                  <SpecRow label="Hull Type" value={yacht.hull_type} />
+                  <SpecRow label="Condition" value={yacht.condition} />
+                  <SpecRow label="Flag" value={yacht.flag} />
+                  <SpecRow label="Year Built" value={yacht.year} />
+                  <SpecRow label="Last Refit" value={yacht.refit} />
+                </Section>
 
-              <Section title="Propulsion">
-                <SpecRow label="Engines" value={yacht.engines} />
-                <SpecRow label="Engine Count" value={yacht.engine_count} />
-                <SpecRow label="Horse Power" value={yacht.horse_power} />
-              </Section>
+                <Section title="Performance">
+                  <SpecRow label="Max Speed" value={yacht.max_speed ? `${parseNum(String(yacht.max_speed)) ?? yacht.max_speed} kn` : null} />
+                  <SpecRow label="Cruise Speed" value={yacht.cruise_speed ? `${parseNum(String(yacht.cruise_speed)) ?? yacht.cruise_speed} kn` : null} />
+                  <SpecRow label="Range" value={yacht.range ? `${parseNum(String(yacht.range))?.toLocaleString() ?? yacht.range} nm` : null} />
+                  <SpecRow label="Fuel Type" value={yacht.fuel_type} />
+                  <SpecRow label="Fuel Capacity" value={cvtCapacity(yacht.fuel_capacity, units)} />
+                  <SpecRow label="Water Capacity" value={cvtCapacity(yacht.water_capacity, units)} />
+                </Section>
 
-              <Section title="Accommodation">
-                <SpecRow label="Guest Cabins" value={yacht.cabins} />
-                <SpecRow label="Heads / Bathrooms" value={yacht.heads} />
-                <SpecRow label="Berths" value={yacht.berths} />
-                <SpecRow label="Crew" value={yacht.crew} />
-              </Section>
+                <Section title="Propulsion">
+                  <SpecRow label="Engines" value={yacht.engines} />
+                  <SpecRow label="Engine Count" value={yacht.engine_count} />
+                  <SpecRow label="Horse Power" value={yacht.horse_power ? `${yacht.horse_power} hp` : null} />
+                </Section>
 
+                <Section title="Accommodation">
+                  <SpecRow label="Guest Cabins" value={yacht.cabins} />
+                  <SpecRow label="Heads / Bathrooms" value={yacht.heads} />
+                  <SpecRow label="Berths" value={yacht.berths} />
+                  <SpecRow label="Crew" value={yacht.crew} />
+                </Section>
+
+              </div>
             </div>
           </div>
 
@@ -327,7 +391,7 @@ export default function YachtDetail() {
                 <SpecRow label="Builder" value={yacht.builder} />
                 <SpecRow label="Year" value={yacht.year} />
                 <SpecRow label="Location" value={yacht.location} />
-                <SpecRow label="Length" value={yacht.length} />
+                <SpecRow label="Length" value={cvtLength(yacht.length, units)} />
                 <SpecRow label="Cabins" value={yacht.cabins} />
               </div>
             </div>
