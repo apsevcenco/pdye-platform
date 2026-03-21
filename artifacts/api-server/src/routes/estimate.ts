@@ -120,19 +120,39 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
 // Public valuation endpoint — no vessel name/flag/location required
 router.post("/valuation", async (req, res) => {
   try {
-    const { mode, type, builder, year, length, beam, draft, cabins, condition, hull_material, engines } = req.body as Record<string, unknown>;
+    const b = req.body as Record<string, unknown>;
+    const { mode, units } = b;
+
+    const unitNote = units === "imperial" ? " (imperial units)" : " (metric units)";
 
     const specs = [
-      type          && `Type: ${type}`,
-      mode === "builder" && builder ? `Builder: ${builder}` : null,
-      year          && `Year: ${year}`,
-      length        && `Length: ${length}`,
-      beam          && `Beam: ${beam}`,
-      draft         && `Draft: ${draft}`,
-      cabins        && `Cabins: ${cabins}`,
-      condition     && `Condition: ${condition}`,
-      hull_material && `Hull material: ${hull_material}`,
-      engines       && `Engines: ${engines}`,
+      b.type          && `Type: ${b.type}`,
+      mode === "builder" && b.builder ? `Builder: ${b.builder}` : null,
+      b.year          && `Build year: ${b.year}`,
+      b.refit         && `Refit year: ${b.refit}`,
+      b.status        && `Market status: ${b.status}`,
+      b.condition     && `Condition: ${b.condition}`,
+      b.length        && `Length (LOA): ${b.length}${unitNote}`,
+      b.beam          && `Beam: ${b.beam}${unitNote}`,
+      b.draft         && `Draft: ${b.draft}${unitNote}`,
+      b.displacement  && `Displacement: ${b.displacement}${units === "imperial" ? " LT" : " tonnes"}`,
+      b.gross_tonnage && `Gross tonnage: ${b.gross_tonnage} GT`,
+      b.hull_material && `Hull material: ${b.hull_material}`,
+      b.hull_type     && `Hull type: ${b.hull_type}`,
+      b.engines       && `Engine configuration: ${b.engines}`,
+      b.engine_count  && `Number of engines: ${b.engine_count}`,
+      b.horse_power   && `Total horsepower: ${b.horse_power} HP`,
+      b.fuel_type     && `Fuel type: ${b.fuel_type}`,
+      b.fuel_capacity && `Fuel capacity: ${b.fuel_capacity}${units === "imperial" ? " gal" : " L"}`,
+      b.water_capacity && `Water capacity: ${b.water_capacity}${units === "imperial" ? " gal" : " L"}`,
+      b.max_speed     && `Max speed: ${b.max_speed} kts`,
+      b.cruise_speed  && `Cruise speed: ${b.cruise_speed} kts`,
+      b.range         && `Range: ${b.range} nm`,
+      b.cabins        && `Guest cabins: ${b.cabins}`,
+      b.heads         && `Heads (WC): ${b.heads}`,
+      b.berths        && `Total berths: ${b.berths}`,
+      b.crew          && `Crew capacity: ${b.crew}`,
+      b.asking_price  && `Current asking price (if listed): ${b.asking_price}`,
     ].filter(Boolean).join("\n");
 
     if (!specs) {
