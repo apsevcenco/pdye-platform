@@ -1,0 +1,86 @@
+
+DROP TABLE IF EXISTS yachts;
+
+CREATE TABLE yachts (
+  id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name             TEXT NOT NULL,
+  type             TEXT,
+  status           TEXT DEFAULT 'Off-Market',
+  condition        TEXT,
+  flag             TEXT,
+  builder          TEXT,
+  year             INTEGER,
+  refit            INTEGER,
+  length           TEXT,
+  beam             TEXT,
+  draft            TEXT,
+  displacement     TEXT,
+  gross_tonnage    TEXT,
+  hull_material    TEXT,
+  hull_type        TEXT,
+  engines          TEXT,
+  engine_count     INTEGER,
+  horse_power      TEXT,
+  fuel_type        TEXT,
+  fuel_capacity    TEXT,
+  water_capacity   TEXT,
+  max_speed        TEXT,
+  cruise_speed     TEXT,
+  range            TEXT,
+  cabins           INTEGER,
+  heads            INTEGER,
+  berths           INTEGER,
+  crew             INTEGER,
+  location         TEXT,
+  price            TEXT,
+  market_price     TEXT,
+  distressed_price TEXT,
+  image            TEXT,
+  description      TEXT,
+  photos           TEXT[],
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Полностью отключаем RLS
+ALTER TABLE yachts DISABLE ROW LEVEL SECURITY;
+
+-- Даём полные права
+GRANT ALL ON yachts TO anon;
+GRANT ALL ON yachts TO authenticated;
+GRANT ALL ON yachts TO service_role;
+
+-- Bucket для фото
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('yacht-photos', 'yacht-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Чистим старые политики хранилища
+DROP POLICY IF EXISTS "Allow anon uploads" ON storage.objects;
+DROP POLICY IF EXISTS "anon upload" ON storage.objects;
+DROP POLICY IF EXISTS "public storage" ON storage.objects;
+DROP POLICY IF EXISTS "yacht_photos_all" ON storage.objects;
+
+-- Новая единая политика для фото
+CREATE POLICY "yacht_photos_all" ON storage.objects
+FOR ALL TO anon, authenticated, service_role
+USING (bucket_id = 'yacht-photos')
+WITH CHECK (bucket_id = 'yacht-photos');
+
+-- Перезагружаем схему
+NOTIFY pgrst, 'reload schema';
+ALTER TABLE yachts ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;
+-- включаем RLS
+ALTER TABLE yachts ENABLE ROW LEVEL SECURITY;
+
+-- публичный доступ только к public яхтам
+CREATE POLICY "Public yachts visible"
+ON yachts
+FOR SELECT
+USING (is_private = false);
+
+-- авторизованные видят всё
+CREATE POLICY "Authenticated users see all"
+ON yachts
+FOR SELECT
+USING (auth.role() = 'authenticated');
+ALTER TABLE yachts ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;
