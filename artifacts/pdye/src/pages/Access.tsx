@@ -188,17 +188,18 @@ export default function Access() {
             className="max-w-lg w-full mx-auto"
           >
             {/* Role tabs */}
-            <div className="flex mb-8 border border-white/8">
+            <div className="flex mb-8 bg-white/5 border border-white/15 p-1 gap-1">
               {ROLES.map(r => {
                 const Icon = r.icon;
+                const active = role === r.key;
                 return (
                   <button key={r.key} type="button" onClick={() => switchRole(r.key as RoleKey)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-3 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-200 font-sans ${
-                      role === r.key
-                        ? "bg-primary/12 text-primary border-b-2 border-primary"
-                        : "text-white/35 hover:text-white/60 hover:bg-white/2"
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 font-sans ${
+                      active
+                        ? "bg-primary text-[#070f1a] shadow-[0_0_12px_rgba(200,164,107,0.25)]"
+                        : "text-white/60 hover:text-white hover:bg-white/8"
                     }`}>
-                    <Icon size={12} strokeWidth={2} />
+                    <Icon size={13} strokeWidth={active ? 2.5 : 1.8} />
                     {r.label}
                   </button>
                 );
