@@ -26,6 +26,7 @@ export function Navbar() {
     { name: "Deal Room", href: "/dealroom" },
     { name: "Boat Owners", href: "/boat-owners" },
     { name: "Brokers", href: "/brokers" },
+    { name: "Investors", href: "/access" },
   ];
 
   const navBackground = (isScrolled || !isHome) ? "bg-background/95 backdrop-blur-md border-b border-white/5" : "bg-transparent";
@@ -46,21 +47,21 @@ export function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-6">
           {navLinks.map((link) => (
             <Link
               key={link.name}
               href={link.href}
-              className={`font-sans font-medium text-sm tracking-wide uppercase transition-all duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all after:duration-300 hover:after:w-full ${
-                location === link.href ? "text-primary after:w-full" : "text-white/80 hover:text-white"
+              className={`font-sans font-medium text-[11px] tracking-widest uppercase transition-all duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-0 after:h-[1px] after:bg-primary after:transition-all after:duration-300 hover:after:w-full ${
+                location === link.href ? "text-primary after:w-full" : "text-white/70 hover:text-white"
               }`}
             >
               {link.name}
             </Link>
           ))}
-          <div className="h-6 w-[1px] bg-white/20 mx-2" />
+          <div className="h-5 w-[1px] bg-white/15 mx-1" />
           <CurrencySelector compact />
-          <div className="h-6 w-[1px] bg-white/20 mx-2" />
+          <div className="h-5 w-[1px] bg-white/15 mx-1" />
           {user ? (
             <button
               onClick={handleLogout}
@@ -99,7 +100,7 @@ export function Navbar() {
 
         {/* Mobile Toggle */}
         <button
-          className="md:hidden text-white p-2"
+          className="lg:hidden text-white p-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -108,7 +109,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="absolute top-24 left-0 w-full bg-background border-b border-white/10 md:hidden flex flex-col p-6 gap-6 shadow-2xl">
+        <div className="absolute top-24 left-0 w-full bg-background border-b border-white/10 lg:hidden flex flex-col p-6 gap-6 shadow-2xl">
           {navLinks.map((link) => (
             <Link
               key={link.name}
