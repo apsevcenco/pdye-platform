@@ -140,6 +140,8 @@ router.post("/valuation", async (req, res) => {
       b.hull_type     && `Hull type: ${b.hull_type}`,
       b.engines       && `Engine configuration: ${b.engines}`,
       b.engine_count  && `Number of engines: ${b.engine_count}`,
+      b.engine_maker  && `Engine manufacturer: ${b.engine_maker}`,
+      b.engine_model  && `Engine model/series: ${b.engine_model}`,
       b.horse_power   && `Total horsepower: ${b.horse_power} HP`,
       b.fuel_type     && `Fuel type: ${b.fuel_type}`,
       b.fuel_capacity && `Fuel capacity: ${b.fuel_capacity}${units === "imperial" ? " gal" : " L"}`,

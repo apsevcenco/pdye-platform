@@ -76,6 +76,7 @@ function conv(val: string, factor: number, dec = 1): string {
 
 const EMPTY: Record<string, string> = {
   type: "", builder: "", year: "", refit: "",
+  engine_maker: "", engine_model: "",
   length: "", beam: "", draft: "", displacement: "", gross_tonnage: "",
   hull_material: "", hull_type: "",
   engines: "", engine_count: "", horse_power: "", fuel_type: "",
@@ -316,6 +317,18 @@ export default function Valuation() {
                           className={inpUnit} placeholder="e.g. 2400" />
                         <UnitBadge unit="HP" />
                       </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="col-span-2">
+                      <label className={lbl}>Engine Manufacturer</label>
+                      <input value={form.engine_maker} onChange={e => setF("engine_maker", e.target.value)}
+                        className={inp} placeholder="e.g. MAN, MTU, Caterpillar, Volvo Penta, Cummins..." />
+                    </div>
+                    <div className="col-span-2">
+                      <label className={lbl}>Engine Model / Series</label>
+                      <input value={form.engine_model} onChange={e => setF("engine_model", e.target.value)}
+                        className={inp} placeholder="e.g. MAN V12-1550, MTU Series 2000, Volvo IPS-1200..." />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
