@@ -220,6 +220,7 @@ function YachtsView() {
   const [formPhotoError, setFormPhotoError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const formFileRef = useRef<HTMLInputElement>(null);
+  const [formIsPrivate, setFormIsPrivate] = useState(false);
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
 
@@ -337,6 +338,7 @@ function YachtsView() {
       image: str(form.image) || (formPhotos[0] ?? "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80"),
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
+      is_private: formIsPrivate,
     };
 
     const { error } = await supabaseAdmin.from("yachts").insert([payload]);
@@ -348,6 +350,7 @@ function YachtsView() {
       setTimeout(() => setSuccessMsg(""), 3000);
       setForm(EMPTY_FORM);
       setFormPhotos([]);
+      setFormIsPrivate(false);
       setShowForm(false);
       load();
     }
@@ -520,6 +523,26 @@ function YachtsView() {
               <div>
                 <label className={labelCls}>Flag / Registration</label>
                 <input className={inputCls} placeholder="e.g. Cayman Islands" value={form.flag} onChange={e => setF("flag", e.target.value)} />
+              </div>
+              {/* Private listing toggle */}
+              <div className="lg:col-span-2">
+                <label className={labelCls}>Access Control</label>
+                <button
+                  type="button"
+                  onClick={() => setFormIsPrivate(v => !v)}
+                  className={`flex items-center gap-3 px-4 py-3 border text-sm font-sans transition-all duration-200 ${
+                    formIsPrivate
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "bg-transparent border-white/10 text-white/40 hover:border-white/25 hover:text-white/60"
+                  }`}
+                >
+                  <div className={`w-8 h-4 rounded-full transition-all duration-200 flex items-center ${formIsPrivate ? "bg-primary" : "bg-white/10"}`}>
+                    <div className={`w-3 h-3 rounded-full bg-white shadow transition-all duration-200 ${formIsPrivate ? "translate-x-[18px]" : "translate-x-[2px]"}`} />
+                  </div>
+                  <span className="uppercase tracking-widest text-xs font-bold">
+                    {formIsPrivate ? "Private — Visible only to logged-in users" : "Public — Visible to everyone"}
+                  </span>
+                </button>
               </div>
             </div>
           </div>

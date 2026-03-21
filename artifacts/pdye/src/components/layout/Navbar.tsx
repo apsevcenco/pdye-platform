@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Anchor } from "lucide-react";
-import { motion } from "framer-motion";
+import { Menu, X, Anchor, LogIn, LogOut } from "lucide-react";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
+import { useAuth } from "@/context/AuthContext";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location] = useLocation();
+  const { user, logout } = useAuth();
 
   const isHome = location === "/";
 
@@ -27,6 +28,11 @@ export function Navbar() {
   ];
 
   const navBackground = (isScrolled || !isHome) ? "bg-background/95 backdrop-blur-md border-b border-white/5" : "bg-transparent";
+
+  async function handleLogout() {
+    await logout();
+    setMobileMenuOpen(false);
+  }
 
   return (
     <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${navBackground}`}>
@@ -51,25 +57,47 @@ export function Navbar() {
               {link.name}
             </Link>
           ))}
-          <div className="h-6 w-[1px] bg-white/20 mx-2"></div>
+          <div className="h-6 w-[1px] bg-white/20 mx-2" />
           <CurrencySelector compact />
-          <div className="h-6 w-[1px] bg-white/20 mx-2"></div>
-          <Link
-            href="/login"
-            className="text-white/80 hover:text-white font-medium text-sm tracking-wide uppercase transition-colors"
-          >
-            Login
-          </Link>
-          <Link
-            href="/access"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2.5 text-sm font-bold tracking-wide uppercase transition-all duration-300 hover:shadow-[0_0_15px_rgba(200,164,107,0.3)]"
-          >
-            Request Access
-          </Link>
+          <div className="h-6 w-[1px] bg-white/20 mx-2" />
+          {user ? (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-white/70 hover:text-white font-medium text-sm tracking-wide uppercase transition-colors"
+              title={user.email}
+            >
+              <LogOut size={14} />
+              Logout
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 text-white/80 hover:text-white font-medium text-sm tracking-wide uppercase transition-colors"
+            >
+              <LogIn size={14} />
+              Login
+            </Link>
+          )}
+          {!user && (
+            <Link
+              href="/access"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2.5 text-sm font-bold tracking-wide uppercase transition-all duration-300 hover:shadow-[0_0_15px_rgba(200,164,107,0.3)]"
+            >
+              Request Access
+            </Link>
+          )}
+          {user && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+              <span className="text-primary text-xs font-sans tracking-widest uppercase max-w-[140px] truncate">
+                {user.email}
+              </span>
+            </div>
+          )}
         </nav>
 
         {/* Mobile Toggle */}
-        <button 
+        <button
           className="md:hidden text-white p-2"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
@@ -92,26 +120,42 @@ export function Navbar() {
               {link.name}
             </Link>
           ))}
-          <div className="h-[1px] w-full bg-white/10 my-2"></div>
+          <div className="h-[1px] w-full bg-white/10 my-2" />
           <div className="flex items-center justify-between">
             <span className="text-white/40 text-xs font-sans tracking-widest uppercase">Currency</span>
             <CurrencySelector />
           </div>
-          <div className="h-[1px] w-full bg-white/10 my-2"></div>
-          <Link
-            href="/login"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-medium tracking-wide uppercase text-white/80"
-          >
-            Login
-          </Link>
-          <Link
-            href="/access"
-            onClick={() => setMobileMenuOpen(false)}
-            className="bg-primary text-center text-primary-foreground px-6 py-4 font-bold tracking-wide uppercase mt-4"
-          >
-            Request Access
-          </Link>
+          <div className="h-[1px] w-full bg-white/10 my-2" />
+          {user ? (
+            <>
+              <p className="text-white/30 text-xs font-sans tracking-wide truncate">{user.email}</p>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-lg font-medium tracking-wide uppercase text-white/80"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 text-lg font-medium tracking-wide uppercase text-white/80"
+              >
+                <LogIn size={16} />
+                Login
+              </Link>
+              <Link
+                href="/access"
+                onClick={() => setMobileMenuOpen(false)}
+                className="bg-primary text-center text-primary-foreground px-6 py-4 font-bold tracking-wide uppercase mt-4"
+              >
+                Request Access
+              </Link>
+            </>
+          )}
         </div>
       )}
     </header>

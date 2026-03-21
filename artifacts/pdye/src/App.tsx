@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { loadAllCustomFonts } from "@/lib/content";
 import { CurrencyProvider } from "@/lib/currency";
+import { AuthProvider } from "@/context/AuthContext";
 import NotFound from "@/pages/not-found";
 
 // Pages
@@ -48,15 +49,17 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <CurrencyProvider>
-        <TooltipProvider>
-          <FontLoader />
-          <WouterRouter hook={useHashLocation}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </CurrencyProvider>
+      <AuthProvider>
+        <CurrencyProvider>
+          <TooltipProvider>
+            <FontLoader />
+            <WouterRouter hook={useHashLocation}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </CurrencyProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -2,6 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { YachtCard } from "@/components/ui/YachtCard";
 import { ALL_YACHTS, type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { getPageContent, type PageContent } from "@/lib/content";
@@ -9,6 +10,7 @@ import { getPageContent, type PageContent } from "@/lib/content";
 type Filter = "All" | "Motor Yachts" | "Sailing Yachts" | "Distressed Deals";
 
 export default function Yachts() {
+  const { user, loading: authLoading } = useAuth();
   const [content, setContent] = useState<PageContent>(getPageContent("yachts"));
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,18 +21,28 @@ export default function Yachts() {
   }, []);
 
   useEffect(() => {
+    // Wait for auth to resolve before fetching
+    if (authLoading) return;
+
     async function fetchYachts() {
       setLoading(true);
       const { data, error } = await supabase.from("yachts").select("*");
       if (!error && data && data.length > 0) {
-        setYachts(data as Yacht[]);
+        // Client-side: hide private yachts from non-logged-in users
+        const visible = user
+          ? (data as Yacht[])
+          : (data as Yacht[]).filter(y => !y.is_private);
+        setYachts(visible);
       } else {
-        setYachts(ALL_YACHTS);
+        const fallback = user
+          ? ALL_YACHTS
+          : ALL_YACHTS.filter(y => !y.is_private);
+        setYachts(fallback);
       }
       setLoading(false);
     }
     fetchYachts();
-  }, []);
+  }, [user, authLoading]);
 
   const filtered = yachts.filter((y) => {
     if (activeFilter === "All") return true;
@@ -53,6 +65,11 @@ export default function Yachts() {
           >
             <h1 className="font-display text-4xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: content.heading }} />
             <p className="text-white/60 max-w-2xl font-sans text-lg" dangerouslySetInnerHTML={{ __html: content.subheading }} />
+            {!user && (
+              <p className="mt-4 text-white/30 text-xs font-sans tracking-wide">
+                <a href="/#/login" className="text-primary/70 hover:text-primary transition-colors underline underline-offset-2">Sign in</a> to view all private listings and pricing details.
+              </p>
+            )}
           </motion.div>
         </div>
       </div>

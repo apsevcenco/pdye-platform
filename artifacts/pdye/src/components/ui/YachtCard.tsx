@@ -1,8 +1,9 @@
 import { Link } from "wouter";
-import { MapPin, Ruler, Anchor, Bed, Bath, Zap, ChevronLeft, ChevronRight, Images } from "lucide-react";
+import { MapPin, Ruler, Anchor, Bed, Bath, Zap, ChevronLeft, ChevronRight, Images, Lock } from "lucide-react";
 import { Yacht } from "@/lib/data";
 import { useState } from "react";
 import { useCurrency } from "@/lib/currency";
+import { useAuth } from "@/context/AuthContext";
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80";
 
@@ -13,7 +14,9 @@ interface YachtCardProps {
 
 export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
   const { formatPrice } = useCurrency();
+  const { user } = useAuth();
   const hasDistressed = yacht.distressed_price && yacht.market_price;
+  const showPrice = !!user;
 
   const allPhotos: string[] = (() => {
     const pool: string[] = [];
@@ -130,13 +133,20 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
             <p className="text-white/60 text-sm font-sans tracking-wide uppercase">{yacht.builder}{yacht.year ? ` · ${yacht.year}` : ""}</p>
           </div>
           <div className="text-right">
-            {hasDistressed ? (
-              <>
-                <p className="font-display text-lg text-primary">{formatPrice(yacht.distressed_price!)}</p>
-                <p className="text-white/40 text-xs line-through font-sans mt-0.5">{formatPrice(yacht.market_price!)}</p>
-              </>
+            {showPrice ? (
+              hasDistressed ? (
+                <>
+                  <p className="font-display text-lg text-primary">{formatPrice(yacht.distressed_price!)}</p>
+                  <p className="text-white/40 text-xs line-through font-sans mt-0.5">{formatPrice(yacht.market_price!)}</p>
+                </>
+              ) : (
+                <p className="font-display text-lg text-primary">{formatPrice(yacht.price)}</p>
+              )
             ) : (
-              <p className="font-display text-lg text-primary">{formatPrice(yacht.price)}</p>
+              <Link href="/login" className="flex items-center gap-1.5 text-white/30 hover:text-primary transition-colors group/price">
+                <Lock size={12} className="flex-shrink-0" />
+                <span className="text-xs font-sans tracking-wide">Login to view</span>
+              </Link>
             )}
           </div>
         </div>
@@ -256,10 +266,10 @@ export function YachtCard({ yacht, isPrivate = false }: YachtCardProps) {
         </p>
 
         <Link
-          href="/dealroom"
+          href={user ? "/dealroom" : "/login"}
           className="w-full block text-center border border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground py-3 text-sm font-bold tracking-widest uppercase transition-all duration-300 mt-auto"
         >
-          View Deal
+          {user ? "View Deal" : "Login to Access"}
         </Link>
       </div>
     </div>

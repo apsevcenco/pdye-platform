@@ -52,6 +52,8 @@ export interface Yacht {
   documents?: YachtDocument[];  // Deal room documents
   status: string;
   description?: string;
+  // Access control
+  is_private?: boolean;   // If true, only visible to logged-in users
 }
 
 export const FEATURED_YACHTS: Yacht[] = [
