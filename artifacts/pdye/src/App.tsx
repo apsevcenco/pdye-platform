@@ -22,6 +22,7 @@ import Admin from "./pages/Admin";
 import AdminUsers from "./pages/AdminUsers";
 import YachtDetail from "./pages/YachtDetail";
 import BoatOwners from "./pages/BoatOwners";
+import Investors from "./pages/Investors";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,8 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/access" component={Access} />
       <Route path="/boat-owners" component={BoatOwners} />
+      <Route path="/brokers" component={Brokers} />
+      <Route path="/investors" component={Investors} />
 
       {/* Protected */}
       <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
@@ -101,7 +104,6 @@ function Router() {
       <Route path="/private" component={() => <ProtectedRoute component={Private} />} />
       <Route path="/dealroom" component={() => <ProtectedRoute component={DealRoom} />} />
       <Route path="/dealroom/:id" component={() => <ProtectedRoute component={DealRoom} />} />
-      <Route path="/brokers" component={() => <ProtectedRoute component={Brokers} />} />
 
       {/* Admin only */}
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} adminOnly />} />

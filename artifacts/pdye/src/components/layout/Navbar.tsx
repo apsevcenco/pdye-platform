@@ -26,7 +26,7 @@ export function Navbar() {
     { name: "Deal Room", href: "/dealroom" },
     { name: "Boat Owners", href: "/boat-owners" },
     { name: "Brokers", href: "/brokers" },
-    { name: "Investors", href: "/access" },
+    { name: "Investors", href: "/investors" },
   ];
 
   const navBackground = (isScrolled || !isHome) ? "bg-background/95 backdrop-blur-md border-b border-white/5" : "bg-transparent";
