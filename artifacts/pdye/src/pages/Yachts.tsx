@@ -2,6 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { YachtCard, type RequestStatus } from "@/components/ui/YachtCard";
 import { ALL_YACHTS, type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
@@ -23,6 +24,7 @@ export default function Yachts() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<Filter>("All");
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   useEffect(() => { setContent(getPageContent("yachts")); }, []);
 
@@ -60,13 +62,17 @@ export default function Yachts() {
   async function handleRequest(yachtId: string) {
     if (!user) { window.location.hash = "/login"; return; }
     setRequesting(yachtId);
-    const { error } = await supabase.from("access_requests").insert([{
+    setRequestError(null);
+    const { error } = await supabaseAdmin.from("access_requests").insert([{
       yacht_id: yachtId,
       requester_id: user.id,
       role: userProfile?.role || "investor",
       status: "pending",
     }]);
-    if (!error) {
+    if (error) {
+      console.error("access_requests insert error:", error.message, error.details, error.hint);
+      setRequestError(`Ошибка при отправке запроса: ${error.message}`);
+    } else {
       setRequests(prev => ({ ...prev, [yachtId]: "pending" }));
     }
     setRequesting(null);
@@ -116,6 +122,13 @@ export default function Yachts() {
               </button>
             ))}
           </div>
+
+          {requestError && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-sans flex items-center justify-between gap-4">
+              <span>{requestError}</span>
+              <button onClick={() => setRequestError(null)} className="text-red-400/60 hover:text-red-400 text-lg leading-none">✕</button>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center min-h-[300px]">
