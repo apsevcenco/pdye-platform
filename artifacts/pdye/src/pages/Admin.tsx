@@ -236,6 +236,7 @@ function YachtsView() {
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">("metric");
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
   const M = unitSystem === "metric";
 
@@ -303,7 +304,7 @@ function YachtsView() {
     }
   }
 
-  useEffect(() => { load(); loadPendingCount(); }, []);
+  useEffect(() => { load(); loadPendingCount(); loadPendingUsersCount(); }, []);
 
   async function load() {
     setLoading(true);
@@ -318,6 +319,14 @@ function YachtsView() {
       .select("*", { count: "exact", head: true })
       .eq("status", "pending");
     if (count !== null) setPendingRequestsCount(count);
+  }
+
+  async function loadPendingUsersCount() {
+    const { count } = await supabaseAdmin
+      .from("users")
+      .select("*", { count: "exact", head: true })
+      .eq("approved", false);
+    if (count !== null) setPendingUsersCount(count);
   }
 
   function setF(key: string, val: string) {
@@ -2356,6 +2365,11 @@ export default function Admin() {
                     {pendingRequestsCount}
                   </span>
                 )}
+                {item.id === "users-link" && pendingUsersCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                    {pendingUsersCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -2400,6 +2414,22 @@ export default function Admin() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {pendingUsersCount > 0 && activeView === "dashboard" && (
+            <div className="mb-4 flex items-center justify-between gap-4 bg-red-500/10 border border-red-500/30 px-5 py-3">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                <span className="text-red-300 text-sm font-sans">
+                  <span className="font-bold">{pendingUsersCount}</span> new {pendingUsersCount === 1 ? "member" : "members"} awaiting approval
+                </span>
+              </div>
+              <button
+                onClick={() => setLocation("/admin-users")}
+                className="flex items-center gap-2 text-red-300 border border-red-500/40 hover:bg-red-500/20 text-xs font-bold uppercase tracking-widest px-3 py-1.5 transition-colors flex-shrink-0"
+              >
+                Approve Now <CheckCircle size={12} />
+              </button>
+            </div>
+          )}
           {pendingRequestsCount > 0 && activeView === "dashboard" && (
             <div className="mb-6 flex items-center justify-between gap-4 bg-amber-500/10 border border-amber-500/30 px-5 py-3">
               <div className="flex items-center gap-3">
