@@ -37,10 +37,6 @@ export const PAGE_DEFAULTS: Record<string, PageContent> = {
     heading: "Request Access",
     subheading: "Our private buyer network is by application only. Complete the form below to be considered for membership.",
   },
-  private: {
-    heading: "Private Deals",
-    subheading: "Level 1 confidential inventory. Available exclusively to pre-screened members under active NDA.",
-  },
   brokers: {
     heading: "Submit Off-Market Asset",
     subheading: "Introduce a distressed or off-market vessel to our qualified private buyer network. Strict confidentiality guaranteed.",

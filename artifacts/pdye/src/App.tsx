@@ -14,7 +14,7 @@ import NotFound from "@/pages/not-found";
 import Home from "./pages/Home";
 import Yachts from "./pages/Yachts";
 import Access from "./pages/Access";
-import Private from "./pages/Private";
+
 import Brokers from "./pages/Brokers";
 import Login from "./pages/Login";
 import DealRoom from "./pages/DealRoom";
@@ -121,7 +121,6 @@ function Router() {
       <Route path="/add-yacht" component={() => <ProtectedRoute component={AddYacht} />} />
       <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
       <Route path="/yacht/:id" component={() => <ProtectedRoute component={YachtDetail} />} />
-      <Route path="/private" component={() => <ProtectedRoute component={Private} />} />
       <Route path="/dealroom" component={() => <ProtectedRoute component={DealRoom} />} />
       <Route path="/dealroom/:id" component={() => <ProtectedRoute component={DealDetails} />} />
 

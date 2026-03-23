@@ -56,7 +56,6 @@ import {
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "yachts", label: "Yachts", icon: Ship },
-  { id: "private", label: "Private Deals", icon: Lock },
   { id: "dealroom", label: "Deal Room", icon: TrendingUp },
   { id: "leads", label: "Leads", icon: Inbox },
   { id: "investors", label: "Private Buyers", icon: Users },
@@ -125,7 +124,6 @@ function Dashboard() {
     { label: "Active Yachts", value: ALL_YACHTS.length, icon: Ship, trend: "+2 this month", color: "text-primary" },
     { label: "Buyer Requests", value: INVESTOR_REQUESTS.length, icon: Users, trend: "+3 this week", color: "text-green-400" },
     { label: "Broker Submissions", value: BROKER_SUBMISSIONS.length, icon: Briefcase, trend: "1 pending review", color: "text-blue-400" },
-    { label: "Private Deals", value: 3, icon: Lock, trend: "2 active NDAs", color: "text-yellow-400" },
   ];
 
   return (
@@ -2038,7 +2036,6 @@ function ContentView() {
   const pages = [
     { key: "yachts", label: "Yachts Page" },
     { key: "access", label: "Private Buyer Access Page" },
-    { key: "private", label: "Private Deals Page" },
     { key: "brokers", label: "Brokers Page" },
     { key: "dealroom", label: "Deal Room Page" },
   ];
@@ -2289,7 +2286,6 @@ function SettingsView() {
 const views: Record<string, JSX.Element> = {
   dashboard: <Dashboard />,
   yachts: <YachtsView />,
-  private: <PrivateDealsView />,
   dealroom: <DealsManageView />,
   leads: <LeadsView />,
   investors: <InvestorsView />,

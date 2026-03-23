@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Anchor, LogIn, LogOut, Ship, Lock, Briefcase, Users, TrendingUp, Calculator, LayoutDashboard } from "lucide-react";
+import { Menu, X, Anchor, LogIn, LogOut, Ship, Briefcase, Users, TrendingUp, Calculator, LayoutDashboard } from "lucide-react";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
 import { useAuth } from "@/context/AuthContext";
 
 const MEMBER_LINKS = [
   { name: "Yachts", href: "/yachts", icon: Ship },
-  { name: "Private Deals", href: "/private", icon: Lock },
   { name: "Deal Room", href: "/dealroom", icon: Briefcase },
 ];
 

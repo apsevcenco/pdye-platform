@@ -18,7 +18,6 @@ export function Footer() {
             <h4 className="font-display text-lg mb-6 text-white tracking-wide">Marketplace</h4>
             <ul className="space-y-4 font-sans">
               <li><Link href="/yachts" className="text-white/60 hover:text-primary transition-colors">Available Yachts</Link></li>
-              <li><Link href="/private" className="text-white/60 hover:text-primary transition-colors">Private Deals</Link></li>
               <li><Link href="/brokers" className="text-white/60 hover:text-primary transition-colors">For Brokers</Link></li>
             </ul>
           </div>
