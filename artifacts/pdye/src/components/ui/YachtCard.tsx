@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Ruler, Calendar, Building2, Lock, Clock, CheckCircle, XCircle, ChevronRight } from "lucide-react";
 import { Yacht } from "@/lib/data";
+import { useCurrency } from "@/lib/currency";
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80";
 
@@ -43,6 +44,7 @@ const STATUS_CONFIG: Record<RequestStatus, { label: string; icon: React.ReactNod
 export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting = false }: YachtCardProps) {
   const image = (yacht as any).main_image || yacht.image || DEFAULT_IMAGE;
   const cfg = STATUS_CONFIG[requestStatus];
+  const { formatPrice } = useCurrency();
 
   return (
     <div className="group bg-card border border-white/5 hover:border-primary/30 transition-all duration-500 overflow-hidden flex flex-col">
@@ -86,7 +88,7 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
         <div className="flex items-start justify-between gap-2">
           <div>
             {yacht.price ? (
-              <p className="font-display text-2xl text-primary">{yacht.price}</p>
+              <p className="font-display text-2xl text-primary">{formatPrice(yacht.price)}</p>
             ) : (
               <p className="font-display text-2xl text-white/20">Price on Request</p>
             )}
@@ -94,7 +96,7 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
           </div>
           {yacht.distressed_price && yacht.distressed_price !== yacht.price && (
             <div className="text-right flex-shrink-0">
-              <p className="text-white/25 text-xs line-through font-sans">{yacht.market_price || ""}</p>
+              <p className="text-white/25 text-xs line-through font-sans">{yacht.market_price ? formatPrice(yacht.market_price) : ""}</p>
               <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Distressed</p>
             </div>
           )}
