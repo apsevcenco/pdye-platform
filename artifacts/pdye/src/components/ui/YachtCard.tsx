@@ -82,10 +82,22 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
       {/* Card body */}
       <div className="p-6 flex flex-col flex-1 gap-4">
 
-        {/* Name */}
-        <div>
-          <h3 className="font-display text-2xl text-white mb-1">{yacht.name}</h3>
-          <p className="text-white/40 text-xs font-sans tracking-widest uppercase">Confidential Listing</p>
+        {/* Price (always shown) + status */}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            {yacht.price ? (
+              <p className="font-display text-2xl text-primary">{yacht.price}</p>
+            ) : (
+              <p className="font-display text-2xl text-white/20">Price on Request</p>
+            )}
+            <p className="text-white/30 text-[10px] font-sans tracking-widest uppercase mt-0.5">Confidential Listing</p>
+          </div>
+          {yacht.distressed_price && yacht.distressed_price !== yacht.price && (
+            <div className="text-right flex-shrink-0">
+              <p className="text-white/25 text-xs line-through font-sans">{yacht.market_price || ""}</p>
+              <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Distressed</p>
+            </div>
+          )}
         </div>
 
         {/* Public specs — only builder, length, year */}
@@ -112,7 +124,7 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
 
         {/* Hidden specs teaser */}
         <div className="flex flex-wrap gap-2">
-          {["Price", "Location", "Specs", "Docs"].map(item => (
+          {["Name", "Location", "Specs", "Docs"].map(item => (
             <span key={item} className="text-[10px] text-white/20 font-sans tracking-widest uppercase border border-white/5 px-2 py-1 flex items-center gap-1">
               <Lock size={8} className="opacity-50" /> {item}
             </span>

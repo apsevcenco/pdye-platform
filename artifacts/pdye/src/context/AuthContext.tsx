@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { type Session, type User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -22,6 +22,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const PROFILE_TIMEOUT = 5000;
+
 async function fetchProfile(userId: string): Promise<UserProfile | null> {
   try {
     const queryPromise = supabase
@@ -34,7 +36,7 @@ async function fetchProfile(userId: string): Promise<UserProfile | null> {
         return (data as UserProfile) ?? null;
       });
     const timeoutPromise = new Promise<null>(resolve =>
-      setTimeout(() => resolve(null), 4000)
+      setTimeout(() => resolve(null), PROFILE_TIMEOUT)
     );
     return await Promise.race([queryPromise, timeoutPromise]);
   } catch {
@@ -47,23 +49,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const fetchSeq = useRef(0); // monotonic counter to discard stale profile fetches
+
+  async function loadProfile(userId: string) {
+    const seq = ++fetchSeq.current;
+    const profile = await fetchProfile(userId);
+    if (fetchSeq.current !== seq) return; // superseded by newer fetch
+    setUserProfile(profile);
+  }
 
   useEffect(() => {
     let mounted = true;
 
     async function initAuth() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session: s } } = await supabase.auth.getSession();
         if (!mounted) return;
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          if (!mounted) return;
-          setUserProfile(profile);
+        setSession(s);
+        setUser(s?.user ?? null);
+        if (s?.user) {
+          await loadProfile(s.user.id);
         }
       } catch {
-        // ignore
+        // network/timeout — leave userProfile as null, ProtectedRoute will retry
       } finally {
         if (mounted) setLoading(false);
       }
@@ -72,17 +80,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, s) => {
         if (!mounted) return;
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          if (!mounted) return;
-          setUserProfile(profile);
+        setSession(s);
+        setUser(s?.user ?? null);
+        if (s?.user) {
+          await loadProfile(s.user.id);
         } else {
+          fetchSeq.current++;
           setUserProfile(null);
         }
+        // Ensure loading cleared after any auth event
+        if (mounted) setLoading(false);
       }
     );
 
@@ -94,8 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function refreshProfile() {
     if (!user) return;
-    const profile = await fetchProfile(user.id);
-    setUserProfile(profile);
+    await loadProfile(user.id);
   }
 
   async function login(email: string, password: string): Promise<{ error: string | null }> {
@@ -120,16 +128,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.session) {
       setSession(data.session);
       setUser(data.session.user);
-      const profile = await fetchProfile(data.session.user.id);
-      setUserProfile(profile);
+      await loadProfile(data.session.user.id);
     }
 
     return { error: null };
   }
 
   async function logout() {
-    await supabase.auth.signOut();
+    fetchSeq.current++;
     setUserProfile(null);
+    await supabase.auth.signOut();
   }
 
   return (

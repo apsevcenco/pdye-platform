@@ -16,7 +16,7 @@ type AccessRequest = {
 };
 
 export default function Yachts() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const [content, setContent] = useState<PageContent>(getPageContent("yachts"));
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [requests, setRequests] = useState<Record<string, RequestStatus>>({});
@@ -63,7 +63,7 @@ export default function Yachts() {
     const { error } = await supabase.from("access_requests").insert([{
       yacht_id: yachtId,
       requester_id: user.id,
-      role: (profile as any)?.role || "investor",
+      role: userProfile?.role || "investor",
       status: "pending",
     }]);
     if (!error) {

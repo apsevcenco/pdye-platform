@@ -36,11 +36,16 @@ export default function AdminRequests() {
 
   async function load() {
     setLoading(true);
-    const { data: rqs } = await supabaseAdmin
+    const { data: rqs, error } = await supabaseAdmin
       .from("access_requests")
       .select("*")
       .order("created_at", { ascending: false });
 
+    if (error) {
+      console.error("access_requests error:", error.message);
+      setLoading(false);
+      return;
+    }
     if (!rqs) { setLoading(false); return; }
 
     // Enrich with yacht names

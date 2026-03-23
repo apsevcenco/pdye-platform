@@ -3,7 +3,7 @@ import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { loadAllCustomFonts } from "@/lib/content";
 import { CurrencyProvider } from "@/lib/currency";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -79,15 +79,27 @@ function UnderReview() {
 }
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
-  const { user, userProfile, loading } = useAuth();
+  const { user, userProfile, loading, refreshProfile } = useAuth();
+  const [retried, setRetried] = useState(false);
+
+  useEffect(() => {
+    // If auth done but profile didn't load, retry once
+    if (!loading && user && userProfile === null && !retried) {
+      setRetried(true);
+      refreshProfile();
+    }
+  }, [loading, user, userProfile, retried, refreshProfile]);
 
   if (loading) return <Spinner />;
   if (!user) return <Redirect to="/login" />;
 
-  const isAdmin = userProfile?.role === "admin";
+  // Profile still loading — show spinner, not UnderReview
+  if (userProfile === null) return <Spinner />;
+
+  const isAdmin = userProfile.role === "admin";
 
   if (adminOnly && !isAdmin) return <Redirect to="/" />;
-  if (!isAdmin && !userProfile?.approved) return <UnderReview />;
+  if (!isAdmin && !userProfile.approved) return <UnderReview />;
 
   return <Component />;
 }

@@ -235,6 +235,7 @@ function YachtsView() {
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">("metric");
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   const M = unitSystem === "metric";
 
@@ -302,13 +303,21 @@ function YachtsView() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadPendingCount(); }, []);
 
   async function load() {
     setLoading(true);
     const { data } = await supabase.from("yachts").select("*");
     setYachts((data as Yacht[]) || []);
     setLoading(false);
+  }
+
+  async function loadPendingCount() {
+    const { count } = await supabaseAdmin
+      .from("access_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending");
+    if (count !== null) setPendingRequestsCount(count);
   }
 
   function setF(key: string, val: string) {
@@ -2340,6 +2349,11 @@ export default function Admin() {
                 {item.id === "messages" && MESSAGES.filter(m => !m.read).length > 0 && (
                   <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     {MESSAGES.filter(m => !m.read).length}
+                  </span>
+                )}
+                {item.id === "requests-link" && pendingRequestsCount > 0 && (
+                  <span className="ml-auto bg-amber-500 text-black text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                    {pendingRequestsCount}
                   </span>
                 )}
               </button>
