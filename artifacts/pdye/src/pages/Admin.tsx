@@ -2400,6 +2400,22 @@ export default function Admin() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {pendingRequestsCount > 0 && activeView === "dashboard" && (
+            <div className="mb-6 flex items-center justify-between gap-4 bg-amber-500/10 border border-amber-500/30 px-5 py-3">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                <span className="text-amber-300 text-sm font-sans">
+                  <span className="font-bold">{pendingRequestsCount}</span> pending access {pendingRequestsCount === 1 ? "request" : "requests"} awaiting review
+                </span>
+              </div>
+              <button
+                onClick={() => setLocation("/admin-requests")}
+                className="flex items-center gap-2 text-amber-300 border border-amber-500/40 hover:bg-amber-500/20 text-xs font-bold uppercase tracking-widest px-3 py-1.5 transition-colors flex-shrink-0"
+              >
+                Review Now <CheckCircle size={12} />
+              </button>
+            </div>
+          )}
           {views[activeView]}
         </main>
       </div>

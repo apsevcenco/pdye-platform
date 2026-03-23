@@ -54,17 +54,17 @@ export default function AdminRequests() {
 
     const [{ data: yachts }, { data: users }] = await Promise.all([
       yachtIds.length ? supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds) : Promise.resolve({ data: [] }),
-      userIds.length ? supabaseAdmin.from("users").select("id, email, full_name").in("id", userIds) : Promise.resolve({ data: [] }),
+      userIds.length ? supabaseAdmin.from("users").select("id, email").in("id", userIds) : Promise.resolve({ data: [] }),
     ]);
 
     const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
-    const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, { email: u.email, name: u.full_name }]));
+    const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, { email: u.email }]));
 
     const enriched: AccessRequest[] = rqs.map((r: any) => ({
       ...r,
       yacht_name: yachtMap[r.yacht_id] || "Unknown Vessel",
       user_email: userMap[r.requester_id]?.email || "—",
-      user_name: userMap[r.requester_id]?.name || "—",
+      user_name: userMap[r.requester_id]?.email || "—",
     }));
 
     setRequests(enriched);
