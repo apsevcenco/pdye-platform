@@ -1,8 +1,10 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { Shield, EyeOff, Globe, TrendingUp, CheckCircle, ArrowRight, Anchor } from "lucide-react";
+import { Shield, EyeOff, Globe, TrendingUp, CheckCircle, ArrowRight, Anchor, LayoutDashboard } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { Link } from "wouter";
+import { useAuth } from "@/context/AuthContext";
 
 const benefits = [
   {
@@ -35,6 +37,9 @@ const steps = [
 ];
 
 export default function BoatOwners() {
+  const { user, userProfile } = useAuth();
+  const isOwner = user && (userProfile?.role === "owner" || userProfile?.role === "admin");
+
   const [form, setForm] = useState({ name: "", email: "", phone: "", vessel: "", length: "", year: "", location: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
@@ -179,6 +184,43 @@ export default function BoatOwners() {
             <h2 className="font-display text-3xl md:text-4xl text-white mb-4">List Your Vessel</h2>
             <p className="text-white/50 font-sans text-sm">All submissions are protected by NDA. Our team will respond within 48 hours.</p>
           </motion.div>
+
+          {/* Dashboard shortcut for registered owners */}
+          {isOwner ? (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-8 bg-primary/5 border border-primary/20 px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4"
+            >
+              <div className="text-center sm:text-left">
+                <p className="text-white font-display text-lg mb-0.5">Your Owner Account is Active</p>
+                <p className="text-white/40 text-sm font-sans">
+                  Manage your listings, track deal status and submit to Deal Room from your personal dashboard.
+                </p>
+              </div>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 bg-primary text-background px-6 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors flex-shrink-0"
+              >
+                <LayoutDashboard size={13} /> My Dashboard
+              </Link>
+            </motion.div>
+          ) : user ? (
+            <div className="mb-8 border border-white/8 bg-white/2 px-5 py-4 flex items-center justify-between gap-4">
+              <p className="text-white/40 text-sm font-sans">Already a member? You can also submit directly from your dashboard.</p>
+              <Link href="/dashboard" className="text-primary text-xs font-bold uppercase tracking-widest hover:underline flex-shrink-0 flex items-center gap-1">
+                Dashboard <ArrowRight size={11} />
+              </Link>
+            </div>
+          ) : (
+            <div className="mb-8 border border-white/8 bg-white/2 px-5 py-4 flex items-center justify-between gap-4">
+              <p className="text-white/40 text-sm font-sans">Already a registered vessel owner? Sign in to access your dashboard.</p>
+              <Link href="/login" className="text-primary text-xs font-bold uppercase tracking-widest hover:underline flex-shrink-0 flex items-center gap-1">
+                Sign In <ArrowRight size={11} />
+              </Link>
+            </div>
+          )}
 
           {submitted ? (
             <motion.div

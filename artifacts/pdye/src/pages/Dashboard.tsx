@@ -7,6 +7,7 @@ import {
   User, Clock, CheckCircle, XCircle, Ship, Plus, TrendingUp,
   LayoutDashboard, ArrowRight, FileText, Lock, ShieldCheck,
   Trash2, Eye, Send, AlertTriangle, ChevronRight, RefreshCw,
+  Anchor, Calculator, BadgeCheck, Handshake, CircleDot,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -316,6 +317,291 @@ function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
   );
 }
 
+/* ─── OWNER VIEW ─── */
+const PIPELINE = [
+  { key: "submitted",  label: "Submitted",       icon: <Send size={14} />,        desc: "Your vessel is in our system." },
+  { key: "review",     label: "Under Review",     icon: <Clock size={14} />,       desc: "Our team is verifying details." },
+  { key: "deal_room",  label: "Deal Room",         icon: <Anchor size={14} />,      desc: "Vessel is live for qualified buyers." },
+  { key: "offer",      label: "Offer Received",   icon: <Handshake size={14} />,   desc: "A qualified buyer has made an offer." },
+  { key: "closed",     label: "Closed",           icon: <BadgeCheck size={14} />,  desc: "Transaction successfully completed." },
+];
+
+function dealStatusToStep(dealStatus: string | null): number {
+  if (!dealStatus || dealStatus === "none") return -1;
+  if (dealStatus === "pending") return 1;
+  if (dealStatus === "approved") return 2;
+  if (dealStatus === "rejected") return -1;
+  return 0;
+}
+
+function OwnerDashboard({ userId }: { userId: string }) {
+  const [yachts, setYachts] = useState<MyYacht[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("yachts")
+      .select("id, name, builder, length, year, status, deal_status, is_private, created_at, main_image, image")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: false });
+    const list = (data as MyYacht[]) || [];
+    setYachts(list);
+    if (list.length > 0 && !selected) setSelected(list[0].id);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const activeYacht = yachts.find(y => y.id === selected) || yachts[0] || null;
+
+  async function submitToDealRoom(yachtId: string) {
+    setSubmitting(yachtId);
+    await supabase.from("yachts").update({ deal_status: "pending" }).eq("id", yachtId).eq("owner_id", userId);
+    setYachts(prev => prev.map(y => y.id === yachtId ? { ...y, deal_status: "pending" } : y));
+    setSubmitting(null);
+  }
+
+  async function deleteYacht(yachtId: string) {
+    if (!confirm("Delete this yacht listing? This cannot be undone.")) return;
+    setDeleting(yachtId);
+    await supabase.from("yachts").delete().eq("id", yachtId).eq("owner_id", userId);
+    setYachts(prev => prev.filter(y => y.id !== yachtId));
+    if (selected === yachtId) setSelected(null);
+    setDeleting(null);
+  }
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-20 text-white/20 text-sm">Loading…</div>;
+  }
+
+  /* ── Empty state ── */
+  if (yachts.length === 0) {
+    return (
+      <div className="space-y-6">
+        {/* Hero CTA */}
+        <div className="relative bg-[#0f1d33] border border-white/5 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(200,164,107,0.06),transparent_60%)]" />
+          <div className="relative px-8 py-12 text-center max-w-xl mx-auto">
+            <div className="w-16 h-16 border border-primary/20 flex items-center justify-center mx-auto mb-6">
+              <Anchor size={28} className="text-primary/60" />
+            </div>
+            <h2 className="font-display text-3xl text-white mb-3">Submit Your Vessel</h2>
+            <p className="text-white/40 text-sm font-sans leading-relaxed mb-8">
+              List your yacht on PDYE's exclusive off-market exchange. Your listing remains confidential —
+              only verified buyers approved by our team will gain access.
+            </p>
+            <Link
+              href="/add-yacht"
+              className="inline-flex items-center gap-2 bg-primary text-background px-8 py-4 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors"
+            >
+              <Plus size={14} /> Submit Your Yacht
+            </Link>
+          </div>
+        </div>
+
+        {/* Process steps */}
+        <div className="bg-[#0f1d33] border border-white/5 p-6">
+          <p className="text-white/30 text-[10px] uppercase tracking-widest mb-6 font-sans">How It Works</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
+            {[
+              { step: "01", title: "Submit Details",  desc: "Fill in your vessel's specifications, photos, and your asking price." },
+              { step: "02", title: "We Verify",       desc: "Our team reviews the submission and lists it in the Deal Room." },
+              { step: "03", title: "Qualified Buyers", desc: "UHNW buyers request access and make private, NDA-protected approaches." },
+            ].map(s => (
+              <div key={s.step} className="px-6 py-4 first:pl-0 last:pr-0">
+                <span className="font-display text-4xl text-primary/15 block mb-2">{s.step}</span>
+                <p className="text-white text-sm font-medium mb-1">{s.title}</p>
+                <p className="text-white/30 text-xs font-sans leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Valuation CTA */}
+        <div className="flex items-center justify-between border border-white/5 bg-white/2 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Calculator size={16} className="text-primary/50" />
+            <div>
+              <p className="text-white text-sm font-medium">Not sure of your vessel's value?</p>
+              <p className="text-white/30 text-xs font-sans">Use our AI-powered yacht valuation tool.</p>
+            </div>
+          </div>
+          <Link href="/valuation" className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest hover:underline flex-shrink-0">
+            Estimate Value <ArrowRight size={12} />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Has yachts ── */
+  const step = dealStatusToStep(activeYacht?.deal_status ?? null);
+  const thumb = activeYacht?.main_image || activeYacht?.image;
+
+  return (
+    <div className="space-y-6">
+
+      {/* Vessel selector (if multiple) */}
+      {yachts.length > 1 && (
+        <div className="flex gap-2 flex-wrap">
+          {yachts.map(y => (
+            <button
+              key={y.id}
+              onClick={() => setSelected(y.id)}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-colors ${
+                selected === y.id
+                  ? "border-primary/50 text-primary bg-primary/8"
+                  : "border-white/10 text-white/40 hover:border-white/30 hover:text-white/70"
+              }`}
+            >
+              {y.name || "Unnamed Vessel"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Active vessel card */}
+      {activeYacht && (
+        <div className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+          <div className="flex items-stretch gap-0">
+            {/* Image */}
+            <div className="hidden sm:block w-40 flex-shrink-0 bg-white/3">
+              {thumb
+                ? <img src={thumb} alt={activeYacht.name} className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center"><Ship size={24} className="text-white/10" /></div>
+              }
+            </div>
+            {/* Info */}
+            <div className="flex-1 p-6 flex flex-col justify-between gap-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-white font-display text-xl mb-0.5">{activeYacht.name}</p>
+                  <p className="text-white/40 text-xs font-sans">
+                    {[activeYacht.builder, activeYacht.length, activeYacht.year].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Link href={`/add-yacht?edit=${activeYacht.id}`} className="p-2 border border-white/10 text-white/30 hover:text-primary hover:border-primary/30 transition-colors" title="Edit">
+                    <FileText size={13} />
+                  </Link>
+                  <button
+                    onClick={() => deleteYacht(activeYacht.id)}
+                    disabled={deleting === activeYacht.id}
+                    className="p-2 border border-white/10 text-white/30 hover:text-red-400 hover:border-red-400/30 transition-colors disabled:opacity-30"
+                    title="Delete"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Status + action */}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                {activeYacht.deal_status === "rejected" ? (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400 border border-red-400/20 bg-red-400/5 px-3 py-1.5">
+                    <XCircle size={10} /> Submission Rejected
+                  </span>
+                ) : activeYacht.deal_status === "approved" ? (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-green-400 border border-green-400/20 bg-green-400/5 px-3 py-1.5">
+                    <CheckCircle size={10} /> Live in Deal Room
+                  </span>
+                ) : activeYacht.deal_status === "pending" ? (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-yellow-400 border border-yellow-400/20 bg-yellow-400/5 px-3 py-1.5">
+                    <Clock size={10} /> Awaiting Review
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white/30 border border-white/10 bg-white/3 px-3 py-1.5">
+                    <CircleDot size={10} /> Not Submitted
+                  </span>
+                )}
+
+                {(!activeYacht.deal_status || activeYacht.deal_status === "none" || activeYacht.deal_status === "rejected") && (
+                  <button
+                    onClick={() => submitToDealRoom(activeYacht.id)}
+                    disabled={submitting === activeYacht.id}
+                    className="flex items-center gap-2 bg-primary text-background px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {submitting === activeYacht.id ? "Submitting…" : <><Send size={11} /> Submit to Deal Room</>}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pipeline tracker */}
+      <div className="bg-[#0f1d33] border border-white/5 p-6">
+        <p className="text-white/30 text-[10px] uppercase tracking-widest mb-6 font-sans">Sale Pipeline</p>
+        <div className="relative">
+          {/* Connector line */}
+          <div className="absolute top-5 left-5 right-5 h-px bg-white/5" />
+          <div className="flex justify-between relative z-10">
+            {PIPELINE.map((p, i) => {
+              const done = step >= i;
+              const active = step === i;
+              return (
+                <div key={p.key} className="flex flex-col items-center gap-2 flex-1">
+                  <div className={`w-10 h-10 border flex items-center justify-center transition-all ${
+                    done
+                      ? active
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-primary/30 bg-primary/5 text-primary/60"
+                      : "border-white/10 bg-background text-white/15"
+                  }`}>
+                    {p.icon}
+                  </div>
+                  <p className={`text-[9px] font-bold uppercase tracking-wider text-center leading-tight ${done ? "text-primary/70" : "text-white/20"}`}>
+                    {p.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {step >= 0 && (
+          <p className="text-white/30 text-xs font-sans mt-5 text-center">
+            {PIPELINE[step]?.desc}
+          </p>
+        )}
+        {step < 0 && (
+          <p className="text-white/20 text-xs font-sans mt-5 text-center">Submit your vessel to begin the pipeline.</p>
+        )}
+      </div>
+
+      {/* Add another / valuation row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Link href="/add-yacht" className="flex items-center gap-3 border border-white/5 hover:border-primary/30 bg-[#0f1d33] px-5 py-4 transition-all group">
+          <div className="w-9 h-9 border border-white/10 group-hover:border-primary/30 flex items-center justify-center text-primary/50 transition-all">
+            <Plus size={16} />
+          </div>
+          <div>
+            <p className="text-white text-sm font-medium">Add Another Vessel</p>
+            <p className="text-white/30 text-xs font-sans">Submit an additional yacht listing.</p>
+          </div>
+          <ChevronRight size={13} className="ml-auto text-white/20 group-hover:text-primary transition-colors" />
+        </Link>
+
+        <Link href="/valuation" className="flex items-center gap-3 border border-white/5 hover:border-primary/30 bg-[#0f1d33] px-5 py-4 transition-all group">
+          <div className="w-9 h-9 border border-white/10 group-hover:border-primary/30 flex items-center justify-center text-primary/50 transition-all">
+            <Calculator size={16} />
+          </div>
+          <div>
+            <p className="text-white text-sm font-medium">AI Valuation</p>
+            <p className="text-white/30 text-xs font-sans">Estimate your vessel's current market value.</p>
+          </div>
+          <ChevronRight size={13} className="ml-auto text-white/20 group-hover:text-primary transition-colors" />
+        </Link>
+      </div>
+
+    </div>
+  );
+}
+
 /* ─── ADMIN VIEW ─── */
 function AdminDashboard() {
   return (
@@ -414,7 +700,7 @@ export default function Dashboard() {
           {/* Role-based content */}
           {role === "admin" && <AdminDashboard />}
           {role === "broker" && <ListingsDashboard userId={user.id} role={role} />}
-          {role === "owner" && <ListingsDashboard userId={user.id} role={role} />}
+          {role === "owner" && <OwnerDashboard userId={user.id} />}
           {(role === "investor" || role === "buyer") && <BuyerDashboard userId={user.id} />}
 
         </div>
