@@ -64,6 +64,7 @@ const navItems = [
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "content", label: "Page Content", icon: PenLine },
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "requests-link", label: "Access Requests", icon: CheckCircle, href: "/admin-requests" },
   { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
 ];
 

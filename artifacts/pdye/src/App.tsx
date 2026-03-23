@@ -21,6 +21,7 @@ import DealRoom from "./pages/DealRoom";
 import DealDetails from "./pages/DealDetails";
 import Admin from "./pages/Admin";
 import AdminUsers from "./pages/AdminUsers";
+import AdminRequests from "./pages/AdminRequests";
 import YachtDetail from "./pages/YachtDetail";
 import BoatOwners from "./pages/BoatOwners";
 import Investors from "./pages/Investors";
@@ -111,6 +112,7 @@ function Router() {
       {/* Admin only */}
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} adminOnly />} />
       <Route path="/admin-users" component={() => <ProtectedRoute component={AdminUsers} adminOnly />} />
+      <Route path="/admin-requests" component={() => <ProtectedRoute component={AdminRequests} adminOnly />} />
 
       <Route component={NotFound} />
     </Switch>
