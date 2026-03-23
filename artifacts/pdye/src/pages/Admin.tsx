@@ -235,8 +235,6 @@ function YachtsView() {
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">("metric");
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
   const M = unitSystem === "metric";
 
@@ -304,29 +302,13 @@ function YachtsView() {
     }
   }
 
-  useEffect(() => { load(); loadPendingCount(); loadPendingUsersCount(); }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
     const { data } = await supabase.from("yachts").select("*");
     setYachts((data as Yacht[]) || []);
     setLoading(false);
-  }
-
-  async function loadPendingCount() {
-    const { count } = await supabaseAdmin
-      .from("access_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending");
-    if (count !== null) setPendingRequestsCount(count);
-  }
-
-  async function loadPendingUsersCount() {
-    const { count } = await supabaseAdmin
-      .from("users")
-      .select("*", { count: "exact", head: true })
-      .eq("approved", false);
-    if (count !== null) setPendingUsersCount(count);
   }
 
   function setF(key: string, val: string) {
@@ -2322,6 +2304,21 @@ export default function Admin() {
   const [activeView, setActiveView] = useState("dashboard");
   const [searchOpen, setSearchOpen] = useState(false);
   const [, setLocation] = useLocation();
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+
+  useEffect(() => {
+    supabaseAdmin
+      .from("access_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending")
+      .then(({ count }) => { if (count !== null) setPendingRequestsCount(count); });
+    supabaseAdmin
+      .from("users")
+      .select("*", { count: "exact", head: true })
+      .eq("approved", false)
+      .then(({ count }) => { if (count !== null) setPendingUsersCount(count); });
+  }, []);
 
   return (
     <div className="flex h-screen bg-[#070f1a] font-sans overflow-hidden">
