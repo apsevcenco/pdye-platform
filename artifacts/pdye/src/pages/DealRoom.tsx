@@ -93,8 +93,8 @@ export default function DealRoom() {
         <RestrictedScreen
           icon={<ShieldAlert size={32} className="text-primary" />}
           title="Restricted Access"
-          text="The Deal Room is exclusively available to verified investors and administrators. Request access to upgrade your profile."
-          action={{ label: "Request Investor Access", href: "/access" }}
+          text="The Deal Room is exclusively available to verified private buyers and administrators. Request access to upgrade your profile."
+          action={{ label: "Request Buyer Access", href: "/access" }}
         />
       </Layout>
     );
@@ -110,7 +110,7 @@ export default function DealRoom() {
             <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Secure Deal Room</span>
             <h1 className="font-display text-4xl md:text-5xl text-white mb-4">Active Opportunities</h1>
             <p className="text-white/50 font-sans max-w-xl">
-              Exclusive distressed and off-market acquisitions available to verified investors only. All information is strictly confidential.
+              Exclusive distressed and off-market acquisitions available to verified private buyers only. All information is strictly confidential.
             </p>
           </motion.div>
 

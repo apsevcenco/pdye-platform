@@ -13,7 +13,7 @@ const benefits = [
   {
     icon: Globe,
     title: "Global Qualified Buyers",
-    desc: "Access our curated network of UHNW individuals, family offices, and institutional investors actively seeking distressed assets.",
+    desc: "Access our curated network of UHNW individuals, family offices, and qualified private buyers actively seeking distressed assets.",
   },
   {
     icon: TrendingUp,

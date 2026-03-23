@@ -13,7 +13,7 @@ const MEMBER_LINKS = [
 const SERVICE_LINKS = [
   { name: "Boat Owners", href: "/boat-owners", icon: Anchor },
   { name: "Brokers", href: "/brokers", icon: Users },
-  { name: "Investors", href: "/investors", icon: TrendingUp },
+  { name: "Private Buyers", href: "/private-buyers", icon: TrendingUp },
 ];
 
 const TOOL_LINK = { name: "Value Yacht", href: "/valuation", icon: Calculator };

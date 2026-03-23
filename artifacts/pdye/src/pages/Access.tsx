@@ -15,10 +15,10 @@ const BROKER_TYPE_OPTIONS = ["Co-brokerage only", "Direct buyer introductions", 
 const ROLES = [
   {
     key: "investor",
-    label: "Investor",
+    label: "Private Buyer",
     icon: TrendingUp,
-    tag: "Investor Relations",
-    heading: <>Private Investor<br />Access</>,
+    tag: "Private Buyer Relations",
+    heading: <>Private Buyer<br />Access</>,
     sub: "Gain access to distressed and off-market yacht deals up to 60% below market value.",
     note: "Membership is limited and subject to approval.",
     stats: [

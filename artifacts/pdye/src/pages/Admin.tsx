@@ -58,7 +58,7 @@ const navItems = [
   { id: "private", label: "Private Deals", icon: Lock },
   { id: "dealroom", label: "Deal Room", icon: TrendingUp },
   { id: "leads", label: "Leads", icon: Inbox },
-  { id: "investors", label: "Investors", icon: Users },
+  { id: "investors", label: "Private Buyers", icon: Users },
   { id: "brokers", label: "Brokers", icon: Briefcase },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "messages", label: "Messages", icon: MessageSquare },
@@ -122,7 +122,7 @@ function StatusBadge({ status }: { status: string }) {
 function Dashboard() {
   const stats = [
     { label: "Active Yachts", value: ALL_YACHTS.length, icon: Ship, trend: "+2 this month", color: "text-primary" },
-    { label: "Investor Requests", value: INVESTOR_REQUESTS.length, icon: Users, trend: "+3 this week", color: "text-green-400" },
+    { label: "Buyer Requests", value: INVESTOR_REQUESTS.length, icon: Users, trend: "+3 this week", color: "text-green-400" },
     { label: "Broker Submissions", value: BROKER_SUBMISSIONS.length, icon: Briefcase, trend: "1 pending review", color: "text-blue-400" },
     { label: "Private Deals", value: 3, icon: Lock, trend: "2 active NDAs", color: "text-yellow-400" },
   ];
@@ -162,7 +162,7 @@ function Dashboard() {
         {/* Recent Investor Requests */}
         <div className="bg-[#0f1d33] border border-white/5">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-            <h2 className="font-display text-lg text-white">Recent Investor Requests</h2>
+            <h2 className="font-display text-lg text-white">Recent Buyer Requests</h2>
             <span className="text-primary text-xs font-bold uppercase tracking-wider cursor-pointer hover:text-white transition-colors">View All</span>
           </div>
           <div className="divide-y divide-white/5">
@@ -1542,6 +1542,7 @@ type Lead = {
 };
 
 const LEAD_TYPE_STYLES: Record<string, string> = {
+  "Private Buyer Application": "text-blue-400 bg-blue-500/10 border-blue-500/20",
   "Investor Application": "text-blue-400 bg-blue-500/10 border-blue-500/20",
   "Broker Application":   "text-purple-400 bg-purple-500/10 border-purple-500/20",
   "Owner Submission":     "text-green-400 bg-green-500/10 border-green-500/20",
@@ -1566,7 +1567,7 @@ function LeadsView() {
       });
   }, []);
 
-  const types = ["all", "Investor Application", "Broker Application", "Owner Submission"];
+  const types = ["all", "Private Buyer Application", "Investor Application", "Broker Application", "Owner Submission"];
   const filtered = filter === "all" ? leads : leads.filter(l => l.yacht_type === filter);
 
   return (
@@ -1725,7 +1726,7 @@ function InvestorsView() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-display text-3xl text-white font-bold">Investors</h1>
+          <h1 className="font-display text-3xl text-white font-bold">Private Buyers</h1>
           <p className="text-white/50 text-sm font-sans mt-1">{INVESTOR_REQUESTS.length} access requests</p>
         </div>
       </div>
@@ -2015,7 +2016,7 @@ function RichTextArea({ value, onChange, label, rows = 3 }: { value: string; onC
 function ContentView() {
   const pages = [
     { key: "yachts", label: "Yachts Page" },
-    { key: "access", label: "Investor Access Page" },
+    { key: "access", label: "Private Buyer Access Page" },
     { key: "private", label: "Private Deals Page" },
     { key: "brokers", label: "Brokers Page" },
     { key: "dealroom", label: "Deal Room Page" },

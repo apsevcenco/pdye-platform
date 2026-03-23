@@ -35,7 +35,7 @@ export const PAGE_DEFAULTS: Record<string, PageContent> = {
   },
   access: {
     heading: "Request Access",
-    subheading: "Our investor network is by application only. Complete the form below to be considered for membership.",
+    subheading: "Our private buyer network is by application only. Complete the form below to be considered for membership.",
   },
   private: {
     heading: "Private Deals",
@@ -43,7 +43,7 @@ export const PAGE_DEFAULTS: Record<string, PageContent> = {
   },
   brokers: {
     heading: "Submit Off-Market Asset",
-    subheading: "Introduce a distressed or off-market vessel to our qualified investor network. Strict confidentiality guaranteed.",
+    subheading: "Introduce a distressed or off-market vessel to our qualified private buyer network. Strict confidentiality guaranteed.",
   },
   dealroom: {
     heading: "Deal Room",
@@ -53,7 +53,7 @@ export const PAGE_DEFAULTS: Record<string, PageContent> = {
 
 export const HERO_DEFAULTS: HeroContent = {
   title: "Private Access To Off-Market Yachts",
-  subtitle: "Confidential brokerage connecting qualified investors with distressed and off-market Mediterranean yacht opportunities.",
+  subtitle: "Confidential brokerage connecting qualified private buyers with distressed and off-market Mediterranean yacht opportunities.",
   titleFont: "'Gilroy', sans-serif",
   titleSize: "text-7xl md:text-8xl",
 };

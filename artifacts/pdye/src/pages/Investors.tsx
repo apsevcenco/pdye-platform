@@ -66,7 +66,7 @@ export default function Investors() {
         email: form.email,
         phone: form.phone || null,
         budget: `${form.capacity}${form.company ? " · " + form.company : ""}`,
-        yacht_type: "Investor Application",
+        yacht_type: "Private Buyer Application",
         message: `Focus: ${form.focus || "—"}. ${form.message}`,
       }]);
     } catch (_) {}
@@ -86,13 +86,13 @@ export default function Investors() {
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
             <span className="inline-block border border-primary/30 text-primary text-[10px] font-bold tracking-[0.25em] uppercase px-5 py-2 mb-8">
-              Investor Membership
+              Private Buyer Membership
             </span>
             <h1 className="font-display text-5xl md:text-6xl text-white mb-6 leading-tight">
               Access <span className="text-primary">Off-Market</span><br />Yacht Acquisitions
             </h1>
             <p className="text-white/50 font-sans text-lg max-w-2xl mx-auto leading-relaxed">
-              PDYE connects qualified investors with motivated sellers and distressed yacht assets — exclusively, privately, and at significant discounts to market value.
+              PDYE connects qualified private buyers with motivated sellers and distressed yacht assets — exclusively, privately, and at significant discounts to market value.
             </p>
             <div className="flex flex-wrap gap-3 justify-center mt-8">
               {["UHNW Individuals", "Family Offices", "Fund Managers", "Asset Managers"].map(t => (
@@ -122,7 +122,7 @@ export default function Investors() {
       <section className="py-20 bg-[#070f1a]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="font-display text-3xl text-white mb-3">Why Investors Choose PDYE</h2>
+            <h2 className="font-display text-3xl text-white mb-3">Why Private Buyers Choose PDYE</h2>
             <p className="text-white/40 font-sans text-sm">Institutional-grade deal flow in the private yacht market</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -152,7 +152,7 @@ export default function Investors() {
         <div className="max-w-2xl mx-auto px-6">
           <div className="text-center mb-12">
             <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-4">Apply for Membership</span>
-            <h2 className="font-display text-3xl text-white mb-3">Investor Application</h2>
+            <h2 className="font-display text-3xl text-white mb-3">Private Buyer Application</h2>
             <p className="text-white/40 font-sans text-sm">Submit your profile. Our team reviews each application within 48 hours.</p>
           </div>
 

@@ -88,7 +88,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               { icon: Anchor, title: "Confidential Brokerage", desc: "Discreet matching of sellers and buyers outside public listing platforms." },
-              { icon: Shield, title: "Investor Network", desc: "Vetted database of UHNW individuals and syndicates ready to deploy capital." },
+              { icon: Shield, title: "Private Buyer Network", desc: "Vetted database of UHNW individuals and syndicates ready to deploy capital." },
               { icon: FileCheck, title: "Deal Structuring", desc: "Complex transaction management including leasing, tax, and registration." },
               { icon: TrendingUp, title: "Asset Recovery", desc: "Working with institutions on rapid disposition of marine assets." }
             ].map((service, idx) => (

@@ -176,7 +176,7 @@ export default function DealDetails() {
 
   if (!user) return <Layout><RestrictedScreen icon={<Lock size={32} className="text-primary" />} title="Login Required" text="Please sign in to access the Deal Room." action={{ label: "Sign In", href: "/login" }} /></Layout>;
   if (!isApproved) return <Layout><RestrictedScreen icon={<RefreshCw size={32} className="text-primary" />} title="Under Review" text="Your account is under review. Access will be granted once approved." /></Layout>;
-  if (!isInvestor) return <Layout><RestrictedScreen icon={<ShieldAlert size={32} className="text-primary" />} title="Investor Access Only" text="The Deal Room is exclusively available to verified investors." action={{ label: "Request Access", href: "/access" }} /></Layout>;
+  if (!isInvestor) return <Layout><RestrictedScreen icon={<ShieldAlert size={32} className="text-primary" />} title="Private Buyer Access Only" text="The Deal Room is exclusively available to verified private buyers." action={{ label: "Request Access", href: "/access" }} /></Layout>;
 
   if (loading) return <Layout><div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div></Layout>;
 

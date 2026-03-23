@@ -10,7 +10,7 @@ export function Footer() {
               PDYE
             </span>
             <p className="text-white/60 max-w-sm font-sans leading-relaxed">
-              The premier private marketplace for distressed and off-market Mediterranean yacht opportunities. Confidential brokerage for qualified investors.
+              The premier private marketplace for distressed and off-market Mediterranean yacht opportunities. Confidential brokerage for qualified private buyers.
             </p>
           </div>
           

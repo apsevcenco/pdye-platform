@@ -7,7 +7,7 @@ import { Anchor, TrendingUp, Briefcase, Ship, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const ROLES = [
-  { key: "investor", label: "Investor",    icon: TrendingUp, desc: "Access private listings & deal room" },
+  { key: "investor", label: "Private Buyer", icon: TrendingUp, desc: "Access private listings & deal room" },
   { key: "broker",   label: "Broker",      icon: Briefcase,  desc: "List and manage yacht transactions" },
   { key: "owner",    label: "Yacht Owner", icon: Ship,       desc: "Sell your vessel confidentially" },
 ];
@@ -92,7 +92,7 @@ export default function Login() {
 
           if (role === "investor") {
             budget = capacity ? `${capacity}${company ? " · " + company : ""}` : company;
-            yacht_type = "Investor Application";
+            yacht_type = "Private Buyer Application";
             leadMsg = `Focus: ${focus || "—"}. ${message}`;
           } else if (role === "broker") {
             budget = `${experience}${bCompany ? " · " + bCompany : ""}${license ? " · Lic: " + license : ""}`;

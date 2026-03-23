@@ -99,7 +99,7 @@ function Router() {
       <Route path="/access" component={Access} />
       <Route path="/boat-owners" component={BoatOwners} />
       <Route path="/brokers" component={Brokers} />
-      <Route path="/investors" component={Investors} />
+      <Route path="/private-buyers" component={Investors} />
       <Route path="/valuation" component={Valuation} />
 
       {/* Protected */}
