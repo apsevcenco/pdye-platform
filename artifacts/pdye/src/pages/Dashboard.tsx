@@ -1,0 +1,424 @@
+import { useEffect, useState, useCallback } from "react";
+import { Link, Redirect } from "wouter";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Layout } from "@/components/layout/Layout";
+import {
+  User, Clock, CheckCircle, XCircle, Ship, Plus, TrendingUp,
+  LayoutDashboard, ArrowRight, FileText, Lock, ShieldCheck,
+  Trash2, Eye, Send, AlertTriangle, ChevronRight, RefreshCw,
+} from "lucide-react";
+
+/* ─── Types ─── */
+type AccessRequest = {
+  id: string;
+  yacht_id: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  yacht_name?: string;
+};
+
+type MyYacht = {
+  id: string;
+  name: string;
+  builder: string | null;
+  length: string | null;
+  year: string | null;
+  status: string | null;
+  deal_status: string | null;
+  is_private: boolean;
+  created_at: string;
+  main_image: string | null;
+  image: string | null;
+};
+
+/* ─── Status helpers ─── */
+const REQ_STATUS: Record<string, { label: string; icon: React.ReactNode; style: string }> = {
+  pending:  { label: "Under Review", icon: <Clock size={11} />,       style: "text-yellow-400 border-yellow-500/20 bg-yellow-500/8" },
+  approved: { label: "Approved",     icon: <CheckCircle size={11} />, style: "text-green-400  border-green-500/20  bg-green-500/8" },
+  rejected: { label: "Declined",     icon: <XCircle size={11} />,     style: "text-red-400    border-red-500/20    bg-red-500/8" },
+};
+
+const DEAL_STATUS: Record<string, { label: string; style: string }> = {
+  none:     { label: "Not Submitted",    style: "text-white/30 border-white/10 bg-white/3" },
+  pending:  { label: "Awaiting Review",  style: "text-yellow-400 border-yellow-500/20 bg-yellow-500/8" },
+  approved: { label: "In Deal Room",     style: "text-green-400 border-green-500/20 bg-green-500/8" },
+  rejected: { label: "Rejected",         style: "text-red-400 border-red-500/20 bg-red-500/8" },
+};
+
+/* ─── Reusable block ─── */
+function Block({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="bg-[#0f1d33] border border-white/5">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <p className="text-white/70 text-xs font-bold uppercase tracking-widest">{title}</p>
+        {action}
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+/* ─── PRIVATE BUYER VIEW ─── */
+function BuyerDashboard({ userId }: { userId: string }) {
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data: rqs } = await supabase
+      .from("access_requests")
+      .select("id, yacht_id, status, created_at")
+      .eq("requester_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!rqs || rqs.length === 0) { setRequests([]); setLoading(false); return; }
+
+    const yachtIds = rqs.map((r: any) => r.yacht_id).filter(Boolean);
+    const { data: yachts } = yachtIds.length
+      ? await supabase.from("yachts").select("id, name").in("id", yachtIds)
+      : { data: [] };
+
+    const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
+    setRequests(rqs.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Unknown Vessel" })));
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const approved = requests.filter(r => r.status === "approved");
+
+  return (
+    <div className="space-y-6">
+      {/* Quick stats */}
+      <div className="grid grid-cols-3 gap-px bg-white/5">
+        {[
+          { label: "Total Requests", value: requests.length, icon: <FileText size={16} /> },
+          { label: "Under Review",   value: requests.filter(r => r.status === "pending").length, icon: <Clock size={16} /> },
+          { label: "Access Granted", value: approved.length, icon: <CheckCircle size={16} /> },
+        ].map(s => (
+          <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-6 text-center">
+            <span className="text-primary/60">{s.icon}</span>
+            <span className="font-display text-3xl text-white">{s.value}</span>
+            <span className="text-white/30 text-[10px] uppercase tracking-widest font-sans">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Access Requests */}
+      <Block
+        title="My Access Requests"
+        action={
+          <button onClick={load} className="text-white/30 hover:text-primary transition-colors">
+            <RefreshCw size={13} />
+          </button>
+        }
+      >
+        {loading ? (
+          <div className="flex items-center justify-center py-10 text-white/20 text-sm">Loading…</div>
+        ) : requests.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2">
+            <Lock size={28} className="text-white/10" />
+            <p className="text-white/30 text-sm font-sans">No requests yet.</p>
+            <Link href="/yachts" className="text-primary text-xs font-bold uppercase tracking-widest hover:underline mt-1">
+              Browse Listings <ChevronRight size={11} className="inline" />
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {requests.map(req => {
+              const cfg = REQ_STATUS[req.status] || REQ_STATUS.pending;
+              return (
+                <div key={req.id} className="flex items-center justify-between px-6 py-4">
+                  <div>
+                    <p className="text-white text-sm font-medium">{req.yacht_name}</p>
+                    <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(req.created_at).toLocaleDateString("en-GB")}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.style}`}>
+                      {cfg.icon} {cfg.label}
+                    </span>
+                    {req.status === "approved" && (
+                      <Link href={`/yacht/${req.yacht_id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                        View <ChevronRight size={11} />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Block>
+
+      {/* Deal Room CTA */}
+      {approved.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 p-6 flex items-center justify-between">
+          <div>
+            <p className="text-white font-display text-lg mb-1">Deal Room Access</p>
+            <p className="text-white/50 text-sm font-sans">{approved.length} vessel{approved.length > 1 ? "s" : ""} unlocked.</p>
+          </div>
+          <Link href="/dealroom" className="flex items-center gap-2 bg-primary text-background px-5 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors">
+            Enter Deal Room <ArrowRight size={13} />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── BROKER / OWNER VIEW ─── */
+function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
+  const [yachts, setYachts] = useState<MyYacht[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("yachts")
+      .select("id, name, builder, length, year, status, deal_status, is_private, created_at, main_image, image")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: false });
+    setYachts((data as MyYacht[]) || []);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function submitToDealRoom(yachtId: string) {
+    setSubmitting(yachtId);
+    await supabase.from("yachts").update({ deal_status: "pending" }).eq("id", yachtId).eq("owner_id", userId);
+    setYachts(prev => prev.map(y => y.id === yachtId ? { ...y, deal_status: "pending" } : y));
+    setSubmitting(null);
+  }
+
+  async function deleteYacht(yachtId: string) {
+    if (!confirm("Delete this yacht listing? This cannot be undone.")) return;
+    setDeleting(yachtId);
+    await supabase.from("yachts").delete().eq("id", yachtId).eq("owner_id", userId);
+    setYachts(prev => prev.filter(y => y.id !== yachtId));
+    setDeleting(null);
+  }
+
+  const label = role === "broker" ? "My Listings" : "My Yachts";
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-px bg-white/5">
+        {[
+          { label: "Total Listings", value: yachts.length },
+          { label: "In Deal Room",   value: yachts.filter(y => y.deal_status === "approved").length },
+          { label: "Pending Review", value: yachts.filter(y => y.deal_status === "pending").length },
+        ].map(s => (
+          <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-6 text-center">
+            <span className="font-display text-3xl text-white">{s.value}</span>
+            <span className="text-white/30 text-[10px] uppercase tracking-widest font-sans">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Listings */}
+      <Block
+        title={label}
+        action={
+          <Link href="/add-yacht" className="flex items-center gap-1.5 text-primary text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors">
+            <Plus size={12} /> Add Listing
+          </Link>
+        }
+      >
+        {loading ? (
+          <div className="flex items-center justify-center py-10 text-white/20 text-sm">Loading…</div>
+        ) : yachts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-3">
+            <Ship size={28} className="text-white/10" />
+            <p className="text-white/30 text-sm font-sans">No listings yet.</p>
+            <Link href="/add-yacht" className="flex items-center gap-2 border border-primary/40 text-primary text-xs font-bold uppercase tracking-widest px-4 py-2 hover:bg-primary/10 transition-colors">
+              <Plus size={12} /> Add Your First Listing
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {yachts.map(yacht => {
+              const dealCfg = DEAL_STATUS[yacht.deal_status || "none"] || DEAL_STATUS.none;
+              const thumb = yacht.main_image || yacht.image;
+              return (
+                <div key={yacht.id} className="flex items-center gap-4 px-6 py-4 hover:bg-white/2 transition-colors group">
+                  {/* Thumb */}
+                  <div className="w-14 h-10 bg-white/5 border border-white/5 overflow-hidden flex-shrink-0">
+                    {thumb ? <img src={thumb} alt={yacht.name} className="w-full h-full object-cover" /> : <Ship size={16} className="m-auto mt-2 text-white/20" />}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{yacht.name}</p>
+                    <p className="text-white/40 text-xs font-sans truncate">
+                      {[yacht.builder, yacht.length, yacht.year].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+
+                  {/* Deal status */}
+                  <span className={`hidden sm:flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${dealCfg.style}`}>
+                    {dealCfg.label}
+                  </span>
+
+                  {/* Private badge */}
+                  {yacht.is_private && (
+                    <span className="hidden md:flex items-center gap-1 text-[10px] text-primary/60 border border-primary/20 px-2 py-0.5">
+                      <Lock size={9} /> Private
+                    </span>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Link href={`/yacht/${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="View">
+                      <Eye size={14} />
+                    </Link>
+                    <Link href={`/add-yacht?edit=${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="Edit">
+                      <FileText size={14} />
+                    </Link>
+                    {(!yacht.deal_status || yacht.deal_status === "none" || yacht.deal_status === "rejected") && (
+                      <button
+                        onClick={() => submitToDealRoom(yacht.id)}
+                        disabled={submitting === yacht.id}
+                        className="p-1.5 text-white/30 hover:text-green-400 transition-colors disabled:opacity-30"
+                        title="Submit to Deal Room"
+                      >
+                        <Send size={14} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteYacht(yacht.id)}
+                      disabled={deleting === yacht.id}
+                      className="p-1.5 text-white/30 hover:text-red-400 transition-colors disabled:opacity-30"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Block>
+
+      {/* Submit to Deal Room tip */}
+      <div className="border border-white/5 bg-white/2 px-6 py-4 flex items-start gap-3">
+        <Send size={14} className="text-primary/50 mt-0.5 flex-shrink-0" />
+        <p className="text-white/30 text-xs font-sans leading-relaxed">
+          Hover over a listing and click the send icon to submit it for Deal Room review. An admin will approve or reject the submission.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ADMIN VIEW ─── */
+function AdminDashboard() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          { href: "/admin", icon: <LayoutDashboard size={18} />, label: "Admin Panel", desc: "Full dashboard with all management tools" },
+          { href: "/admin-requests", icon: <CheckCircle size={18} />, label: "Access Requests", desc: "Approve or reject buyer access requests" },
+          { href: "/admin-users", icon: <User size={18} />, label: "User Management", desc: "Manage roles and account approval" },
+          { href: "/dealroom", icon: <TrendingUp size={18} />, label: "Deal Room", desc: "View all active deal room listings" },
+        ].map(item => (
+          <Link key={item.href} href={item.href} className="flex items-center gap-4 bg-[#0f1d33] border border-white/5 hover:border-primary/30 p-5 transition-all group">
+            <div className="w-10 h-10 border border-white/10 flex items-center justify-center text-primary/60 group-hover:border-primary/30 group-hover:text-primary transition-all flex-shrink-0">
+              {item.icon}
+            </div>
+            <div>
+              <p className="text-white text-sm font-medium">{item.label}</p>
+              <p className="text-white/30 text-xs font-sans mt-0.5">{item.desc}</p>
+            </div>
+            <ChevronRight size={14} className="ml-auto text-white/20 group-hover:text-primary transition-colors" />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── MAIN DASHBOARD ─── */
+export default function Dashboard() {
+  const { user, userProfile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return <Redirect to="/login" />;
+
+  const role = userProfile?.role || "investor";
+  const approved = userProfile?.approved;
+  const email = userProfile?.email || user.email || "";
+
+  const ROLE_DISPLAY: Record<string, { label: string; style: string }> = {
+    investor: { label: "Private Buyer", style: "text-blue-400 border-blue-400/30 bg-blue-400/8" },
+    broker:   { label: "Broker",        style: "text-purple-400 border-purple-400/30 bg-purple-400/8" },
+    owner:    { label: "Yacht Owner",   style: "text-yellow-400 border-yellow-400/30 bg-yellow-400/8" },
+    admin:    { label: "Administrator", style: "text-primary border-primary/30 bg-primary/8" },
+  };
+  const roleDisplay = ROLE_DISPLAY[role] || ROLE_DISPLAY.investor;
+
+  return (
+    <Layout>
+      <div className="min-h-screen bg-background pt-28 pb-16">
+        <div className="max-w-5xl mx-auto px-6">
+
+          {/* Header */}
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-1">Dashboard</p>
+              <h1 className="font-display text-3xl md:text-4xl text-white">Welcome back</h1>
+              <p className="text-white/50 font-sans text-sm mt-1">{email}</p>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Role badge */}
+              <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border ${roleDisplay.style}`}>
+                {roleDisplay.label}
+              </span>
+              {/* Status badge */}
+              {approved ? (
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-green-400 border border-green-500/20 bg-green-500/8 px-3 py-1.5">
+                  <ShieldCheck size={11} /> Verified
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-yellow-400 border border-yellow-500/20 bg-yellow-500/8 px-3 py-1.5">
+                  <Clock size={11} /> Under Review
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Under review notice */}
+          {!approved && role !== "admin" && (
+            <div className="mb-6 flex items-start gap-3 border border-yellow-500/20 bg-yellow-500/5 px-5 py-4">
+              <AlertTriangle size={16} className="text-yellow-400 mt-0.5 flex-shrink-0" />
+              <p className="text-white/60 text-sm font-sans leading-relaxed">
+                Your account is under review. Some features are restricted until our team verifies your profile.
+                Typical review time: 24–48 hours.
+              </p>
+            </div>
+          )}
+
+          {/* Role-based content */}
+          {role === "admin" && <AdminDashboard />}
+          {role === "broker" && <ListingsDashboard userId={user.id} role={role} />}
+          {role === "owner" && <ListingsDashboard userId={user.id} role={role} />}
+          {(role === "investor" || role === "buyer") && <BuyerDashboard userId={user.id} />}
+
+        </div>
+      </div>
+    </Layout>
+  );
+}

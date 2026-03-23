@@ -26,6 +26,8 @@ import YachtDetail from "./pages/YachtDetail";
 import BoatOwners from "./pages/BoatOwners";
 import Investors from "./pages/Investors";
 import Valuation from "./pages/Valuation";
+import Dashboard from "./pages/Dashboard";
+import AddYacht from "./pages/AddYacht";
 
 const queryClient = new QueryClient();
 
@@ -103,6 +105,8 @@ function Router() {
       <Route path="/valuation" component={Valuation} />
 
       {/* Protected */}
+      <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/add-yacht" component={() => <ProtectedRoute component={AddYacht} />} />
       <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
       <Route path="/yacht/:id" component={() => <ProtectedRoute component={YachtDetail} />} />
       <Route path="/private" component={() => <ProtectedRoute component={Private} />} />

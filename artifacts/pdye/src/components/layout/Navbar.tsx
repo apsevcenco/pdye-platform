@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Anchor, LogIn, LogOut, Ship, Lock, Briefcase, Users, TrendingUp, Calculator } from "lucide-react";
+import { Menu, X, Anchor, LogIn, LogOut, Ship, Lock, Briefcase, Users, TrendingUp, Calculator, LayoutDashboard } from "lucide-react";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
 import { useAuth } from "@/context/AuthContext";
 
@@ -116,12 +116,13 @@ export function Navbar() {
           <div className="h-5 w-[1px] bg-white/12" />
           {user ? (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 border border-white/8 bg-white/3">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                <span className="text-white/50 text-[10px] font-sans tracking-widest uppercase max-w-[120px] truncate">
-                  {user.email}
-                </span>
-              </div>
+              <Link
+                href="/dashboard"
+                className={`flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors px-3 py-1.5 border ${location === "/dashboard" ? "border-primary/50 text-primary bg-primary/8" : "border-white/8 bg-white/3 text-white/50 hover:text-primary hover:border-primary/30"}`}
+              >
+                <LayoutDashboard size={11} />
+                Dashboard
+              </Link>
               <button
                 onClick={handleLogout}
                 title="Logout"
@@ -209,6 +210,11 @@ export function Navbar() {
             {user ? (
               <div className="space-y-3">
                 <p className="text-white/30 text-xs font-sans truncate">{user.email}</p>
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-primary hover:text-white transition-colors">
+                  <LayoutDashboard size={14} />
+                  My Dashboard
+                </Link>
                 <button onClick={handleLogout}
                   className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-white/60 hover:text-white">
                   <LogOut size={14} />
