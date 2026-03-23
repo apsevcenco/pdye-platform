@@ -54,6 +54,7 @@ export interface Yacht {
   description?: string;
   // Access control
   is_private?: boolean;   // If true, only visible to logged-in users
+  is_featured?: boolean;  // If true, shown on the Home page Featured section
 }
 
 export const FEATURED_YACHTS: Yacht[] = [

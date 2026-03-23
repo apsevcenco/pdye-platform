@@ -35,6 +35,7 @@ import {
   Mail,
   Building2,
   Calendar,
+  Star,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -416,6 +417,11 @@ function YachtsView() {
     if (!window.confirm("Remove this listing from the database?")) return;
     await supabaseAdmin.from("yachts").delete().eq("id", id);
     load();
+  }
+
+  async function toggleFeatured(id: string, current: boolean) {
+    await supabaseAdmin.from("yachts").update({ is_featured: !current }).eq("id", id);
+    setYachts(prev => prev.map(y => y.id === id ? { ...y, is_featured: !current } : y));
   }
 
   function startEdit(yacht: Yacht) {
@@ -1087,7 +1093,11 @@ function YachtsView() {
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Price</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Photos</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Status</th>
-                <th className="px-6 py-4"></th>
+                <th className="px-6 py-4 text-right">
+                  <span className="flex items-center justify-end gap-1 text-white/30 text-[10px] uppercase tracking-wider font-bold">
+                    <Star size={10} fill="currentColor" /> Featured
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1157,21 +1167,32 @@ function YachtsView() {
                       } />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-3">
+                        {/* Featured toggle — always visible */}
                         <button
-                          onClick={() => startEdit(yacht)}
-                          className="text-white/30 hover:text-primary transition-colors"
-                          title="Edit listing"
+                          onClick={() => toggleFeatured(yacht.id, !!yacht.is_featured)}
+                          title={yacht.is_featured ? "Remove from Featured" : "Mark as Featured"}
+                          className={`transition-colors ${yacht.is_featured ? "text-primary" : "text-white/15 hover:text-primary/60"}`}
                         >
-                          <PenLine size={15} />
+                          <Star size={15} fill={yacht.is_featured ? "currentColor" : "none"} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(yacht.id)}
-                          className="text-white/20 hover:text-red-400 transition-colors"
-                          title="Delete listing"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {/* Edit / Delete — appear on row hover */}
+                        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => startEdit(yacht)}
+                            className="text-white/30 hover:text-primary transition-colors"
+                            title="Edit listing"
+                          >
+                            <PenLine size={15} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(yacht.id)}
+                            className="text-white/20 hover:text-red-400 transition-colors"
+                            title="Delete listing"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </tr>

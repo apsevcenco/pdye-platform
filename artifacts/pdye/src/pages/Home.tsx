@@ -3,9 +3,10 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Shield, TrendingUp, Anchor, FileCheck } from "lucide-react";
 import { YachtCard } from "@/components/ui/YachtCard";
-import { FEATURED_YACHTS } from "@/lib/data";
+import { FEATURED_YACHTS, type Yacht } from "@/lib/data";
 import { useState, useEffect } from "react";
 import { getHeroContent, type HeroContent } from "@/lib/content";
+import { supabase } from "@/lib/supabase";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
@@ -14,9 +15,32 @@ const fadeUp = {
 
 export default function Home() {
   const [hero, setHero] = useState<HeroContent>(getHeroContent());
+  const [featuredYachts, setFeaturedYachts] = useState<Yacht[]>(FEATURED_YACHTS);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
 
   useEffect(() => {
     setHero(getHeroContent());
+  }, []);
+
+  useEffect(() => {
+    async function loadFeatured() {
+      try {
+        const { data, error } = await supabase
+          .from("yachts")
+          .select("*")
+          .eq("is_featured", true)
+          .order("created_at", { ascending: false })
+          .limit(6);
+        if (!error && data && data.length > 0) {
+          setFeaturedYachts(data as Yacht[]);
+        }
+        // If no featured yachts in DB, FEATURED_YACHTS static fallback stays
+      } catch {
+        // fallback to static data
+      }
+      setFeaturedLoading(false);
+    }
+    loadFeatured();
   }, []);
 
   return (
@@ -174,20 +198,32 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {FEATURED_YACHTS.map((yacht, idx) => (
-              <motion.div
-                key={yacht.id}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={{
-                  hidden: { opacity: 0, y: 30 },
-                  visible: { opacity: 1, y: 0, transition: { delay: idx * 0.15, duration: 0.7 } }
-                }}
-              >
-                <YachtCard yacht={yacht} />
-              </motion.div>
-            ))}
+            {featuredLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="bg-[#0f1d33] border border-white/5 animate-pulse" style={{ height: 340 }}>
+                    <div className="w-full h-52 bg-white/5" />
+                    <div className="p-5 space-y-3">
+                      <div className="h-3 bg-white/5 rounded w-1/3" />
+                      <div className="h-5 bg-white/8 rounded w-2/3" />
+                      <div className="h-3 bg-white/5 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))
+              : featuredYachts.map((yacht, idx) => (
+                  <motion.div
+                    key={yacht.id}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    variants={{
+                      hidden: { opacity: 0, y: 30 },
+                      visible: { opacity: 1, y: 0, transition: { delay: idx * 0.15, duration: 0.7 } }
+                    }}
+                  >
+                    <YachtCard yacht={yacht} />
+                  </motion.div>
+                ))
+            }
           </div>
         </div>
       </section>
