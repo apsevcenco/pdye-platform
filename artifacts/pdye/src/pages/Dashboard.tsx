@@ -3,6 +3,7 @@ import { Link, Redirect } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { dealRoomApi } from "@/lib/dealRoomApi";
 import { Layout } from "@/components/layout/Layout";
 import type { DealRoom } from "@/lib/dealTypes";
 import {
@@ -186,20 +187,16 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
 
   useEffect(() => {
     async function loadRooms() {
-      const { data } = await supabaseAdmin
-        .from("deal_rooms")
-        .select("id, yacht_id, status, buyer_nda_status, seller_nda_status, created_at")
-        .or(`buyer_user_id.eq.${userId},seller_user_id.eq.${userId}`)
-        .not("status", "in", '("cancelled")')
-        .order("created_at", { ascending: false });
-
-      const allRooms = data || [];
-      if (allRooms.length > 0) {
-        const yachtIds = [...new Set(allRooms.map((r: any) => r.yacht_id))];
-        const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
-        const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
-        setRooms(allRooms.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
-      }
+      try {
+        const allRooms = await dealRoomApi.byUser(userId);
+        const activeRooms = (allRooms || []).filter((r: any) => r.status !== "cancelled");
+        if (activeRooms.length > 0) {
+          const yachtIds = [...new Set(activeRooms.map((r: any) => r.yacht_id))];
+          const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
+          const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
+          setRooms(activeRooms.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
+        }
+      } catch (e) {}
       setLoading(false);
     }
     loadRooms();

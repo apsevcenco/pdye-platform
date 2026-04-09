@@ -10,6 +10,7 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
   type DealRoom, type DealRoomMessage, type DealRoomDocument, type AuditLog,
   DEAL_ROOM_STATUS_CONFIG, DEAL_ROOM_TIMELINE,
@@ -52,46 +53,35 @@ export default function DealDetails() {
 
   async function loadRoom() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("deal_rooms").select("*").eq("id", roomId).single();
-    if (!data) { setLoading(false); return; }
-    setRoom(data as DealRoom);
+    try {
+      const data = await dealRoomApi.get(roomId!);
+      if (!data) { setLoading(false); return; }
+      setRoom(data as DealRoom);
 
-    const { data: y } = await supabase.from("yachts").select("id, name, builder, length, year, main_image, image").eq("id", data.yacht_id).single();
-    if (y) setYacht(y as Yacht);
+      const { data: y } = await supabase.from("yachts").select("id, name, builder, length, year, main_image, image").eq("id", data.yacht_id).single();
+      if (y) setYacht(y as Yacht);
 
-    const participantIds = [data.buyer_user_id, data.seller_user_id, data.created_by_admin_id].filter(Boolean) as string[];
-    if (participantIds.length > 0) {
-      const { data: pUsers } = await supabaseAdmin.from("users").select("id, email, role").in("id", participantIds);
-      const pMap: Record<string, { email: string; role: string }> = {};
-      (pUsers || []).forEach((u: any) => { pMap[u.id] = { email: u.email, role: u.role }; });
-      setParticipantMap(pMap);
-    }
+      const participantIds = [data.buyer_user_id, data.seller_user_id, data.created_by_admin_id].filter(Boolean) as string[];
+      if (participantIds.length > 0) {
+        const { data: pUsers } = await supabaseAdmin.from("users").select("id, email, role").in("id", participantIds);
+        const pMap: Record<string, { email: string; role: string }> = {};
+        (pUsers || []).forEach((u: any) => { pMap[u.id] = { email: u.email, role: u.role }; });
+        setParticipantMap(pMap);
+      }
 
-    if (data.status === "active" || isAdmin) {
-      const { data: msgs } = await supabaseAdmin
-        .from("deal_room_messages")
-        .select("*")
-        .eq("deal_room_id", roomId)
-        .order("created_at", { ascending: true });
-      setMessages((msgs as DealRoomMessage[]) || []);
+      if (data.status === "active" || isAdmin) {
+        const msgs = await dealRoomApi.getMessages(roomId!);
+        setMessages((msgs as DealRoomMessage[]) || []);
 
-      const { data: docs } = await supabaseAdmin
-        .from("deal_room_documents")
-        .select("*")
-        .eq("deal_room_id", roomId)
-        .order("created_at", { ascending: false });
-      setDocuments((docs as DealRoomDocument[]) || []);
-    }
+        const docs = await dealRoomApi.getDocuments(roomId!);
+        setDocuments((docs as DealRoomDocument[]) || []);
+      }
 
-    if (isAdmin) {
-      const { data: logs } = await supabaseAdmin
-        .from("audit_logs")
-        .select("*")
-        .eq("entity_type", "deal_room")
-        .eq("entity_id", roomId)
-        .order("created_at", { ascending: false });
-      setActivity((logs as AuditLog[]) || []);
-    }
+      if (isAdmin) {
+        const logs = await dealRoomApi.getAuditLogs("deal_room", roomId!);
+        setActivity((logs as AuditLog[]) || []);
+      }
+    } catch (e) {}
 
     setLoading(false);
   }
@@ -102,7 +92,7 @@ export default function DealDetails() {
     setAcceptingNda(true);
     const now = new Date().toISOString();
 
-    const updates: Record<string, any> = { updated_at: now };
+    const updates: Record<string, any> = {};
     if (isBuyer) {
       updates.buyer_nda_status = "signed";
       updates.buyer_nda_signed_at = now;
@@ -112,9 +102,9 @@ export default function DealDetails() {
       updates.seller_nda_signed_at = now;
     }
 
-    await supabaseAdmin.from("deal_rooms").update(updates).eq("id", room.id);
+    await dealRoomApi.update(room.id, updates);
 
-    await supabaseAdmin.from("nda_envelopes").insert([{
+    await dealRoomApi.createNdaEnvelope({
       deal_room_id: room.id,
       user_id: user.id,
       side: mySide,
@@ -122,42 +112,32 @@ export default function DealDetails() {
       status: "signed",
       signed_at: now,
       completed_at: now,
-    }]);
+    });
 
-    await supabaseAdmin.from("audit_logs").insert([{
+    await dealRoomApi.createAuditLog({
       entity_type: "deal_room",
       entity_id: room.id,
       user_id: user.id,
       action: "nda_signed",
       meta: { side: mySide },
-    }]);
+    });
 
-    await supabaseAdmin.from("deal_room_messages").insert([{
-      deal_room_id: room.id,
+    await dealRoomApi.sendMessage(room.id, {
       sender_id: user.id,
       message: `NDA signed by ${mySide} party.`,
       is_system: true,
-    }]);
+    });
 
-    const { data: refreshed } = await supabaseAdmin.from("deal_rooms").select("*").eq("id", room.id).single();
+    const refreshed = await dealRoomApi.get(room.id);
     if (refreshed) {
       const buyerSigned = refreshed.buyer_nda_status === "signed";
       const sellerSigned = refreshed.seller_nda_status === "signed";
 
       if (buyerSigned && sellerSigned && refreshed.status !== "active") {
-        await supabaseAdmin.from("deal_rooms").update({
-          status: "active",
-          fully_activated_at: now,
-          updated_at: now,
-        }).eq("id", room.id);
+        await dealRoomApi.update(room.id, { status: "active", fully_activated_at: now });
+        await dealRoomApi.updateParticipants(room.id, { can_view: true, can_message: true, can_download: true });
 
-        await supabaseAdmin.from("deal_room_participants").update({
-          can_view: true,
-          can_message: true,
-          can_download: true,
-        }).eq("deal_room_id", room.id);
-
-        await supabaseAdmin.from("audit_logs").insert([{
+        await dealRoomApi.createAuditLog({
           entity_type: "deal_room",
           entity_id: room.id,
           user_id: user.id,
@@ -166,23 +146,17 @@ export default function DealDetails() {
             yacht_id: room.yacht_id,
             buyer_id: room.buyer_user_id,
             seller_id: room.seller_user_id,
-            buyer_nda_signed_at: refreshed.buyer_nda_signed_at,
-            seller_nda_signed_at: refreshed.seller_nda_signed_at,
             activated_at: now,
           },
-        }]);
+        });
 
-        await supabaseAdmin.from("deal_room_messages").insert([{
-          deal_room_id: room.id,
+        await dealRoomApi.sendMessage(room.id, {
           sender_id: user.id,
           message: "Deal room activated after NDA completion by both parties. Full access is now available.",
           is_system: true,
-        }]);
+        });
       } else if (buyerSigned !== sellerSigned) {
-        await supabaseAdmin.from("deal_rooms").update({
-          status: "partially_signed",
-          updated_at: now,
-        }).eq("id", room.id);
+        await dealRoomApi.update(room.id, { status: "partially_signed" });
       }
     }
 
@@ -192,12 +166,7 @@ export default function DealDetails() {
 
   const refreshMessages = useCallback(async () => {
     if (!roomId) return;
-    const { data: msgs } = await supabaseAdmin
-      .from("deal_room_messages")
-      .select("*")
-      .eq("deal_room_id", roomId)
-      .order("created_at", { ascending: true });
-    const newMsgs = (msgs as DealRoomMessage[]) || [];
+    const newMsgs = ((await dealRoomApi.getMessages(roomId)) as DealRoomMessage[]) || [];
     setMessages(prev => {
       if (newMsgs.length !== prev.length) {
         if (isAtBottom) {
@@ -239,19 +208,8 @@ export default function DealDetails() {
     setMessages(prev => [...prev, tempMsg]);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
-    await supabaseAdmin.from("deal_room_messages").insert([{
-      deal_room_id: room.id,
-      sender_id: user.id,
-      message: text,
-      is_system: false,
-    }]);
-    await supabaseAdmin.from("audit_logs").insert([{
-      entity_type: "deal_room",
-      entity_id: room.id,
-      user_id: user.id,
-      action: "message_sent",
-      meta: {},
-    }]);
+    await dealRoomApi.sendMessage(room.id, { sender_id: user.id, message: text, is_system: false });
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user.id, action: "message_sent", meta: {} });
     setSending(false);
     await refreshMessages();
   }
@@ -675,49 +633,17 @@ function AdminRoomControls({ room, onReload }: { room: DealRoom; onReload: () =>
       updates.status = "nda_pending";
     }
 
-    await supabaseAdmin.from("deal_rooms").update(updates).eq("id", room.id);
+    await dealRoomApi.update(room.id, updates);
 
-    const envelopes = [];
     if (room.buyer_user_id && room.buyer_nda_status === "not_sent") {
-      envelopes.push({
-        deal_room_id: room.id,
-        user_id: room.buyer_user_id,
-        side: "buyer",
-        provider: "internal",
-        status: "sent",
-        sent_at: now,
-        document_name: "PDYE NDA v1",
-      });
+      await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now, document_name: "PDYE NDA v1" });
     }
     if (room.seller_user_id && room.seller_nda_status === "not_sent") {
-      envelopes.push({
-        deal_room_id: room.id,
-        user_id: room.seller_user_id,
-        side: "seller",
-        provider: "internal",
-        status: "sent",
-        sent_at: now,
-        document_name: "PDYE NDA v1",
-      });
-    }
-    if (envelopes.length > 0) {
-      await supabaseAdmin.from("nda_envelopes").insert(envelopes);
+      await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now, document_name: "PDYE NDA v1" });
     }
 
-    await supabaseAdmin.from("audit_logs").insert([{
-      entity_type: "deal_room",
-      entity_id: room.id,
-      user_id: user?.id,
-      action: "nda_sent",
-      meta: { buyer: room.buyer_user_id, seller: room.seller_user_id },
-    }]);
-
-    await supabaseAdmin.from("deal_room_messages").insert([{
-      deal_room_id: room.id,
-      sender_id: user?.id || "",
-      message: "NDA documents have been sent to both parties for review and signature.",
-      is_system: true,
-    }]);
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "nda_sent", meta: { buyer: room.buyer_user_id, seller: room.seller_user_id } });
+    await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "NDA documents have been sent to both parties for review and signature.", is_system: true });
 
     setSending(false);
     onReload();
@@ -725,29 +651,15 @@ function AdminRoomControls({ room, onReload }: { room: DealRoom; onReload: () =>
 
   async function closeRoom() {
     if (!confirm("Close this deal room?")) return;
-    const now = new Date().toISOString();
-    await supabaseAdmin.from("deal_rooms").update({ status: "closed", updated_at: now }).eq("id", room.id);
-    await supabaseAdmin.from("audit_logs").insert([{
-      entity_type: "deal_room",
-      entity_id: room.id,
-      user_id: user?.id,
-      action: "deal_room_closed",
-      meta: {},
-    }]);
+    await dealRoomApi.update(room.id, { status: "closed" });
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_closed", meta: {} });
     onReload();
   }
 
   async function cancelRoom() {
     if (!confirm("Cancel this deal room? This cannot be undone.")) return;
-    const now = new Date().toISOString();
-    await supabaseAdmin.from("deal_rooms").update({ status: "cancelled", updated_at: now }).eq("id", room.id);
-    await supabaseAdmin.from("audit_logs").insert([{
-      entity_type: "deal_room",
-      entity_id: room.id,
-      user_id: user?.id,
-      action: "deal_room_cancelled",
-      meta: {},
-    }]);
+    await dealRoomApi.update(room.id, { status: "cancelled" });
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_cancelled", meta: {} });
     onReload();
   }
 

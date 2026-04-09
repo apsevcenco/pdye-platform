@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { dealRoomApi } from "@/lib/dealRoomApi";
 import { Yacht, FEATURED_YACHTS } from "@/lib/data";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/context/AuthContext";
@@ -482,13 +483,13 @@ export default function YachtDetail() {
       role: (userProfile as any)?.role || "investor",
       status: "pending",
     }]);
-    await supabaseAdmin.from("audit_logs").insert([{
+    await dealRoomApi.createAuditLog({
       entity_type: "access_request",
-      entity_id: id,
+      entity_id: id || "",
       user_id: user.id,
       action: "access_requested",
       meta: { yacht_id: id },
-    }]);
+    });
     setAccessLevel("pending");
     setRequesting(false);
   }

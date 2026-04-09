@@ -13,19 +13,24 @@ Private B2B off-market yacht platform. pnpm workspace monorepo using TypeScript.
 - **Auth**: Supabase Auth
 - **Styling**: Tailwind CSS, self-hosted fonts, dark navy (#0a1426) + gold (#c8a46b)
 
-## Supabase Tables
+## Database Architecture (DUAL DB)
 
+### Supabase Tables (via Supabase REST API)
 - **users**: id, email, role (investor/broker/owner/admin), approved, created_at
 - **yachts**: Full yacht data with images, specs, pricing
 - **access_requests**: yacht_id, requester_id, role, status (pending → approved_spec → rejected → escalated → archived)
-- **deal_rooms**: yacht_id, buyer_user_id, seller_user_id, status (draft → nda_pending → partially_signed → active → closed/cancelled), dual NDA tracking (buyer_nda_status, seller_nda_status), fully_activated_at
+- **leads**: Public form submissions
+- **introductions**: Formal introduction records
+
+### Replit PG Tables (via API server at /api/deal-rooms/*)
+- **deal_rooms**: yacht_id, buyer_user_id, seller_user_id, status (draft → nda_pending → partially_signed → active → closed/cancelled), dual NDA tracking
 - **deal_room_participants**: deal_room_id, user_id, role, can_view, can_message, can_download
 - **deal_room_documents**: deal_room_id, uploaded_by, file_name, file_url, visible_to_roles
 - **deal_room_messages**: deal_room_id, sender_id, message, is_system
 - **nda_envelopes**: deal_room_id, user_id, side (buyer/seller), provider, status, envelope_id, sent_at, signed_at
 - **audit_logs**: entity_type, entity_id, user_id, action, meta
-- **leads**: Public form submissions
-- **introductions**: Formal introduction records
+
+Frontend accesses deal room tables exclusively via `dealRoomApi` (`src/lib/dealRoomApi.ts`) which calls the API server.
 
 ## Key Environment Variables
 
@@ -50,10 +55,16 @@ Express on port 8080. Routes:
 - `/api/health` — health check
 - `/api/upload-photo` — yacht photo upload to Supabase Storage
 - `/api/estimate` — AI yacht valuation
-- `/api/nda/send` — Send NDA to deal room participant (admin only, auth required)
-- `/api/nda/sign` — Sign NDA as participant (auth required, validates participant)
-- `/api/nda/webhook/docusign` — DocuSign webhook endpoint (placeholder)
-- `/api/nda/status/:dealRoomId` — Get NDA status for deal room (auth required)
+- `/api/nda/*` — NDA send/sign/status/webhook endpoints
+- `/api/deal-rooms` — CRUD for deal rooms (list, get, create, update, delete)
+- `/api/deal-rooms/by-user/:userId` — rooms by participant
+- `/api/deal-rooms/:id/participants` — participant CRUD
+- `/api/deal-rooms/:id/messages` — message list/send
+- `/api/deal-rooms/:id/documents` — document list
+- `/api/deal-room-documents` — all documents list + delete
+- `/api/deal-room-messages-all` — recent messages list + delete
+- `/api/nda-envelopes` — create NDA envelope
+- `/api/audit-logs` — create + list by entity
 
 ### Access & Deal Flow (Core Business Logic — Two-Stage)
 

@@ -4,6 +4,7 @@ import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { useAuth } from "@/context/AuthContext";
+import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
   LayoutDashboard,
   Ship,
@@ -121,14 +122,12 @@ function Dashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [yRes, uRes, arRes, drRes, lRes, msgRes, actRes] = await Promise.all([
+        const [yRes, uRes, arRes, lRes, allRooms] = await Promise.all([
           supabaseAdmin.from("yachts").select("*", { count: "exact", head: true }),
           supabaseAdmin.from("users").select("id, email, role, approved"),
           supabaseAdmin.from("access_requests").select("id, requester_id, yacht_id, status, role, created_at").order("created_at", { ascending: false }).limit(5),
-          supabaseAdmin.from("deal_rooms").select("*", { count: "exact", head: true }),
           supabaseAdmin.from("leads").select("*", { count: "exact", head: true }),
-          supabaseAdmin.from("deal_room_messages").select("id, deal_room_id, sender_id, message, is_system, created_at").order("created_at", { ascending: false }).limit(5),
-          supabaseAdmin.from("audit_logs").select("id, entity_type, entity_id, action, user_id, meta, created_at").order("created_at", { ascending: false }).limit(8),
+          dealRoomApi.list().catch(() => []),
         ]);
         const users = (uRes.data || []) as any[];
         setStats({
@@ -137,7 +136,7 @@ function Dashboard() {
           brokers: users.filter(u => u.role === "broker").length,
           owners: users.filter(u => u.role === "owner").length,
           pendingRequests: (arRes.data || []).filter((r: any) => r.status === "pending").length,
-          dealRooms: drRes.count || 0,
+          dealRooms: (allRooms || []).length,
           leads: lRes.count || 0,
         });
         const reqs = arRes.data || [];
@@ -148,15 +147,26 @@ function Dashboard() {
           (ru || []).forEach((u: any) => { reqEmails[u.id] = u.email; });
         }
         setRecentRequests(reqs.map((r: any) => ({ ...r, email: reqEmails[r.requester_id] || r.requester_id?.slice(0, 8) })));
-        const msgs = (msgRes.data || []).filter((m: any) => !m.is_system);
-        const msgSenderIds = [...new Set(msgs.map((m: any) => m.sender_id))];
+
+        let recentMsgs: any[] = [];
+        let recentAct: any[] = [];
+        if ((allRooms || []).length > 0) {
+          const roomIds = (allRooms || []).slice(0, 10).map((r: any) => r.id);
+          const [msgsArrays, actArrays] = await Promise.all([
+            Promise.all(roomIds.slice(0, 3).map((rid: string) => dealRoomApi.getMessages(rid).catch(() => []))),
+            dealRoomApi.getAuditLogs("deal_room", roomIds[0]).catch(() => []),
+          ]);
+          recentMsgs = msgsArrays.flat().filter((m: any) => !m.is_system).sort((a: any, b: any) => b.created_at.localeCompare(a.created_at)).slice(0, 5);
+          recentAct = (actArrays || []).slice(0, 8);
+        }
+        const msgSenderIds = [...new Set(recentMsgs.map((m: any) => m.sender_id))];
         let senderEmails: Record<string, string> = {};
         if (msgSenderIds.length) {
           const { data: su } = await supabaseAdmin.from("users").select("id, email").in("id", msgSenderIds);
           (su || []).forEach((u: any) => { senderEmails[u.id] = u.email; });
         }
-        setRecentMessages(msgs.map((m: any) => ({ ...m, sender_email: senderEmails[m.sender_id] || "System" })));
-        setRecentActivity((actRes.data || []) as any[]);
+        setRecentMessages(recentMsgs.map((m: any) => ({ ...m, sender_email: senderEmails[m.sender_id] || "System" })));
+        setRecentActivity(recentAct);
       } catch (e) {
         console.error("Dashboard load error:", e);
       }
@@ -1517,64 +1527,38 @@ function DealsManageView() {
         sellerUserId = su.id;
       }
 
-      const now = new Date().toISOString();
-      const { data: room, error: roomErr } = await supabaseAdmin.from("deal_rooms").insert([{
+      const room = await dealRoomApi.create({
         yacht_id: yachtId,
         created_by_admin_id: user?.id || "",
         status: "draft",
         buyer_user_id: buyerUserId,
         seller_user_id: sellerUserId,
         nda_required: true,
-        buyer_nda_status: "not_sent",
-        seller_nda_status: "not_sent",
         notes: notes.trim() || null,
-        created_at: now,
-        updated_at: now,
-      }]).select().single();
+      });
 
-      if (roomErr || !room) throw new Error(roomErr?.message || "Failed to create room");
+      if (!room?.id) throw new Error("Failed to create room");
 
-      const participants: any[] = [];
       if (buyerUserId) {
-        participants.push({
-          deal_room_id: room.id,
-          user_id: buyerUserId,
-          role: "buyer",
-          side: "buyer",
-          can_view: true,
-          can_message: true,
-          can_download: true,
-        });
+        await dealRoomApi.addParticipant(room.id, { user_id: buyerUserId, role: "buyer", side: "buyer", can_view: true, can_message: true, can_download: true });
       }
       if (sellerUserId) {
-        participants.push({
-          deal_room_id: room.id,
-          user_id: sellerUserId,
-          role: "seller",
-          side: "seller",
-          can_view: true,
-          can_message: true,
-          can_download: true,
-        });
-      }
-      if (participants.length > 0) {
-        await supabaseAdmin.from("deal_room_participants").insert(participants);
+        await dealRoomApi.addParticipant(room.id, { user_id: sellerUserId, role: "seller", side: "seller", can_view: true, can_message: true, can_download: true });
       }
 
-      await supabaseAdmin.from("deal_room_messages").insert([{
-        deal_room_id: room.id,
+      await dealRoomApi.sendMessage(room.id, {
         sender_id: user?.id || "",
         message: `Deal room created. ${buyerEmail ? "Buyer: " + buyerEmail + ". " : ""}${sellerEmail ? "Seller: " + sellerEmail + "." : ""}`,
         is_system: true,
-      }]);
+      });
 
-      await supabaseAdmin.from("audit_logs").insert([{
+      await dealRoomApi.createAuditLog({
         entity_type: "deal_room",
         entity_id: room.id,
         user_id: user?.id || "",
         action: "deal_room_created",
         meta: { buyer_email: buyerEmail || null, seller_email: sellerEmail || null, yacht_id: yachtId },
-      }]);
+      });
 
       setShowCreate(false);
       setCreateForm({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
@@ -1587,8 +1571,7 @@ function DealsManageView() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("deal_rooms").select("*").order("created_at", { ascending: false });
-    const allRooms = (data || []) as DealRoom[];
+    const allRooms = (await dealRoomApi.list()) as DealRoom[];
 
     if (allRooms.length > 0) {
       const userIds = [...new Set([...allRooms.map(r => r.buyer_user_id), ...allRooms.map(r => r.seller_user_id)].filter(Boolean))];
@@ -1640,45 +1623,27 @@ function DealsManageView() {
     }
     if (room.status === "draft") updates.status = "nda_pending";
 
-    await supabaseAdmin.from("deal_rooms").update(updates).eq("id", room.id);
+    await dealRoomApi.update(room.id, updates);
 
-    const envelopes: any[] = [];
     if (room.buyer_nda_status === "not_sent") {
-      envelopes.push({
-        deal_room_id: room.id,
-        user_id: room.buyer_user_id,
-        side: "buyer",
-        provider: "internal",
-        status: "sent",
-        sent_at: now,
-      });
+      await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now });
     }
     if (room.seller_nda_status === "not_sent" && room.seller_user_id) {
-      envelopes.push({
-        deal_room_id: room.id,
-        user_id: room.seller_user_id,
-        side: "seller",
-        provider: "internal",
-        status: "sent",
-        sent_at: now,
-      });
-    }
-    if (envelopes.length > 0) {
-      await supabaseAdmin.from("nda_envelopes").insert(envelopes);
+      await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now });
     }
 
-    await supabaseAdmin.from("audit_logs").insert([{
+    await dealRoomApi.createAuditLog({
       entity_type: "deal_room",
       entity_id: room.id,
+      user_id: room.created_by_admin_id || "",
       action: "nda_sent_by_admin",
       meta: { buyer: room.buyer_nda_status === "not_sent", seller: room.seller_nda_status === "not_sent" && !!room.seller_user_id },
-    }]);
-    await supabaseAdmin.from("deal_room_messages").insert([{
-      deal_room_id: room.id,
-      sender_id: room.created_by_admin_id,
+    });
+    await dealRoomApi.sendMessage(room.id, {
+      sender_id: room.created_by_admin_id || "",
       message: "NDA documents sent to both parties for review and signature.",
       is_system: true,
-    }]);
+    });
     setActionLoading(false);
     setSelectedRoom(null);
     load();
@@ -1686,13 +1651,8 @@ function DealsManageView() {
 
   async function closeRoom(room: RoomWithDetails) {
     setActionLoading(true);
-    await supabaseAdmin.from("deal_rooms").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", room.id);
-    await supabaseAdmin.from("audit_logs").insert([{
-      entity_type: "deal_room",
-      entity_id: room.id,
-      action: "deal_room_closed",
-      meta: {},
-    }]);
+    await dealRoomApi.update(room.id, { status: "closed" });
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_closed", meta: {} });
     setActionLoading(false);
     setSelectedRoom(null);
     load();
@@ -1701,13 +1661,8 @@ function DealsManageView() {
   async function cancelRoom(room: RoomWithDetails) {
     if (!confirm("Cancel this deal room?")) return;
     setActionLoading(true);
-    await supabaseAdmin.from("deal_rooms").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", room.id);
-    await supabaseAdmin.from("audit_logs").insert([{
-      entity_type: "deal_room",
-      entity_id: room.id,
-      action: "deal_room_cancelled",
-      meta: {},
-    }]);
+    await dealRoomApi.update(room.id, { status: "cancelled" });
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_cancelled", meta: {} });
     setActionLoading(false);
     setSelectedRoom(null);
     load();
@@ -2460,8 +2415,7 @@ function DocumentsView() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabaseAdmin.from("deal_room_documents").select("*").order("created_at", { ascending: false });
-      const d = (data || []) as DealRoomDoc[];
+      const d = (await dealRoomApi.listAllDocuments().catch(() => [])) as DealRoomDoc[];
       setDocs(d);
 
       const uploaderIds = [...new Set(d.map(x => x.uploaded_by).filter(Boolean))];
@@ -2474,15 +2428,17 @@ function DocumentsView() {
 
       const roomIds = [...new Set(d.map(x => x.deal_room_id))];
       if (roomIds.length) {
-        const { data: rooms } = await supabaseAdmin.from("deal_rooms").select("id, yacht_id").in("id", roomIds);
-        const yachtIds = [...new Set((rooms || []).map((r: any) => r.yacht_id).filter(Boolean))];
+        const allRooms = await dealRoomApi.list().catch(() => []);
+        const roomMap = Object.fromEntries((allRooms || []).map((r: any) => [r.id, r]));
+        const relevantRooms = roomIds.map(id => roomMap[id]).filter(Boolean);
+        const yachtIds = [...new Set(relevantRooms.map((r: any) => r.yacht_id).filter(Boolean))];
         let yachtNames: Record<string, string> = {};
         if (yachtIds.length) {
           const { data: yachts } = await supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds);
           (yachts || []).forEach((y: any) => { yachtNames[y.id] = y.name; });
         }
         const rn: Record<string, string> = {};
-        (rooms || []).forEach((r: any) => { rn[r.id] = yachtNames[r.yacht_id] || r.id.slice(0, 8); });
+        relevantRooms.forEach((r: any) => { rn[r.id] = yachtNames[r.yacht_id] || r.id.slice(0, 8); });
         setDealRoomNames(rn);
       }
 
@@ -2493,7 +2449,7 @@ function DocumentsView() {
 
   async function deleteDoc(id: string) {
     if (!window.confirm("Delete this document?")) return;
-    await supabaseAdmin.from("deal_room_documents").delete().eq("id", id);
+    await dealRoomApi.deleteDocument(id);
     setDocs(prev => prev.filter(d => d.id !== id));
   }
 
@@ -2574,8 +2530,7 @@ function MessagesView() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabaseAdmin.from("deal_room_messages").select("*").order("created_at", { ascending: false }).limit(50);
-      const msgs = (data || []) as DealRoomMsg[];
+      const msgs = (await dealRoomApi.listAllMessages().catch(() => [])) as DealRoomMsg[];
       setMessages(msgs);
 
       const senderIds = [...new Set(msgs.map(m => m.sender_id).filter(Boolean))];
@@ -2588,15 +2543,17 @@ function MessagesView() {
 
       const roomIds = [...new Set(msgs.map(m => m.deal_room_id))];
       if (roomIds.length) {
-        const { data: rooms } = await supabaseAdmin.from("deal_rooms").select("id, yacht_id").in("id", roomIds);
-        const yachtIds = [...new Set((rooms || []).map((r: any) => r.yacht_id).filter(Boolean))];
+        const allRooms = await dealRoomApi.list().catch(() => []);
+        const roomMap = Object.fromEntries((allRooms || []).map((r: any) => [r.id, r]));
+        const relevantRooms = roomIds.map(id => roomMap[id]).filter(Boolean);
+        const yachtIds = [...new Set(relevantRooms.map((r: any) => r.yacht_id).filter(Boolean))];
         let yNames: Record<string, string> = {};
         if (yachtIds.length) {
           const { data: yachts } = await supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds);
           (yachts || []).forEach((y: any) => { yNames[y.id] = y.name; });
         }
         const rn: Record<string, string> = {};
-        (rooms || []).forEach((r: any) => { rn[r.id] = yNames[r.yacht_id] || r.id.slice(0, 8); });
+        relevantRooms.forEach((r: any) => { rn[r.id] = yNames[r.yacht_id] || r.id.slice(0, 8); });
         setDealRoomNames(rn);
       }
 
@@ -2607,7 +2564,7 @@ function MessagesView() {
 
   async function deleteMsg(id: string) {
     if (!window.confirm("Delete this message?")) return;
-    await supabaseAdmin.from("deal_room_messages").delete().eq("id", id);
+    await dealRoomApi.deleteMessage(id);
     setMessages(prev => prev.filter(m => m.id !== id));
   }
 

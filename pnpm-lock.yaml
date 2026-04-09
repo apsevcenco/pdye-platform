@@ -173,6 +173,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.99.2
         version: 2.99.2
+      '@types/pg':
+        specifier: ^8.18.0
+        version: 8.18.0
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
@@ -197,6 +200,9 @@ importers:
       openai:
         specifier: ^6.32.0
         version: 6.32.0(ws@8.19.0)(zod@4.3.6)
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10

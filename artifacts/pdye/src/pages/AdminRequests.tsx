@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
   CheckCircle, XCircle, Clock, ArrowLeft, Ship, User,
   Calendar, Filter, RefreshCw, Eye, Plus, ArrowRight, Users,
@@ -124,13 +125,13 @@ export default function AdminRequests() {
 
     const req = requests.find(r => r.id === id);
     if (req) {
-      await supabaseAdmin.from("audit_logs").insert([{
+      await dealRoomApi.createAuditLog({
         entity_type: "access_request",
         entity_id: id,
-        user_id: user?.id,
+        user_id: user?.id || "",
         action: "spec_access_approved",
         meta: { yacht_id: req.yacht_id, requester_id: req.requester_id },
-      }]);
+      });
     }
 
     setRequests(prev => prev.map(r => r.id === id ? {
@@ -148,13 +149,13 @@ export default function AdminRequests() {
 
     const req = requests.find(r => r.id === id);
     if (req) {
-      await supabaseAdmin.from("audit_logs").insert([{
+      await dealRoomApi.createAuditLog({
         entity_type: "access_request",
         entity_id: id,
-        user_id: user?.id,
+        user_id: user?.id || "",
         action: "spec_access_rejected",
         meta: { yacht_id: req.yacht_id, requester_id: req.requester_id },
-      }]);
+      });
     }
 
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "rejected" } : r));
@@ -176,26 +177,23 @@ export default function AdminRequests() {
     const sellerUser = allUsers.find(u => u.email === sellerEmail);
     const now = new Date().toISOString();
 
-    const { data: room } = await supabaseAdmin.from("deal_rooms").insert([{
+    const room = await dealRoomApi.create({
       yacht_id: req.yacht_id,
-      access_request_id: req.id,
       created_by_admin_id: user.id,
-      status: "draft",
       buyer_user_id: req.requester_id,
       seller_user_id: sellerUser?.id || null,
-      seller_type: sellerType,
+      notes: "",
+      status: "draft",
       nda_required: true,
-      buyer_nda_status: "not_sent",
-      seller_nda_status: "not_sent",
-    }]).select("id").single();
+    });
 
-    if (!room) { setCreatingRoom(null); return; }
+    if (!room?.id) { setCreatingRoom(null); return; }
 
-    await supabaseAdmin.from("deal_room_participants").insert([
-      { deal_room_id: room.id, user_id: req.requester_id, role: "buyer", side: "buyer", can_view: false, can_message: false, can_download: false },
-      { deal_room_id: room.id, user_id: user.id, role: "admin", side: "platform", can_view: true, can_message: true, can_download: true },
-      ...(sellerUser ? [{ deal_room_id: room.id, user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false }] : []),
-    ]);
+    await dealRoomApi.addParticipant(room.id, { user_id: req.requester_id, role: "buyer", side: "buyer", can_view: false, can_message: false, can_download: false });
+    await dealRoomApi.addParticipant(room.id, { user_id: user.id, role: "admin", side: "platform", can_view: true, can_message: true, can_download: true });
+    if (sellerUser) {
+      await dealRoomApi.addParticipant(room.id, { user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false });
+    }
 
     await supabaseAdmin.from("access_requests").update({
       status: "escalated",
@@ -204,20 +202,19 @@ export default function AdminRequests() {
       updated_at: now,
     }).eq("id", req.id);
 
-    await supabaseAdmin.from("audit_logs").insert([{
+    await dealRoomApi.createAuditLog({
       entity_type: "deal_room",
       entity_id: room.id,
       user_id: user.id,
       action: "deal_room_created",
       meta: { yacht_id: req.yacht_id, buyer_id: req.requester_id, seller_id: sellerUser?.id, access_request_id: req.id },
-    }]);
+    });
 
-    await supabaseAdmin.from("deal_room_messages").insert([{
-      deal_room_id: room.id,
+    await dealRoomApi.sendMessage(room.id, {
       sender_id: user.id,
       message: "Deal room created. NDA will be sent to both parties for review and signature.",
       is_system: true,
-    }]);
+    });
 
     setRequests(prev => prev.map(r => r.id === req.id ? {
       ...r, status: "escalated", escalated_to_deal_room: true, deal_room_id: room.id,
