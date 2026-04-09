@@ -1,10 +1,11 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Calculator, TrendingUp, ChevronRight, RotateCcw,
   Building2, Sliders, Gauge, Anchor, Users
 } from "lucide-react";
+import { getSiteSectionData } from "@/lib/siteContent";
 
 const YACHT_TYPES = ["Motor Yacht", "Sailing Yacht", "Catamaran", "Superyacht", "Explorer Yacht", "Sport Cruiser", "Trawler", "Classic Yacht", "Gulet", "Flybridge"];
 const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
@@ -92,6 +93,17 @@ export default function Valuation() {
   const [result, setResult] = useState<ValuationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [t, setT] = useState({
+    hero: getSiteSectionData("valuation", "hero"),
+    formT: getSiteSectionData("valuation", "form"),
+  });
+
+  useEffect(() => {
+    setT({
+      hero: getSiteSectionData("valuation", "hero"),
+      formT: getSiteSectionData("valuation", "form"),
+    });
+  }, []);
 
   function setF(k: string, v: string) { setForm(p => ({ ...p, [k]: v })); }
 
@@ -158,12 +170,10 @@ export default function Valuation() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <span className="inline-flex items-center gap-2 border border-primary/30 text-primary text-[10px] font-bold tracking-[0.25em] uppercase px-5 py-2 mb-6">
               <Calculator size={11} />
-              AI Market Valuation
+              <span dangerouslySetInnerHTML={{ __html: t.hero.tag }} />
             </span>
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-4">Estimate Your Yacht's Value</h1>
-            <p className="text-white/40 font-sans text-sm max-w-xl mx-auto leading-relaxed">
-              Enter your vessel specifications and our AI will analyse current global market data to provide an independent price estimate — no name, flag or location required.
-            </p>
+            <h1 className="font-display text-4xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: t.hero.title }} />
+            <p className="text-white/40 font-sans text-sm max-w-xl mx-auto leading-relaxed" dangerouslySetInnerHTML={{ __html: t.hero.desc }} />
           </motion.div>
         </div>
       </div>
@@ -417,14 +427,12 @@ export default function Valuation() {
                     <button type="submit" disabled={loading}
                       className="w-full bg-primary hover:bg-white text-[#070f1a] font-bold uppercase tracking-[0.2em] py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2.5 text-sm shadow-[0_0_30px_rgba(200,164,107,0.2)]">
                       {loading
-                        ? <><span className="w-4 h-4 border-2 border-[#070f1a]/30 border-t-[#070f1a] rounded-full animate-spin" /><span>Analysing Global Market...</span></>
-                        : <><TrendingUp size={15} /><span>Get AI Valuation</span></>
+                        ? <><span className="w-4 h-4 border-2 border-[#070f1a]/30 border-t-[#070f1a] rounded-full animate-spin" /><span>{t.formT.loading_text}</span></>
+                        : <><TrendingUp size={15} /><span>{t.formT.submit_btn}</span></>
                       }
                     </button>
                     {loading && (
-                      <p className="text-white/20 text-[11px] text-center font-sans mt-3 leading-relaxed">
-                        Searching and verifying real listings on YachtWorld, RightBoat, Boat24, Apollo Duck and more — visiting individual pages to check specs... (1–2 min)
-                      </p>
+                      <p className="text-white/20 text-[11px] text-center font-sans mt-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: t.formT.loading_desc }} />
                     )}
                   </div>
                 </form>
@@ -438,7 +446,7 @@ export default function Valuation() {
                 <div className="bg-[#0c1929] border border-primary/25 p-8">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
                     <div>
-                      <p className="text-white/35 text-[9.5px] uppercase tracking-[0.22em] font-bold mb-3 font-sans">Market Value Estimate</p>
+                      <p className="text-white/35 text-[9.5px] uppercase tracking-[0.22em] font-bold mb-3 font-sans">{t.formT.result_label}</p>
                       <span className="font-display text-5xl text-primary">{result.estimated_price}</span>
                     </div>
                     <div className="flex-shrink-0">
@@ -458,7 +466,7 @@ export default function Valuation() {
                 {/* Comparables */}
                 <div>
                   <p className="text-white/25 text-[9.5px] uppercase tracking-[0.22em] font-bold mb-3 font-sans">
-                    5 Comparable Market Examples
+                    {t.formT.comparables_title}
                   </p>
                   <div className="space-y-2">
                     {(result.comparables || []).map((c, i) => (
@@ -489,7 +497,7 @@ export default function Valuation() {
                   <button onClick={reset}
                     className="flex items-center gap-2 border border-white/10 text-white/45 hover:text-white hover:border-white/25 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors flex-shrink-0">
                     <RotateCcw size={11} />
-                    New Estimate
+                    {t.formT.new_btn}
                   </button>
                 </div>
 

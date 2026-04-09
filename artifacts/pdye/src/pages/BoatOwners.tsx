@@ -1,44 +1,53 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Shield, EyeOff, Globe, TrendingUp, CheckCircle, ArrowRight, Anchor, LayoutDashboard } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "wouter";
 import { useAuth } from "@/context/AuthContext";
+import { getSiteSectionData } from "@/lib/siteContent";
 
-const benefits = [
-  {
-    icon: EyeOff,
-    title: "Full Confidentiality",
-    desc: "Your vessel is listed off-market. Buyer identity, price, and ownership remain strictly private throughout the process.",
-  },
-  {
-    icon: Globe,
-    title: "Global Qualified Buyers",
-    desc: "Access our curated network of UHNW individuals, family offices, and qualified private buyers actively seeking distressed assets.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Fair Valuation",
-    desc: "Our AI-assisted market analysis benchmarks your vessel against 10,000+ comparable sales to establish the strongest position.",
-  },
-  {
-    icon: Shield,
-    title: "Secure Transaction",
-    desc: "NDA-protected introductions, escrow management, and full legal documentation handled by our maritime experts.",
-  },
-];
-
-const steps = [
-  { num: "01", label: "Submit your vessel details confidentially" },
-  { num: "02", label: "Receive a free market valuation within 48 hours" },
-  { num: "03", label: "We match your listing to qualified buyers" },
-  { num: "04", label: "Close at the best achievable price, off-market" },
-];
+const ICONS = [EyeOff, Globe, TrendingUp, Shield];
 
 export default function BoatOwners() {
   const { user, userProfile } = useAuth();
   const isOwner = user && (userProfile?.role === "owner" || userProfile?.role === "admin");
+
+  const [t, setT] = useState({
+    hero: getSiteSectionData("owners", "hero"),
+    benefits: getSiteSectionData("owners", "benefits"),
+    process: getSiteSectionData("owners", "process"),
+    form: getSiteSectionData("owners", "form"),
+  });
+
+  useEffect(() => {
+    setT({
+      hero: getSiteSectionData("owners", "hero"),
+      benefits: getSiteSectionData("owners", "benefits"),
+      process: getSiteSectionData("owners", "process"),
+      form: getSiteSectionData("owners", "form"),
+    });
+  }, []);
+
+  const benefits = [
+    { icon: ICONS[0], title: t.benefits.item1_title, desc: t.benefits.item1_desc },
+    { icon: ICONS[1], title: t.benefits.item2_title, desc: t.benefits.item2_desc },
+    { icon: ICONS[2], title: t.benefits.item3_title, desc: t.benefits.item3_desc },
+    { icon: ICONS[3], title: t.benefits.item4_title, desc: t.benefits.item4_desc },
+  ];
+
+  const steps = [
+    { num: "01", label: t.process.step1 },
+    { num: "02", label: t.process.step2 },
+    { num: "03", label: t.process.step3 },
+    { num: "04", label: t.process.step4 },
+  ];
+
+  const stats = [
+    [t.hero.stat1_val, t.hero.stat1_label],
+    [t.hero.stat2_val, t.hero.stat2_label],
+    [t.hero.stat3_val, t.hero.stat3_label],
+  ];
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", vessel: "", length: "", year: "", location: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
@@ -76,24 +85,18 @@ export default function BoatOwners() {
 
   return (
     <Layout>
-      {/* Hero */}
       <div className="relative pt-40 pb-24 bg-secondary border-b border-white/5 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_50%,rgba(200,164,107,0.06)_0%,transparent_70%)] pointer-events-none" />
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-            <span className="text-primary font-bold tracking-[0.25em] text-[10px] uppercase mb-5 block">
-              Owner Services
-            </span>
+            <span className="text-primary font-bold tracking-[0.25em] text-[10px] uppercase mb-5 block" dangerouslySetInnerHTML={{ __html: t.hero.tag }} />
             <h1 className="font-display text-5xl md:text-6xl text-white mb-6 leading-tight">
-              Sell Your Vessel.<br />
-              <span className="text-primary">Privately.</span>
+              <span dangerouslySetInnerHTML={{ __html: t.hero.title }} /><br />
+              <span className="text-primary" dangerouslySetInnerHTML={{ __html: t.hero.title_accent }} />
             </h1>
-            <p className="text-white/55 font-sans text-lg leading-relaxed max-w-2xl mx-auto">
-              PDYE connects yacht owners with a global network of qualified buyers — entirely off-market. 
-              No public listings. No unsolicited calls. Only discreet, structured transactions.
-            </p>
+            <p className="text-white/55 font-sans text-lg leading-relaxed max-w-2xl mx-auto" dangerouslySetInnerHTML={{ __html: t.hero.desc }} />
             <div className="flex items-center justify-center gap-8 mt-10">
-              {[["€2.4B+", "Assets Transacted"], ["48h", "Avg Valuation Time"], ["100%", "Confidential"]].map(([val, lbl]) => (
+              {stats.map(([val, lbl]) => (
                 <div key={lbl} className="text-center">
                   <p className="font-display text-3xl text-primary">{val}</p>
                   <p className="text-white/40 text-[10px] uppercase tracking-widest font-sans mt-1">{lbl}</p>
@@ -104,7 +107,6 @@ export default function BoatOwners() {
         </div>
       </div>
 
-      {/* Benefits */}
       <div className="py-24 bg-background">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
@@ -114,13 +116,13 @@ export default function BoatOwners() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <span className="text-primary font-bold tracking-[0.2em] text-[10px] uppercase mb-4 block">Why Choose PDYE</span>
-            <h2 className="font-display text-3xl md:text-4xl text-white">The Off-Market Advantage</h2>
+            <span className="text-primary font-bold tracking-[0.2em] text-[10px] uppercase mb-4 block" dangerouslySetInnerHTML={{ __html: t.benefits.tag }} />
+            <h2 className="font-display text-3xl md:text-4xl text-white" dangerouslySetInnerHTML={{ __html: t.benefits.title }} />
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {benefits.map((b, i) => (
               <motion.div
-                key={b.title}
+                key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -128,15 +130,14 @@ export default function BoatOwners() {
                 className="bg-[#0f1d33] border border-white/5 p-8 group hover:border-primary/20 transition-colors"
               >
                 <b.icon size={28} className="text-primary mb-5" strokeWidth={1.5} />
-                <h3 className="font-display text-xl text-white mb-3">{b.title}</h3>
-                <p className="text-white/50 font-sans text-sm leading-relaxed">{b.desc}</p>
+                <h3 className="font-display text-xl text-white mb-3" dangerouslySetInnerHTML={{ __html: b.title }} />
+                <p className="text-white/50 font-sans text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: b.desc }} />
               </motion.div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Process */}
       <div className="py-20 bg-secondary border-y border-white/5">
         <div className="max-w-4xl mx-auto px-6">
           <motion.div
@@ -146,8 +147,8 @@ export default function BoatOwners() {
             transition={{ duration: 0.6 }}
             className="text-center mb-14"
           >
-            <span className="text-primary font-bold tracking-[0.2em] text-[10px] uppercase mb-4 block">The Process</span>
-            <h2 className="font-display text-3xl md:text-4xl text-white">Simple. Discreet. Effective.</h2>
+            <span className="text-primary font-bold tracking-[0.2em] text-[10px] uppercase mb-4 block" dangerouslySetInnerHTML={{ __html: t.process.tag }} />
+            <h2 className="font-display text-3xl md:text-4xl text-white" dangerouslySetInnerHTML={{ __html: t.process.title }} />
           </motion.div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {steps.map((s, i) => (
@@ -160,7 +161,7 @@ export default function BoatOwners() {
                 className="relative"
               >
                 <div className="font-display text-5xl text-primary/15 mb-4 leading-none">{s.num}</div>
-                <p className="text-white/70 font-sans text-sm leading-relaxed">{s.label}</p>
+                <p className="text-white/70 font-sans text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: s.label }} />
                 {i < steps.length - 1 && (
                   <ArrowRight size={16} className="text-primary/30 absolute -right-4 top-4 hidden lg:block" />
                 )}
@@ -170,7 +171,6 @@ export default function BoatOwners() {
         </div>
       </div>
 
-      {/* Submission Form */}
       <div className="py-24 bg-background">
         <div className="max-w-2xl mx-auto px-6">
           <motion.div
@@ -180,12 +180,11 @@ export default function BoatOwners() {
             transition={{ duration: 0.6 }}
             className="text-center mb-12"
           >
-            <span className="text-primary font-bold tracking-[0.2em] text-[10px] uppercase mb-4 block">Confidential Submission</span>
-            <h2 className="font-display text-3xl md:text-4xl text-white mb-4">List Your Vessel</h2>
-            <p className="text-white/50 font-sans text-sm">All submissions are protected by NDA. Our team will respond within 48 hours.</p>
+            <span className="text-primary font-bold tracking-[0.2em] text-[10px] uppercase mb-4 block" dangerouslySetInnerHTML={{ __html: t.form.tag }} />
+            <h2 className="font-display text-3xl md:text-4xl text-white mb-4" dangerouslySetInnerHTML={{ __html: t.form.title }} />
+            <p className="text-white/50 font-sans text-sm" dangerouslySetInnerHTML={{ __html: t.form.desc }} />
           </motion.div>
 
-          {/* Dashboard shortcut for registered owners */}
           {isOwner ? (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -229,10 +228,8 @@ export default function BoatOwners() {
               className="bg-[#0f1d33] border border-primary/20 p-12 text-center"
             >
               <CheckCircle size={40} className="text-primary mx-auto mb-5" strokeWidth={1.5} />
-              <h3 className="font-display text-2xl text-white mb-3">Submission Received</h3>
-              <p className="text-white/50 font-sans text-sm leading-relaxed">
-                Our acquisitions team will review your vessel details and contact you within 48 hours with a confidential market assessment.
-              </p>
+              <h3 className="font-display text-2xl text-white mb-3" dangerouslySetInnerHTML={{ __html: t.form.success_title }} />
+              <p className="text-white/50 font-sans text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: t.form.success_desc }} />
               <div className="flex items-center justify-center gap-2 mt-6 text-primary/60 text-xs font-sans tracking-widest uppercase">
                 <Anchor size={12} />
                 <span>PDYE Confidential</span>
@@ -289,11 +286,9 @@ export default function BoatOwners() {
                 disabled={sending}
                 className="w-full bg-primary hover:bg-primary/90 text-background py-4 text-sm font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
               >
-                {sending ? "Submitting..." : "Submit Confidentially"}
+                {sending ? "Submitting..." : t.form.submit_btn}
               </button>
-              <p className="text-white/25 text-[10px] font-sans text-center tracking-wide">
-                Protected by NDA · All enquiries handled with absolute discretion
-              </p>
+              <p className="text-white/25 text-[10px] font-sans text-center tracking-wide" dangerouslySetInnerHTML={{ __html: t.form.disclaimer }} />
             </form>
           )}
         </div>

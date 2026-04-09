@@ -1,8 +1,9 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle, Loader2, TrendingUp, Briefcase, Ship } from "lucide-react";
+import { getSiteSectionData } from "@/lib/siteContent";
 
 const lbl = "block text-white/55 text-[10px] font-bold mb-1.5 uppercase tracking-widest font-sans";
 const inp = "w-full bg-background border border-white/10 focus:border-primary px-4 py-3 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans";
@@ -12,77 +13,89 @@ const CAPACITY_OPTIONS = ["Up to €1M", "€1M – €5M", "€5M – €20M", 
 const EXPERIENCE_OPTIONS = ["Under 2 years", "2–5 years", "5–10 years", "10+ years"];
 const BROKER_TYPE_OPTIONS = ["Co-brokerage only", "Direct buyer introductions", "Both"];
 
-const ROLES = [
-  {
-    key: "investor",
-    label: "Private Buyer",
-    icon: TrendingUp,
-    tag: "Private Buyer Relations",
-    heading: <>Private Buyer<br />Access</>,
-    sub: "Gain access to distressed and off-market yacht deals up to 60% below market value.",
-    note: "Membership is limited and subject to approval.",
-    stats: [
-      { num: "€2.4B+", label: "Transactions facilitated" },
-      { num: "18–34%", label: "Average discount to market" },
-      { num: "48h", label: "Deal introduction time" },
-    ],
-  },
-  {
-    key: "broker",
-    label: "Broker",
-    icon: Briefcase,
-    tag: "Broker Partnership",
-    heading: <>Partner as a<br />Broker</>,
-    sub: "Access off-market listings, motivated sellers, and qualified buyers with full commission protection.",
-    note: "Profile reviewed within 48 hours of submission.",
-    stats: [
-      { num: "200+", label: "Active broker partners" },
-      { num: "100%", label: "Commission protection" },
-      { num: "72h", label: "Average deal introduction" },
-    ],
-  },
-  {
-    key: "owner",
-    label: "Yacht Owner",
-    icon: Ship,
-    tag: "Owner Services",
-    heading: <>Sell Your Vessel<br />Confidentially</>,
-    sub: "List off-market and reach our curated network of UHNW buyers — without public exposure.",
-    note: "Free market valuation within 48 hours.",
-    stats: [
-      { num: "60%", label: "Below market value deals" },
-      { num: "€500M+", label: "In managed inventory" },
-      { num: "72h", label: "Average response time" },
-    ],
-  },
-];
-
 type RoleKey = "investor" | "broker" | "owner";
 
 export default function Access() {
+  const [t, setT] = useState({
+    investor: getSiteSectionData("access", "investor"),
+    broker: getSiteSectionData("access", "broker"),
+    owner: getSiteSectionData("access", "owner"),
+    common: getSiteSectionData("access", "common"),
+  });
+
+  useEffect(() => {
+    setT({
+      investor: getSiteSectionData("access", "investor"),
+      broker: getSiteSectionData("access", "broker"),
+      owner: getSiteSectionData("access", "owner"),
+      common: getSiteSectionData("access", "common"),
+    });
+  }, []);
+
+  const ROLES = [
+    {
+      key: "investor" as RoleKey,
+      label: "Private Buyer",
+      icon: TrendingUp,
+      tag: t.investor.tag,
+      heading: t.investor.heading,
+      sub: t.investor.sub,
+      note: t.investor.note,
+      stats: [
+        { num: t.investor.stat1_num, label: t.investor.stat1_label },
+        { num: t.investor.stat2_num, label: t.investor.stat2_label },
+        { num: t.investor.stat3_num, label: t.investor.stat3_label },
+      ],
+    },
+    {
+      key: "broker" as RoleKey,
+      label: "Broker",
+      icon: Briefcase,
+      tag: t.broker.tag,
+      heading: t.broker.heading,
+      sub: t.broker.sub,
+      note: t.broker.note,
+      stats: [
+        { num: t.broker.stat1_num, label: t.broker.stat1_label },
+        { num: t.broker.stat2_num, label: t.broker.stat2_label },
+        { num: t.broker.stat3_num, label: t.broker.stat3_label },
+      ],
+    },
+    {
+      key: "owner" as RoleKey,
+      label: "Yacht Owner",
+      icon: Ship,
+      tag: t.owner.tag,
+      heading: t.owner.heading,
+      sub: t.owner.sub,
+      note: t.owner.note,
+      stats: [
+        { num: t.owner.stat1_num, label: t.owner.stat1_label },
+        { num: t.owner.stat2_num, label: t.owner.stat2_label },
+        { num: t.owner.stat3_num, label: t.owner.stat3_label },
+      ],
+    },
+  ];
+
   const [role, setRole] = useState<RoleKey>("investor");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
 
-  // Shared
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
 
-  // Investor
   const [company, setCompany] = useState("");
   const [capacity, setCapacity] = useState("");
   const [focus, setFocus] = useState("");
 
-  // Broker
   const [bCompany, setBCompany] = useState("");
   const [license, setLicense] = useState("");
   const [experience, setExperience] = useState("");
   const [brokerType, setBrokerType] = useState("");
 
-  // Owner
   const [vessel, setVessel] = useState("");
   const [length, setLength] = useState("");
   const [year, setYear] = useState("");
@@ -152,7 +165,6 @@ export default function Access() {
   return (
     <Layout>
       <div className="min-h-[90vh] flex pt-[72px]">
-        {/* Left side — dynamic per role */}
         <div className="hidden lg:flex lg:w-5/12 relative overflow-hidden flex-col">
           <img
             src="https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=1200&q=80"
@@ -179,7 +191,6 @@ export default function Access() {
           </AnimatePresence>
         </div>
 
-        {/* Right side — form */}
         <div className="w-full lg:w-7/12 bg-background flex flex-col justify-center px-6 md:px-12 xl:px-16 py-28 lg:py-12">
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -187,13 +198,12 @@ export default function Access() {
             transition={{ duration: 0.6 }}
             className="max-w-lg w-full mx-auto"
           >
-            {/* Role tabs */}
             <div className="flex mb-8 bg-white/5 border border-white/15 p-1 gap-1">
               {ROLES.map(r => {
                 const Icon = r.icon;
                 const active = role === r.key;
                 return (
-                  <button key={r.key} type="button" onClick={() => switchRole(r.key as RoleKey)}
+                  <button key={r.key} type="button" onClick={() => switchRole(r.key)}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 font-sans ${
                       active
                         ? "bg-primary text-[#070f1a] shadow-[0_0_12px_rgba(200,164,107,0.25)]"
@@ -208,9 +218,9 @@ export default function Access() {
 
             <AnimatePresence mode="wait">
               <motion.div key={role + "-header"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-                <h1 className="font-display text-4xl md:text-[2.6rem] text-white mb-3 leading-tight">{current.heading}</h1>
-                <p className="text-white/50 mb-1 font-sans text-sm leading-relaxed">{current.sub}</p>
-                <p className="text-white/25 mb-8 font-sans text-xs tracking-wide uppercase">{current.note}</p>
+                <h1 className="font-display text-4xl md:text-[2.6rem] text-white mb-3 leading-tight" dangerouslySetInnerHTML={{ __html: current.heading }} />
+                <p className="text-white/50 mb-1 font-sans text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: current.sub }} />
+                <p className="text-white/25 mb-8 font-sans text-xs tracking-wide uppercase" dangerouslySetInnerHTML={{ __html: current.note }} />
               </motion.div>
             </AnimatePresence>
 
@@ -218,13 +228,11 @@ export default function Access() {
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 className="border border-primary/30 bg-primary/5 p-8 text-center space-y-4">
                 <CheckCircle size={38} className="text-primary mx-auto" />
-                <h3 className="font-display text-2xl text-white">Request Submitted</h3>
-                <p className="text-white/50 font-sans text-sm leading-relaxed">
-                  Your application has been received. Our team will contact you within 48–72 hours.
-                </p>
+                <h3 className="font-display text-2xl text-white" dangerouslySetInnerHTML={{ __html: t.common.success_title }} />
+                <p className="text-white/50 font-sans text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: t.common.success_desc }} />
                 <button onClick={() => setSubmitted(false)}
                   className="text-primary text-xs font-sans uppercase tracking-widest hover:underline">
-                  Submit another request
+                  {t.common.success_link}
                 </button>
               </motion.div>
             ) : (
@@ -233,7 +241,6 @@ export default function Access() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }} className="space-y-4">
 
-                  {/* Shared: name */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
                       <label className={lbl}>Full Name *</label>
@@ -250,7 +257,6 @@ export default function Access() {
                     </div>
                   </div>
 
-                  {/* ── INVESTOR ── */}
                   {role === "investor" && (
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -277,7 +283,6 @@ export default function Access() {
                     </>
                   )}
 
-                  {/* ── BROKER ── */}
                   {role === "broker" && (
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -313,7 +318,6 @@ export default function Access() {
                     </>
                   )}
 
-                  {/* ── OWNER ── */}
                   {role === "owner" && (
                     <>
                       <div>
@@ -345,12 +349,10 @@ export default function Access() {
 
                   <button type="submit" disabled={loading}
                     className="w-full bg-primary hover:bg-white text-[#070f1a] font-bold uppercase tracking-widest py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2">
-                    {loading ? <><Loader2 size={15} className="animate-spin" /><span>Submitting...</span></> : <span>Request Access</span>}
+                    {loading ? <><Loader2 size={15} className="animate-spin" /><span>Submitting...</span></> : <span>{t.common.submit_btn}</span>}
                   </button>
 
-                  <p className="text-white/20 text-[10.5px] text-center font-sans leading-relaxed">
-                    All information is kept strictly confidential in accordance with our privacy policy.
-                  </p>
+                  <p className="text-white/20 text-[10.5px] text-center font-sans leading-relaxed" dangerouslySetInnerHTML={{ __html: t.common.disclaimer }} />
                 </motion.form>
               </AnimatePresence>
             )}

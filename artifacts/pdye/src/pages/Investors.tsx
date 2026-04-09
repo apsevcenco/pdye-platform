@@ -1,38 +1,11 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TrendingUp, Lock, Globe, Users, ChevronRight, CheckCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getSiteSectionData } from "@/lib/siteContent";
 
-const benefits = [
-  {
-    icon: TrendingUp,
-    title: "Off-Market Deal Flow",
-    desc: "First access to distressed and motivated-seller yachts before they reach the open market. Average discount: 18–34% below market value.",
-  },
-  {
-    icon: Lock,
-    title: "Private Deal Room",
-    desc: "Exclusive access to our secure deal room with full financial documentation, surveys, and valuation reports under NDA.",
-  },
-  {
-    icon: Globe,
-    title: "Global Network",
-    desc: "Sourcing from Mediterranean, Caribbean, and Asia-Pacific markets. Active relationships with 200+ distressed asset handlers.",
-  },
-  {
-    icon: Users,
-    title: "Curated Introductions",
-    desc: "We only match qualified investors with relevant opportunities. No noise — only deals that match your stated parameters.",
-  },
-];
-
-const stats = [
-  { value: "€2.4B+", label: "Transactions Facilitated" },
-  { value: "18–34%", label: "Average Discount to Market" },
-  { value: "48h", label: "Deal Introduction Time" },
-  { value: "100%", label: "Confidential Process" },
-];
+const ICONS = [TrendingUp, Lock, Globe, Users];
 
 const CAPACITY_OPTIONS = [
   "Up to €1M",
@@ -44,6 +17,38 @@ const CAPACITY_OPTIONS = [
 ];
 
 export default function Investors() {
+  const [t, setT] = useState({
+    hero: getSiteSectionData("buyers", "hero"),
+    stats: getSiteSectionData("buyers", "stats"),
+    benefits: getSiteSectionData("buyers", "benefits"),
+    form: getSiteSectionData("buyers", "form"),
+  });
+
+  useEffect(() => {
+    setT({
+      hero: getSiteSectionData("buyers", "hero"),
+      stats: getSiteSectionData("buyers", "stats"),
+      benefits: getSiteSectionData("buyers", "benefits"),
+      form: getSiteSectionData("buyers", "form"),
+    });
+  }, []);
+
+  const benefits = [
+    { icon: ICONS[0], title: t.benefits.item1_title, desc: t.benefits.item1_desc },
+    { icon: ICONS[1], title: t.benefits.item2_title, desc: t.benefits.item2_desc },
+    { icon: ICONS[2], title: t.benefits.item3_title, desc: t.benefits.item3_desc },
+    { icon: ICONS[3], title: t.benefits.item4_title, desc: t.benefits.item4_desc },
+  ];
+
+  const stats = [
+    { value: t.stats.stat1_val, label: t.stats.stat1_label },
+    { value: t.stats.stat2_val, label: t.stats.stat2_label },
+    { value: t.stats.stat3_val, label: t.stats.stat3_label },
+    { value: t.stats.stat4_val, label: t.stats.stat4_label },
+  ];
+
+  const badges = [t.hero.badge1, t.hero.badge2, t.hero.badge3, t.hero.badge4].filter(Boolean);
+
   const [form, setForm] = useState({
     name: "", email: "", phone: "", company: "", capacity: "", focus: "", message: "",
   });
@@ -79,36 +84,28 @@ export default function Investors() {
 
   return (
     <Layout>
-      {/* Hero */}
       <div className="pt-32 pb-20 bg-[#070f1a] relative overflow-hidden border-b border-white/5">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
         <div className="absolute top-20 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-            <span className="inline-block border border-primary/30 text-primary text-[10px] font-bold tracking-[0.25em] uppercase px-5 py-2 mb-8">
-              Private Buyer Membership
-            </span>
-            <h1 className="font-display text-5xl md:text-6xl text-white mb-6 leading-tight">
-              Access <span className="text-primary">Off-Market</span><br />Yacht Acquisitions
-            </h1>
-            <p className="text-white/50 font-sans text-lg max-w-2xl mx-auto leading-relaxed">
-              PDYE connects qualified private buyers with motivated sellers and distressed yacht assets — exclusively, privately, and at significant discounts to market value.
-            </p>
+            <span className="inline-block border border-primary/30 text-primary text-[10px] font-bold tracking-[0.25em] uppercase px-5 py-2 mb-8" dangerouslySetInnerHTML={{ __html: t.hero.tag }} />
+            <h1 className="font-display text-5xl md:text-6xl text-white mb-6 leading-tight" dangerouslySetInnerHTML={{ __html: t.hero.title }} />
+            <p className="text-white/50 font-sans text-lg max-w-2xl mx-auto leading-relaxed" dangerouslySetInnerHTML={{ __html: t.hero.desc }} />
             <div className="flex flex-wrap gap-3 justify-center mt-8">
-              {["UHNW Individuals", "Family Offices", "Fund Managers", "Asset Managers"].map(t => (
-                <span key={t} className="border border-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest px-4 py-2">{t}</span>
+              {badges.map(txt => (
+                <span key={txt} className="border border-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest px-4 py-2">{txt}</span>
               ))}
             </div>
           </motion.div>
         </div>
       </div>
 
-      {/* Stats */}
       <div className="bg-[#0a1426] border-b border-white/5">
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/5">
             {stats.map((s, i) => (
-              <motion.div key={s.label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }}
+              <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }}
                 className="px-6 py-8 text-center">
                 <p className="font-display text-3xl text-primary mb-1">{s.value}</p>
                 <p className="text-white/35 text-[10px] uppercase tracking-widest font-sans">{s.label}</p>
@@ -118,26 +115,25 @@ export default function Investors() {
         </div>
       </div>
 
-      {/* Benefits */}
       <section className="py-20 bg-[#070f1a]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="font-display text-3xl text-white mb-3">Why Private Buyers Choose PDYE</h2>
-            <p className="text-white/40 font-sans text-sm">Institutional-grade deal flow in the private yacht market</p>
+            <h2 className="font-display text-3xl text-white mb-3" dangerouslySetInnerHTML={{ __html: t.benefits.title }} />
+            <p className="text-white/40 font-sans text-sm" dangerouslySetInnerHTML={{ __html: t.benefits.subtitle }} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {benefits.map((b, i) => {
               const Icon = b.icon;
               return (
-                <motion.div key={b.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
                   className="bg-[#0f1d33] border border-white/5 p-8 group hover:border-primary/20 transition-colors">
                   <div className="flex items-start gap-5">
                     <div className="w-12 h-12 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:border-primary/40 transition-colors">
                       <Icon size={20} className="text-primary" strokeWidth={1.5} />
                     </div>
                     <div>
-                      <h3 className="font-display text-lg text-white mb-2">{b.title}</h3>
-                      <p className="text-white/45 font-sans text-sm leading-relaxed">{b.desc}</p>
+                      <h3 className="font-display text-lg text-white mb-2" dangerouslySetInnerHTML={{ __html: b.title }} />
+                      <p className="text-white/45 font-sans text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: b.desc }} />
                     </div>
                   </div>
                 </motion.div>
@@ -147,23 +143,20 @@ export default function Investors() {
         </div>
       </section>
 
-      {/* Application Form */}
       <section className="py-20 bg-[#0a1426] border-t border-white/5">
         <div className="max-w-2xl mx-auto px-6">
           <div className="text-center mb-12">
-            <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-4">Apply for Membership</span>
-            <h2 className="font-display text-3xl text-white mb-3">Private Buyer Application</h2>
-            <p className="text-white/40 font-sans text-sm">Submit your profile. Our team reviews each application within 48 hours.</p>
+            <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-4" dangerouslySetInnerHTML={{ __html: t.form.tag }} />
+            <h2 className="font-display text-3xl text-white mb-3" dangerouslySetInnerHTML={{ __html: t.form.title }} />
+            <p className="text-white/40 font-sans text-sm" dangerouslySetInnerHTML={{ __html: t.form.desc }} />
           </div>
 
           {submitted ? (
             <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="bg-[#0f1d33] border border-primary/20 p-12 text-center">
               <CheckCircle size={40} className="text-primary mx-auto mb-5" strokeWidth={1.5} />
-              <h3 className="font-display text-2xl text-white mb-3">Application Received</h3>
-              <p className="text-white/50 font-sans text-sm leading-relaxed max-w-sm mx-auto">
-                Our team will review your profile and reach out within 48 hours to discuss next steps and set up your private access.
-              </p>
+              <h3 className="font-display text-2xl text-white mb-3" dangerouslySetInnerHTML={{ __html: t.form.success_title }} />
+              <p className="text-white/50 font-sans text-sm leading-relaxed max-w-sm mx-auto" dangerouslySetInnerHTML={{ __html: t.form.success_desc }} />
             </motion.div>
           ) : (
             <div className="bg-[#0f1d33] border border-white/5 p-8 md:p-10">
@@ -207,9 +200,9 @@ export default function Investors() {
                 {error && <p className="text-red-400 text-xs font-sans">{error}</p>}
                 <button type="submit" disabled={sending}
                   className="w-full bg-primary hover:bg-white text-[#070f1a] font-bold uppercase tracking-widest py-4 mt-2 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2">
-                  {sending ? "Submitting..." : <><span>Submit Application</span><ChevronRight size={16} /></>}
+                  {sending ? "Submitting..." : <><span>{t.form.submit_btn}</span><ChevronRight size={16} /></>}
                 </button>
-                <p className="text-white/20 text-[11px] text-center font-sans">All information is kept strictly confidential under NDA.</p>
+                <p className="text-white/20 text-[11px] text-center font-sans" dangerouslySetInnerHTML={{ __html: t.form.disclaimer }} />
               </form>
             </div>
           )}

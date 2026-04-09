@@ -52,6 +52,15 @@ import {
   HERO_DEFAULTS,
   type CustomFont,
 } from "@/lib/content";
+import {
+  SITE_PAGES,
+  getSiteSectionData,
+  saveSiteSection,
+  resetSiteSection,
+  type SitePage,
+  type SiteSection,
+  type SiteTextBlock,
+} from "@/lib/siteContent";
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -2152,50 +2161,84 @@ function RichTextArea({ value, onChange, label, rows = 3 }: { value: string; onC
 }
 
 function ContentView() {
-  const pages = [
-    { key: "yachts", label: "Yachts Page" },
-    { key: "access", label: "Private Buyer Access Page" },
-    { key: "brokers", label: "Brokers Page" },
-    { key: "dealroom", label: "Deal Room Page" },
-  ];
-  const [activePage, setActivePage] = useState("yachts");
-  const [fields, setFields] = useState(() => getPageContent(activePage));
-  const [saved, setSaved] = useState(false);
+  const [activePage, setActivePage] = useState(SITE_PAGES[0].id);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [sectionData, setSectionData] = useState<Record<string, Record<string, string>>>({});
+  const [savedSections, setSavedSections] = useState<Record<string, boolean>>({});
 
-  const switchPage = (key: string) => {
-    setActivePage(key);
-    setFields(getPageContent(key));
-    setSaved(false);
+  const currentPage = SITE_PAGES.find((p: any) => p.id === activePage);
+
+  useEffect(() => {
+    if (!currentPage) return;
+    const data: Record<string, Record<string, string>> = {};
+    const opens: Record<string, boolean> = {};
+    currentPage.sections.forEach((s: any) => {
+      data[s.id] = getSiteSectionData(activePage, s.id);
+      opens[s.id] = true;
+    });
+    setSectionData(data);
+    setOpenSections(opens);
+    setSavedSections({});
+  }, [activePage]);
+
+  const updateField = (sectionId: string, key: string, value: string) => {
+    setSectionData(prev => ({
+      ...prev,
+      [sectionId]: { ...prev[sectionId], [key]: value },
+    }));
+    setSavedSections(prev => ({ ...prev, [sectionId]: false }));
   };
 
-  const handleSave = () => {
-    savePageContent(activePage, fields);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const handleSaveSection = (sectionId: string) => {
+    saveSiteSection(activePage, sectionId, sectionData[sectionId]);
+    setSavedSections(prev => ({ ...prev, [sectionId]: true }));
+    setTimeout(() => setSavedSections(prev => ({ ...prev, [sectionId]: false })), 2500);
   };
 
-  const handleReset = () => {
-    const defaults = PAGE_DEFAULTS[activePage];
-    setFields({ ...defaults });
-    savePageContent(activePage, defaults);
+  const handleResetSection = (sectionId: string) => {
+    const defaults = resetSiteSection(activePage, sectionId);
+    setSectionData(prev => ({ ...prev, [sectionId]: defaults }));
+  };
+
+  const handleSaveAll = () => {
+    if (!currentPage) return;
+    currentPage.sections.forEach((s: any) => {
+      saveSiteSection(activePage, s.id, sectionData[s.id]);
+    });
+    const allSaved: Record<string, boolean> = {};
+    currentPage.sections.forEach((s: any) => { allSaved[s.id] = true; });
+    setSavedSections(allSaved);
+    setTimeout(() => setSavedSections({}), 2500);
+  };
+
+  const toggleSection = (id: string) => {
+    setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="font-display text-3xl text-white font-bold">Page Content</h1>
-        <p className="text-white/50 text-sm font-sans mt-1">Edit headings and subtitles across all public pages</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl text-white font-bold">Page Content</h1>
+          <p className="text-white/50 text-sm font-sans mt-1">Edit all text blocks across every page of the website</p>
+        </div>
+        <button
+          onClick={handleSaveAll}
+          className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors flex-shrink-0"
+        >
+          Save All Sections
+        </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {pages.map(p => (
+      <div className="flex flex-wrap gap-1.5 mb-6 bg-[#050c16] border border-white/5 p-1.5">
+        {SITE_PAGES.map((p: any) => (
           <button
-            key={p.key}
-            onClick={() => switchPage(p.key)}
-            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
-              activePage === p.key
-                ? "bg-primary text-background"
-                : "border border-white/10 text-white/50 hover:border-primary hover:text-primary"
+            key={p.id}
+            onClick={() => setActivePage(p.id)}
+            className={`px-4 py-2 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${
+              activePage === p.id
+                ? "bg-primary text-background shadow-[0_0_12px_rgba(200,164,107,0.2)]"
+                : "text-white/45 hover:text-white hover:bg-white/5"
             }`}
           >
             {p.label}
@@ -2203,17 +2246,77 @@ function ContentView() {
         ))}
       </div>
 
-      <div className="bg-[#0f1d33] border border-white/5 p-6 space-y-4">
-        <RichTextInput label="Heading" value={fields.heading} onChange={v => setFields(f => ({ ...f, heading: v }))} />
-        <RichTextArea label="Subtitle" value={fields.subheading} onChange={v => setFields(f => ({ ...f, subheading: v }))} rows={3} />
-        <div className="flex gap-3 pt-2">
-          <button onClick={handleSave} className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
-            {saved ? "Saved ✓" : "Save Changes"}
-          </button>
-          <button onClick={handleReset} className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors">
-            Reset to Default
-          </button>
-        </div>
+      <div className="space-y-4">
+        {currentPage?.sections.map((section: any) => {
+          const isOpen = openSections[section.id] !== false;
+          const isSaved = savedSections[section.id];
+          const fields = sectionData[section.id] || {};
+          const fieldCount = section.fields.length;
+
+          return (
+            <div key={section.id} className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+              <button
+                onClick={() => toggleSection(section.id)}
+                className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/2 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <ChevronRight
+                    size={14}
+                    className={`text-primary transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+                  />
+                  <span className="font-display text-lg text-white">{section.label}</span>
+                  <span className="text-white/20 text-xs font-sans">{fieldCount} fields</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isSaved && (
+                    <span className="text-green-400 text-xs font-bold uppercase tracking-wider font-sans flex items-center gap-1">
+                      <CheckCircle size={12} /> Saved
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {isOpen && (
+                <div className="px-6 pb-6 pt-2 border-t border-white/5">
+                  <div className="space-y-4">
+                    {section.fields.map((field: any) => (
+                      <div key={field.key}>
+                        {field.type === "textarea" ? (
+                          <RichTextArea
+                            label={field.label}
+                            value={fields[field.key] || ""}
+                            onChange={v => updateField(section.id, field.key, v)}
+                            rows={field.rows || 3}
+                          />
+                        ) : (
+                          <RichTextInput
+                            label={field.label}
+                            value={fields[field.key] || ""}
+                            onChange={v => updateField(section.id, field.key, v)}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 pt-5 mt-4 border-t border-white/5">
+                    <button
+                      onClick={() => handleSaveSection(section.id)}
+                      className="bg-primary text-background px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                    >
+                      {isSaved ? "Saved ✓" : "Save Section"}
+                    </button>
+                    <button
+                      onClick={() => handleResetSection(section.id)}
+                      className="border border-white/10 text-white/40 px-5 py-2 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/60 transition-colors"
+                    >
+                      Reset to Default
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

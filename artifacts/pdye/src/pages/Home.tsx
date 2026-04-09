@@ -7,19 +7,34 @@ import { FEATURED_YACHTS, type Yacht } from "@/lib/data";
 import { useState, useEffect } from "react";
 import { getHeroContent, type HeroContent } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
+import { getSiteSectionData } from "@/lib/siteContent";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
 
+const ICONS = [Anchor, Shield, FileCheck, TrendingUp];
+
 export default function Home() {
   const [hero, setHero] = useState<HeroContent>(getHeroContent());
   const [featuredYachts, setFeaturedYachts] = useState<Yacht[]>(FEATURED_YACHTS);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [t, setT] = useState({
+    heroSection: getSiteSectionData("home", "hero"),
+    expertise: getSiteSectionData("home", "expertise"),
+    valuationCta: getSiteSectionData("home", "valuation_cta"),
+    featured: getSiteSectionData("home", "featured"),
+  });
 
   useEffect(() => {
     setHero(getHeroContent());
+    setT({
+      heroSection: getSiteSectionData("home", "hero"),
+      expertise: getSiteSectionData("home", "expertise"),
+      valuationCta: getSiteSectionData("home", "valuation_cta"),
+      featured: getSiteSectionData("home", "featured"),
+    });
   }, []);
 
   useEffect(() => {
@@ -34,20 +49,23 @@ export default function Home() {
         if (!error && data && data.length > 0) {
           setFeaturedYachts(data as Yacht[]);
         }
-        // If no featured yachts in DB, FEATURED_YACHTS static fallback stays
       } catch {
-        // fallback to static data
       }
       setFeaturedLoading(false);
     }
     loadFeatured();
   }, []);
 
+  const expertiseItems = [
+    { icon: ICONS[0], title: t.expertise.item1_title, desc: t.expertise.item1_desc },
+    { icon: ICONS[1], title: t.expertise.item2_title, desc: t.expertise.item2_desc },
+    { icon: ICONS[2], title: t.expertise.item3_title, desc: t.expertise.item3_desc },
+    { icon: ICONS[3], title: t.expertise.item4_title, desc: t.expertise.item4_desc },
+  ];
+
   return (
     <Layout>
-      {/* HERO SECTION */}
       <section className="relative h-[90vh] min-h-[600px] flex items-start sm:items-center justify-center overflow-hidden pt-28 sm:pt-0">
-        {/* landing page hero scenic Mediterranean yacht offshore */}
         <div className="absolute inset-0 z-0">
           <img 
             src="https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1920&q=80" 
@@ -65,9 +83,7 @@ export default function Home() {
             variants={fadeUp}
             className="flex flex-col items-center"
           >
-            <span className="text-primary font-bold tracking-[0.2em] text-sm md:text-base uppercase mb-6 inline-block border border-primary/30 px-4 py-1.5 bg-background/30 backdrop-blur-md">
-              Exclusive Network
-            </span>
+            <span className="text-primary font-bold tracking-[0.2em] text-sm md:text-base uppercase mb-6 inline-block border border-primary/30 px-4 py-1.5 bg-background/30 backdrop-blur-md" dangerouslySetInnerHTML={{ __html: t.heroSection.badge }} />
             <h1
               className={`${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}
               style={{ fontFamily: hero.titleFont }}
@@ -82,20 +98,19 @@ export default function Home() {
                 href="/access"
                 className="bg-primary hover:bg-white text-background hover:text-background px-8 py-4 font-bold tracking-widest uppercase transition-all duration-300 text-sm shadow-[0_0_20px_rgba(200,164,107,0.4)]"
               >
-                Request Access
+                {t.heroSection.cta1}
               </Link>
               <Link 
                 href="/brokers"
                 className="bg-transparent border border-white/20 hover:border-white text-white px-8 py-4 font-bold tracking-widest uppercase transition-all duration-300 text-sm"
               >
-                Submit Listing
+                {t.heroSection.cta2}
               </Link>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* SERVICES SECTION */}
       <section className="py-24 md:py-32 bg-secondary border-t border-white/5 relative z-20">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <motion.div 
@@ -105,17 +120,12 @@ export default function Home() {
             variants={fadeUp}
             className="text-center mb-16"
           >
-            <h2 className="font-display text-3xl md:text-5xl text-white mb-4">Our Expertise</h2>
+            <h2 className="font-display text-3xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: t.expertise.title }} />
             <div className="w-24 h-1 bg-primary mx-auto"></div>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              { icon: Anchor, title: "Confidential Brokerage", desc: "Discreet matching of sellers and buyers outside public listing platforms." },
-              { icon: Shield, title: "Private Buyer Network", desc: "Vetted database of UHNW individuals and syndicates ready to deploy capital." },
-              { icon: FileCheck, title: "Deal Structuring", desc: "Complex transaction management including leasing, tax, and registration." },
-              { icon: TrendingUp, title: "Asset Recovery", desc: "Working with institutions on rapid disposition of marine assets." }
-            ].map((service, idx) => (
+            {expertiseItems.map((service, idx) => (
               <motion.div 
                 key={idx}
                 initial="hidden"
@@ -128,17 +138,14 @@ export default function Home() {
                 className="bg-card p-8 border border-white/5 hover:border-primary/30 transition-all duration-300 group"
               >
                 <service.icon className="w-12 h-12 text-primary mb-6 group-hover:scale-110 transition-transform duration-300" strokeWidth={1} />
-                <h3 className="font-display text-xl text-white mb-3">{service.title}</h3>
-                <p className="text-white/60 font-sans leading-relaxed text-sm">
-                  {service.desc}
-                </p>
+                <h3 className="font-display text-xl text-white mb-3" dangerouslySetInnerHTML={{ __html: service.title }} />
+                <p className="text-white/60 font-sans leading-relaxed text-sm" dangerouslySetInnerHTML={{ __html: service.desc }} />
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* VALUATION CTA */}
       <section className="py-20 bg-background relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
@@ -150,14 +157,12 @@ export default function Home() {
             className="flex flex-col md:flex-row items-center justify-between gap-10 border border-white/8 p-10 md:p-14 bg-card"
           >
             <div className="flex-1">
-              <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Free AI Tool</span>
-              <h2 className="font-display text-3xl md:text-4xl text-white mb-4">Estimate Your Yacht's Value</h2>
-              <p className="text-white/50 font-sans text-sm leading-relaxed max-w-lg">
-                Enter your vessel specifications and our AI analyses current market data across global listing platforms — providing an independent price estimate with 5 real market comparables. No name, flag, or location required.
-              </p>
+              <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3" dangerouslySetInnerHTML={{ __html: t.valuationCta.tag }} />
+              <h2 className="font-display text-3xl md:text-4xl text-white mb-4" dangerouslySetInnerHTML={{ __html: t.valuationCta.title }} />
+              <p className="text-white/50 font-sans text-sm leading-relaxed max-w-lg" dangerouslySetInnerHTML={{ __html: t.valuationCta.desc }} />
               <div className="flex flex-wrap gap-3 mt-5">
-                {["No registration required", "Results in 30–60 sec", "5 market comparables"].map(t => (
-                  <span key={t} className="border border-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5">{t}</span>
+                {[t.valuationCta.feature1, t.valuationCta.feature2, t.valuationCta.feature3].map(txt => (
+                  <span key={txt} className="border border-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5">{txt}</span>
                 ))}
               </div>
             </div>
@@ -166,16 +171,14 @@ export default function Home() {
                 href="/valuation"
                 className="flex items-center gap-3 bg-primary hover:bg-white text-[#070f1a] px-10 py-5 font-bold tracking-widest uppercase transition-all duration-300 text-sm shadow-[0_0_30px_rgba(200,164,107,0.25)] hover:shadow-none"
               >
-                Get Free Valuation
+                {t.valuationCta.button}
               </Link>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* FEATURED DEALS */}
       <section className="py-24 md:py-32 bg-background relative">
-        {/* Subtle decorative background element */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 blur-[150px] rounded-full pointer-events-none"></div>
         
         <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
@@ -186,14 +189,14 @@ export default function Home() {
               viewport={{ once: true }}
               variants={fadeUp}
             >
-              <h2 className="font-display text-3xl md:text-5xl text-white mb-4">Featured Opportunities</h2>
+              <h2 className="font-display text-3xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: t.featured.title }} />
               <div className="w-24 h-1 bg-primary"></div>
             </motion.div>
             <Link 
               href="/yachts"
               className="text-primary hover:text-white uppercase tracking-widest font-bold text-sm transition-colors border-b border-primary hover:border-white pb-1"
             >
-              View All Inventory
+              {t.featured.link}
             </Link>
           </div>
 

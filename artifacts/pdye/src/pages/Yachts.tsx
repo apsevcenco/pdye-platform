@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
-import { getPageContent, type PageContent } from "@/lib/content";
+import { getSiteSectionData } from "@/lib/siteContent";
 
 type Filter = "All" | "Motor Yachts" | "Sailing Yachts" | "Distressed Deals";
 
@@ -18,15 +18,23 @@ type AccessRequest = {
 
 export default function Yachts() {
   const { user, userProfile, loading: authLoading } = useAuth();
-  const [content, setContent] = useState<PageContent>(getPageContent("yachts"));
+  const [content, setContent] = useState(getSiteSectionData("yachts", "header"));
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [requests, setRequests] = useState<Record<string, RequestStatus>>({});
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<Filter>("All");
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [filtersT, setFiltersT] = useState(getSiteSectionData("yachts", "filters"));
+  const [confT, setConfT] = useState(getSiteSectionData("yachts", "confidentiality"));
+  const [ctaT, setCtaT] = useState(getSiteSectionData("yachts", "cta"));
 
-  useEffect(() => { setContent(getPageContent("yachts")); }, []);
+  useEffect(() => {
+    setContent(getSiteSectionData("yachts", "header"));
+    setFiltersT(getSiteSectionData("yachts", "filters"));
+    setConfT(getSiteSectionData("yachts", "confidentiality"));
+    setCtaT(getSiteSectionData("yachts", "cta"));
+  }, []);
 
   const loadRequests = useCallback(async () => {
     if (!user) { setRequests({}); return; }
@@ -141,6 +149,12 @@ export default function Yachts() {
     return true;
   });
 
+  const filterLabels: Record<Filter, string> = {
+    "All": filtersT.all,
+    "Motor Yachts": filtersT.motor,
+    "Sailing Yachts": filtersT.sailing,
+    "Distressed Deals": filtersT.distressed,
+  };
   const filters: Filter[] = ["All", "Motor Yachts", "Sailing Yachts", "Distressed Deals"];
 
   return (
@@ -151,7 +165,7 @@ export default function Yachts() {
             <h1 className="font-display text-4xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: content.heading }} />
             <p className="text-white/60 max-w-2xl font-sans text-lg" dangerouslySetInnerHTML={{ __html: content.subheading }} />
             <p className="mt-4 text-white/30 text-xs font-sans tracking-wide">
-              All listings are confidential. Request full details to unlock pricing, location and specifications.
+              <span dangerouslySetInnerHTML={{ __html: confT.text }} />
               {!user && (
                 <>
                   {" "}<a href="/#/login" className="text-primary/70 hover:text-primary transition-colors underline underline-offset-2">Sign in</a> to submit a request.
@@ -173,7 +187,7 @@ export default function Yachts() {
                   activeFilter === f ? "text-primary border-b-2 border-primary" : "text-white/50 hover:text-white"
                 }`}
               >
-                {f}
+                {filterLabels[f]}
               </button>
             ))}
           </div>
@@ -218,10 +232,10 @@ export default function Yachts() {
           )}
 
           <div className="mt-16 text-center bg-card p-10 border border-white/5">
-            <h3 className="font-display text-2xl text-white mb-3">Seeking something specific?</h3>
-            <p className="text-white/60 mb-6 max-w-xl mx-auto">Not all inventory is published online. Our team can source assets matching your exact acquisition parameters.</p>
+            <h3 className="font-display text-2xl text-white mb-3" dangerouslySetInnerHTML={{ __html: ctaT.title }} />
+            <p className="text-white/60 mb-6 max-w-xl mx-auto" dangerouslySetInnerHTML={{ __html: ctaT.desc }} />
             <a href="/#/access" className="inline-block border border-primary text-primary px-8 py-3 font-bold uppercase tracking-widest text-sm hover:bg-primary hover:text-background transition-colors">
-              Contact Broker
+              {ctaT.button}
             </a>
           </div>
         </div>
