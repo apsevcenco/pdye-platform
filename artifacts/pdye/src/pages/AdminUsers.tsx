@@ -117,9 +117,8 @@ export default function AdminUsers() {
                         onChange={e => setRole(u, e.target.value)}
                         className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-transparent focus:outline-none cursor-pointer transition-colors ${ROLE_COLORS[u.role || ""] || "text-white/50 bg-white/5 border-white/10"}`}
                       >
-                        <option value="investor">Private Buyer</option>
+                        <option value="owner">Boat Owner</option>
                         <option value="broker">Broker</option>
-                        <option value="owner">Owner</option>
                         <option value="admin">Admin</option>
                       </select>
                     </td>

@@ -13,57 +13,27 @@ const CAPACITY_OPTIONS = ["Up to €1M", "€1M – €5M", "€5M – €20M", 
 const EXPERIENCE_OPTIONS = ["Under 2 years", "2–5 years", "5–10 years", "10+ years"];
 const BROKER_TYPE_OPTIONS = ["Co-brokerage only", "Direct buyer introductions", "Both"];
 
-type RoleKey = "investor" | "broker" | "owner";
+type RoleKey = "owner" | "broker";
 
 export default function Access() {
   const [t, setT] = useState({
-    investor: getSiteSectionData("access", "investor"),
-    broker: getSiteSectionData("access", "broker"),
     owner: getSiteSectionData("access", "owner"),
+    broker: getSiteSectionData("access", "broker"),
     common: getSiteSectionData("access", "common"),
   });
 
   useEffect(() => {
     setT({
-      investor: getSiteSectionData("access", "investor"),
-      broker: getSiteSectionData("access", "broker"),
       owner: getSiteSectionData("access", "owner"),
+      broker: getSiteSectionData("access", "broker"),
       common: getSiteSectionData("access", "common"),
     });
   }, []);
 
   const ROLES = [
     {
-      key: "investor" as RoleKey,
-      label: "Private Buyer",
-      icon: TrendingUp,
-      tag: t.investor.tag,
-      heading: t.investor.heading,
-      sub: t.investor.sub,
-      note: t.investor.note,
-      stats: [
-        { num: t.investor.stat1_num, label: t.investor.stat1_label },
-        { num: t.investor.stat2_num, label: t.investor.stat2_label },
-        { num: t.investor.stat3_num, label: t.investor.stat3_label },
-      ],
-    },
-    {
-      key: "broker" as RoleKey,
-      label: "Broker",
-      icon: Briefcase,
-      tag: t.broker.tag,
-      heading: t.broker.heading,
-      sub: t.broker.sub,
-      note: t.broker.note,
-      stats: [
-        { num: t.broker.stat1_num, label: t.broker.stat1_label },
-        { num: t.broker.stat2_num, label: t.broker.stat2_label },
-        { num: t.broker.stat3_num, label: t.broker.stat3_label },
-      ],
-    },
-    {
       key: "owner" as RoleKey,
-      label: "Yacht Owner",
+      label: "Boat Owner",
       icon: Ship,
       tag: t.owner.tag,
       heading: t.owner.heading,
@@ -77,7 +47,7 @@ export default function Access() {
     },
   ];
 
-  const [role, setRole] = useState<RoleKey>("investor");
+  const [role, setRole] = useState<RoleKey>("owner");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -117,7 +87,7 @@ export default function Access() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim()) { setError("Full name and email are required."); return; }
-    if (role === "investor" && !capacity) { setError("Please select an investment budget."); return; }
+    if (role === "owner" && !vessel.trim()) { setError("Please describe your vessel."); return; }
 
     setLoading(true);
     setError("");
@@ -127,18 +97,14 @@ export default function Access() {
       let yacht_type = "";
       let leadMsg = "";
 
-      if (role === "investor") {
-        budget = `${capacity}${company ? " · " + company : ""}`;
-        yacht_type = "Investor Application";
-        leadMsg = `Focus: ${focus || "—"}. ${message}`;
-      } else if (role === "broker") {
+      if (role === "owner") {
+        budget = `${vessel}${length ? " · " + length : ""}${year ? " · " + year : ""}`;
+        yacht_type = "Boat Owner Application";
+        leadMsg = message;
+      } else {
         budget = `${experience}${bCompany ? " · " + bCompany : ""}${license ? " · Lic: " + license : ""}`;
         yacht_type = "Broker Application";
         leadMsg = `Partnership: ${brokerType || "—"}. ${message}`;
-      } else {
-        budget = `${vessel}${length ? " · " + length : ""}${year ? " · " + year : ""}`;
-        yacht_type = "Owner Submission";
-        leadMsg = message;
       }
 
       const { error: dbErr } = await supabase.from("leads").insert([{
@@ -256,32 +222,6 @@ export default function Access() {
                       <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inp} placeholder="+33 6 00 00 00 00" />
                     </div>
                   </div>
-
-                  {role === "investor" && (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className={lbl}>Company / Fund</label>
-                          <input value={company} onChange={e => setCompany(e.target.value)} className={inp} placeholder="Family Office LLC" />
-                        </div>
-                        <div>
-                          <label className={lbl}>Investment Budget *</label>
-                          <select value={capacity} onChange={e => setCapacity(e.target.value)} required className={sel}>
-                            <option value="">Select range...</option>
-                            {CAPACITY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className={lbl}>Preferred Yacht Type / Region</label>
-                        <input value={focus} onChange={e => setFocus(e.target.value)} className={inp} placeholder="Motor Yacht 30–50m, Mediterranean..." />
-                      </div>
-                      <div>
-                        <label className={lbl}>Message</label>
-                        <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Specific requirements, timeline, acquisition criteria..." />
-                      </div>
-                    </>
-                  )}
 
                   {role === "broker" && (
                     <>

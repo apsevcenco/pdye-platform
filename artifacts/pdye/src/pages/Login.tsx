@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { Anchor, TrendingUp, Briefcase, Ship, Loader2 } from "lucide-react";
+import { Anchor, Briefcase, Ship, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const ROLES = [

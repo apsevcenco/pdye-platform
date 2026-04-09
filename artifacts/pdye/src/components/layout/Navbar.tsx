@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Anchor, LogIn, LogOut, Ship, Briefcase, Users, TrendingUp, Calculator, LayoutDashboard } from "lucide-react";
+import { Menu, X, Anchor, LogIn, LogOut, Ship, Briefcase, Users, Calculator, LayoutDashboard } from "lucide-react";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
 import { useAuth } from "@/context/AuthContext";
 
@@ -12,7 +12,6 @@ const MEMBER_LINKS = [
 const SERVICE_LINKS = [
   { name: "Boat Owners", href: "/boat-owners", icon: Anchor },
   { name: "Brokers", href: "/brokers", icon: Users },
-  { name: "Private Buyers", href: "/private-buyers", icon: TrendingUp },
 ];
 
 const TOOL_LINK = { name: "Value Yacht", href: "/valuation", icon: Calculator };
