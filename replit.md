@@ -72,7 +72,8 @@ Express on port 8080. Routes:
 
 - `src/App.tsx` — Router, providers, font loader
 - `src/context/AuthContext.tsx` — Auth state with race-condition protection
-- `src/pages/Admin.tsx` — Admin panel with all sub-views (2400+ lines)
+- `src/components/ui/WordToolbar.tsx` — Word-like formatting toolbar (font, size, B/I/U/S, color, align) + shared spec styles
+- `src/pages/Admin.tsx` — Admin panel with all sub-views (2700+ lines)
 - `src/pages/DealRoom.tsx` — User's deal list with status cards
 - `src/pages/DealDetails.tsx` — Full deal room (timeline, NDA, docs, messages)
 - `src/pages/Dashboard.tsx` — Role-specific dashboards
@@ -88,6 +89,7 @@ Express on port 8080. Routes:
 - **Internal role value `investor`** is displayed as "Private Buyer" in UI
 - **Hash routing** — all routes use `/#/path` format
 - **Currency switching** — €/$/£ with useCurrency hook
+- **WordToolbar** — Full MS Word-like formatting panel on all text editors (CMS, yacht description). Yacht specs use ONE shared toolbar that styles ALL spec inputs at once (font, size, bold, etc.). Settings saved to localStorage key `pdye_spec_styles`.
 - **RLS disabled** on access_requests and users tables (supabaseAdmin uses anon key)
 - **SQL migration** at `migrations/001_deal_flow.sql` must be run in Supabase SQL Editor
 

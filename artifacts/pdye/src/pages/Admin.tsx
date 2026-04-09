@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment } from "react";
+import { useState, useRef, useEffect, Fragment, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { ALL_YACHTS, type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
@@ -38,6 +38,14 @@ import {
   Star,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
+import {
+  WordToolbar,
+  stylesToCSS,
+  loadSpecStyles,
+  saveSpecStyles,
+  DEFAULT_TOOLBAR_STYLES,
+  type ToolbarStyles,
+} from "@/components/ui/WordToolbar";
 import {
   SIZE_OPTIONS,
   PAGE_DEFAULTS,
@@ -242,6 +250,12 @@ function YachtsView() {
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">("metric");
+  const [specStyles, setSpecStyles] = useState<ToolbarStyles>(loadSpecStyles);
+  const specCSS = stylesToCSS(specStyles);
+  const handleSpecStyleChange = useCallback((s: ToolbarStyles) => {
+    setSpecStyles(s);
+    saveSpecStyles(s);
+  }, []);
 
   const M = unitSystem === "metric";
 
@@ -279,7 +293,8 @@ function YachtsView() {
     setUnitSystem(toImp ? "imperial" : "metric");
   }
 
-  const unitInputCls = "w-full bg-[#070f1a] border border-white/10 text-white pl-4 pr-14 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+  const unitInputCls = "w-full bg-[#070f1a] border border-white/10 text-white pl-4 pr-14 py-2.5 font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+  const specInputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
   function UnitBadge({ unit }: { unit: string }) {
     return (
       <span className="absolute right-0 top-0 bottom-0 flex items-center px-3 text-[10px] font-bold text-primary/60 border-l border-white/10 pointer-events-none select-none tracking-wider">
@@ -739,21 +754,35 @@ function YachtsView() {
             </div>
           </div>
 
+          <div className="bg-[#0a1426] border border-white/8 p-4 space-y-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <p className="text-primary text-[10px] uppercase tracking-widest font-bold font-sans flex items-center gap-2">
+                <PenLine size={12} />
+                Shared Spec Formatting
+              </p>
+              <WordToolbar
+                mode="style"
+                styles={specStyles}
+                onStyleChange={handleSpecStyleChange}
+                compact
+              />
+            </div>
+
           {/* Builder */}
           <div>
             <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-3 border-b border-white/5 pb-2">Builder & Year</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className={labelCls}>Builder / Brand</label>
-                <input className={inputCls} placeholder="e.g. Sunseeker" value={form.builder} onChange={e => setF("builder", e.target.value)} />
+                <input style={specCSS} className={specInputCls} placeholder="e.g. Sunseeker" value={form.builder} onChange={e => setF("builder", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>Year Built</label>
-                <input className={inputCls} type="number" placeholder="e.g. 2019" value={form.year} onChange={e => setF("year", e.target.value)} />
+                <input style={specCSS} className={specInputCls} type="number" placeholder="e.g. 2019" value={form.year} onChange={e => setF("year", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>Last Refit</label>
-                <input className={inputCls} type="number" placeholder="e.g. 2022" value={form.refit} onChange={e => setF("refit", e.target.value)} />
+                <input style={specCSS} className={specInputCls} type="number" placeholder="e.g. 2022" value={form.refit} onChange={e => setF("refit", e.target.value)} />
               </div>
             </div>
           </div>
@@ -765,35 +794,35 @@ function YachtsView() {
               <div>
                 <label className={labelCls}>Length (LOA)</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder={M ? "38.5" : "126.3"} value={form.length} onChange={e => setF("length", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder={M ? "38.5" : "126.3"} value={form.length} onChange={e => setF("length", e.target.value)} />
                   <UnitBadge unit={M ? "m" : "ft"} />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Beam</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder={M ? "7.6" : "24.9"} value={form.beam} onChange={e => setF("beam", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder={M ? "7.6" : "24.9"} value={form.beam} onChange={e => setF("beam", e.target.value)} />
                   <UnitBadge unit={M ? "m" : "ft"} />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Draft</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder={M ? "1.9" : "6.2"} value={form.draft} onChange={e => setF("draft", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder={M ? "1.9" : "6.2"} value={form.draft} onChange={e => setF("draft", e.target.value)} />
                   <UnitBadge unit={M ? "m" : "ft"} />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Displacement</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder={M ? "145" : "142.7"} value={form.displacement} onChange={e => setF("displacement", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder={M ? "145" : "142.7"} value={form.displacement} onChange={e => setF("displacement", e.target.value)} />
                   <UnitBadge unit={M ? "t" : "LT"} />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Gross Tonnage</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder="420" value={form.gross_tonnage} onChange={e => setF("gross_tonnage", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder="420" value={form.gross_tonnage} onChange={e => setF("gross_tonnage", e.target.value)} />
                   <UnitBadge unit="GT" />
                 </div>
               </div>
@@ -806,7 +835,7 @@ function YachtsView() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Hull Material</label>
-                <select className={inputCls} value={form.hull_material} onChange={e => setF("hull_material", e.target.value)}>
+                <select style={specCSS} className={specInputCls} value={form.hull_material} onChange={e => setF("hull_material", e.target.value)}>
                   <option>Fiberglass</option>
                   <option>Steel</option>
                   <option>Aluminum</option>
@@ -817,7 +846,7 @@ function YachtsView() {
               </div>
               <div>
                 <label className={labelCls}>Hull Type</label>
-                <select className={inputCls} value={form.hull_type} onChange={e => setF("hull_type", e.target.value)}>
+                <select style={specCSS} className={specInputCls} value={form.hull_type} onChange={e => setF("hull_type", e.target.value)}>
                   <option>Monohull</option>
                   <option>Catamaran</option>
                   <option>Trimaran</option>
@@ -832,22 +861,22 @@ function YachtsView() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <label className={labelCls}>Engine Description</label>
-                <input className={inputCls} placeholder="e.g. Twin MTU 16V 2000 M94" value={form.engines} onChange={e => setF("engines", e.target.value)} />
+                <input style={specCSS} className={specInputCls} placeholder="e.g. Twin MTU 16V 2000 M94" value={form.engines} onChange={e => setF("engines", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>No. of Engines</label>
-                <input className={inputCls} type="number" placeholder="2" value={form.engine_count} onChange={e => setF("engine_count", e.target.value)} />
+                <input style={specCSS} className={specInputCls} type="number" placeholder="2" value={form.engine_count} onChange={e => setF("engine_count", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>Total Horsepower</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder="2 × 1450" value={form.horse_power} onChange={e => setF("horse_power", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder="2 × 1450" value={form.horse_power} onChange={e => setF("horse_power", e.target.value)} />
                   <UnitBadge unit="hp" />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Fuel Type</label>
-                <select className={inputCls} value={form.fuel_type} onChange={e => setF("fuel_type", e.target.value)}>
+                <select style={specCSS} className={specInputCls} value={form.fuel_type} onChange={e => setF("fuel_type", e.target.value)}>
                   <option>Diesel</option>
                   <option>Gasoline</option>
                   <option>Electric</option>
@@ -857,14 +886,14 @@ function YachtsView() {
               <div>
                 <label className={labelCls}>Fuel Capacity</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder={M ? "28000" : "7396"} value={form.fuel_capacity} onChange={e => setF("fuel_capacity", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder={M ? "28000" : "7396"} value={form.fuel_capacity} onChange={e => setF("fuel_capacity", e.target.value)} />
                   <UnitBadge unit={M ? "L" : "gal"} />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Water Capacity</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder={M ? "4000" : "1057"} value={form.water_capacity} onChange={e => setF("water_capacity", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder={M ? "4000" : "1057"} value={form.water_capacity} onChange={e => setF("water_capacity", e.target.value)} />
                   <UnitBadge unit={M ? "L" : "gal"} />
                 </div>
               </div>
@@ -878,21 +907,21 @@ function YachtsView() {
               <div>
                 <label className={labelCls}>Max Speed</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder="18" value={form.max_speed} onChange={e => setF("max_speed", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder="18" value={form.max_speed} onChange={e => setF("max_speed", e.target.value)} />
                   <UnitBadge unit="kn" />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Cruise Speed</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder="14" value={form.cruise_speed} onChange={e => setF("cruise_speed", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder="14" value={form.cruise_speed} onChange={e => setF("cruise_speed", e.target.value)} />
                   <UnitBadge unit="kn" />
                 </div>
               </div>
               <div>
                 <label className={labelCls}>Range</label>
                 <div className="relative">
-                  <input className={unitInputCls} placeholder="3200" value={form.range} onChange={e => setF("range", e.target.value)} />
+                  <input style={specCSS} className={unitInputCls} placeholder="3200" value={form.range} onChange={e => setF("range", e.target.value)} />
                   <UnitBadge unit="nm" />
                 </div>
               </div>
@@ -905,21 +934,23 @@ function YachtsView() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <label className={labelCls}>Guest Cabins</label>
-                <input className={inputCls} type="number" placeholder="5" value={form.cabins} onChange={e => setF("cabins", e.target.value)} />
+                <input style={specCSS} className={specInputCls} type="number" placeholder="5" value={form.cabins} onChange={e => setF("cabins", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>Heads (Bathrooms)</label>
-                <input className={inputCls} type="number" placeholder="5" value={form.heads} onChange={e => setF("heads", e.target.value)} />
+                <input style={specCSS} className={specInputCls} type="number" placeholder="5" value={form.heads} onChange={e => setF("heads", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>Berths</label>
-                <input className={inputCls} type="number" placeholder="10" value={form.berths} onChange={e => setF("berths", e.target.value)} />
+                <input style={specCSS} className={specInputCls} type="number" placeholder="10" value={form.berths} onChange={e => setF("berths", e.target.value)} />
               </div>
               <div>
                 <label className={labelCls}>Crew Cabins</label>
-                <input className={inputCls} type="number" placeholder="4" value={form.crew} onChange={e => setF("crew", e.target.value)} />
+                <input style={specCSS} className={specInputCls} type="number" placeholder="4" value={form.crew} onChange={e => setF("crew", e.target.value)} />
               </div>
             </div>
+          </div>
+
           </div>
 
           {/* Location & Pricing */}
@@ -1058,10 +1089,12 @@ function YachtsView() {
                 <label className={labelCls}>Image URL (если нет загруженных фото)</label>
                 <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
               </div>
-              <div>
-                <label className={labelCls}>Description</label>
-                <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Confidential notes for qualified buyers..." value={form.description} onChange={e => setF("description", e.target.value)} />
-              </div>
+              <RichTextArea
+                label="Description"
+                value={form.description}
+                onChange={v => setF("description", v)}
+                rows={3}
+              />
             </div>
           </div>
 
@@ -2105,41 +2138,24 @@ function applyFormat(tag: string, value: string, onChange: (v: string) => void, 
   if (!el) return;
   const start = el.selectionStart ?? 0;
   const end = el.selectionEnd ?? 0;
-  const newVal = value.slice(0, start) + `<${tag}>${value.slice(start, end)}</${tag}>` + value.slice(end);
+  const baseTag = tag.split(" ")[0];
+  const newVal = value.slice(0, start) + `<${tag}>${value.slice(start, end)}</${baseTag}>` + value.slice(end);
   onChange(newVal);
   setTimeout(() => { el.focus(); }, 0);
 }
 
-const fmtButtons = [
-  { tag: "b", label: "B", cls: "font-bold" },
-  { tag: "i", label: "I", cls: "italic" },
-  { tag: "u", label: "U", cls: "underline" },
-];
-
-function FormatBar({ onApply }: { onApply: (tag: string) => void }) {
-  return (
-    <div className="flex gap-1 mb-1.5">
-      {fmtButtons.map(({ tag, label, cls }) => (
-        <button
-          key={tag}
-          type="button"
-          onMouseDown={e => { e.preventDefault(); onApply(tag); }}
-          className={`bg-[#050c16] border border-white/10 hover:border-primary text-white/60 hover:text-primary w-8 h-8 text-sm transition-colors ${cls}`}
-          title={tag === "b" ? "Bold" : tag === "i" ? "Italic" : "Underline"}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function RichTextInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [tbStyles, setTbStyles] = useState<ToolbarStyles>({ ...DEFAULT_TOOLBAR_STYLES });
   return (
     <div>
       {label && <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">{label}</label>}
-      <FormatBar onApply={tag => applyFormat(tag, value, onChange, ref as React.RefObject<HTMLTextAreaElement | HTMLInputElement>)} />
+      <WordToolbar
+        mode="richtext"
+        styles={tbStyles}
+        onStyleChange={setTbStyles}
+        onFormat={tag => applyFormat(tag, value, onChange, ref as React.RefObject<HTMLTextAreaElement | HTMLInputElement>)}
+      />
       <input ref={ref} value={value} onChange={e => onChange(e.target.value)}
         className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
       />
@@ -2149,10 +2165,16 @@ function RichTextInput({ value, onChange, label }: { value: string; onChange: (v
 
 function RichTextArea({ value, onChange, label, rows = 3 }: { value: string; onChange: (v: string) => void; label?: string; rows?: number }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [tbStyles, setTbStyles] = useState<ToolbarStyles>({ ...DEFAULT_TOOLBAR_STYLES });
   return (
     <div>
       {label && <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">{label}</label>}
-      <FormatBar onApply={tag => applyFormat(tag, value, onChange, ref as React.RefObject<HTMLTextAreaElement | HTMLInputElement>)} />
+      <WordToolbar
+        mode="richtext"
+        styles={tbStyles}
+        onStyleChange={setTbStyles}
+        onFormat={tag => applyFormat(tag, value, onChange, ref as React.RefObject<HTMLTextAreaElement | HTMLInputElement>)}
+      />
       <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} rows={rows}
         className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors resize-none"
       />

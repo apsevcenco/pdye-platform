@@ -1,15 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Layout } from "@/components/layout/Layout";
 import {
-  ArrowLeft, Upload, X, Ship, Plus, CheckCircle, Loader2,
+  ArrowLeft, Upload, X, Ship, Plus, CheckCircle, Loader2, PenLine,
 } from "lucide-react";
+import {
+  WordToolbar,
+  stylesToCSS,
+  loadSpecStyles,
+  saveSpecStyles,
+  DEFAULT_TOOLBAR_STYLES,
+  type ToolbarStyles,
+} from "@/components/ui/WordToolbar";
 
 const inp = "w-full bg-[#070f1a] border border-white/10 focus:border-primary/50 px-4 py-3 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans";
 const lbl = "block text-white/50 text-[10px] uppercase tracking-widest mb-2 font-sans font-bold";
 const sel = inp + " cursor-pointer";
+const specInp = "w-full bg-[#070f1a] border border-white/10 focus:border-primary/50 px-4 py-3 text-white focus:outline-none transition-colors placeholder:text-white/20 font-sans";
+
+function applyFormatAdd(tag: string, value: string, onChange: (v: string) => void, ref: React.RefObject<HTMLTextAreaElement | HTMLInputElement>) {
+  const el = ref.current;
+  if (!el) return;
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  const baseTag = tag.split(" ")[0];
+  const newVal = value.slice(0, start) + `<${tag}>${value.slice(start, end)}</${baseTag}>` + value.slice(end);
+  onChange(newVal);
+  setTimeout(() => { el.focus(); }, 0);
+}
 
 type FormData = {
   name: string;
@@ -48,6 +68,14 @@ export default function AddYacht() {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
+  const [specStyles, setSpecStyles] = useState<ToolbarStyles>(loadSpecStyles);
+  const specCSS = stylesToCSS(specStyles);
+  const handleSpecStyleChange = useCallback((s: ToolbarStyles) => {
+    setSpecStyles(s);
+    saveSpecStyles(s);
+  }, []);
+  const descRef = useRef<HTMLTextAreaElement>(null);
+  const [descTbStyles, setDescTbStyles] = useState<ToolbarStyles>({ ...DEFAULT_TOOLBAR_STYLES });
 
   // Check for ?edit=id param
   useEffect(() => {
@@ -197,33 +225,48 @@ export default function AddYacht() {
                 <input className={inp} value={form.name} onChange={e => setF("name", e.target.value)} placeholder="e.g. Project Neptune" required />
               </div>
 
+              <div className="bg-[#0a1426] border border-white/8 p-3 mb-2">
+                <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+                  <p className="text-primary text-[10px] uppercase tracking-widest font-bold font-sans flex items-center gap-2">
+                    <PenLine size={12} />
+                    Spec Formatting
+                  </p>
+                  <WordToolbar
+                    mode="style"
+                    styles={specStyles}
+                    onStyleChange={handleSpecStyleChange}
+                    compact
+                  />
+                </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className={lbl}>Builder</label>
-                  <input className={inp} value={form.builder} onChange={e => setF("builder", e.target.value)} placeholder="e.g. Feadship" />
+                  <input style={specCSS} className={specInp} value={form.builder} onChange={e => setF("builder", e.target.value)} placeholder="e.g. Feadship" />
                 </div>
                 <div>
                   <label className={lbl}>Type</label>
-                  <select className={sel} value={form.type} onChange={e => setF("type", e.target.value)}>
+                  <select style={specCSS} className={specInp + " cursor-pointer"} value={form.type} onChange={e => setF("type", e.target.value)}>
                     {YACHT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className={lbl}>Length Overall</label>
-                  <input className={inp} value={form.length} onChange={e => setF("length", e.target.value)} placeholder="e.g. 42m" />
+                  <input style={specCSS} className={specInp} value={form.length} onChange={e => setF("length", e.target.value)} placeholder="e.g. 42m" />
                 </div>
                 <div>
                   <label className={lbl}>Year Built</label>
-                  <input className={inp} value={form.year} onChange={e => setF("year", e.target.value)} placeholder="e.g. 2018" />
+                  <input style={specCSS} className={specInp} value={form.year} onChange={e => setF("year", e.target.value)} placeholder="e.g. 2018" />
                 </div>
                 <div>
                   <label className={lbl}>Guest Cabins</label>
-                  <input type="number" className={inp} value={form.cabins} onChange={e => setF("cabins", e.target.value)} placeholder="e.g. 5" min={0} max={50} />
+                  <input type="number" style={specCSS} className={specInp} value={form.cabins} onChange={e => setF("cabins", e.target.value)} placeholder="e.g. 5" min={0} max={50} />
                 </div>
                 <div>
                   <label className={lbl}>Crew</label>
-                  <input type="number" className={inp} value={form.crew} onChange={e => setF("crew", e.target.value)} placeholder="e.g. 8" min={0} max={100} />
+                  <input type="number" style={specCSS} className={specInp} value={form.crew} onChange={e => setF("crew", e.target.value)} placeholder="e.g. 8" min={0} max={100} />
                 </div>
+              </div>
               </div>
             </div>
 
@@ -268,7 +311,13 @@ export default function AddYacht() {
 
               <div>
                 <label className={lbl}>Description</label>
-                <textarea className={inp + " resize-none"} rows={5} value={form.description} onChange={e => setF("description", e.target.value)} placeholder="Full vessel description, condition notes, notable features, refit history…" />
+                <WordToolbar
+                  mode="richtext"
+                  styles={descTbStyles}
+                  onStyleChange={setDescTbStyles}
+                  onFormat={tag => applyFormatAdd(tag, form.description, (v) => setF("description", v), descRef as React.RefObject<HTMLTextAreaElement | HTMLInputElement>)}
+                />
+                <textarea ref={descRef} className={inp + " resize-none"} rows={5} value={form.description} onChange={e => setF("description", e.target.value)} placeholder="Full vessel description, condition notes, notable features, refit history…" />
               </div>
             </div>
 
