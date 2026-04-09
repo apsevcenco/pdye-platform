@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard,
   Ship,
@@ -1474,12 +1475,115 @@ type RoomWithDetails = DealRoom & {
 };
 
 function DealsManageView() {
+  const { user } = useAuth();
   const [rooms, setRooms] = useState<RoomWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState<RoomWithDetails | null>(null);
   const [activity, setActivity] = useState<AuditLog[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState(false);
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [yachtOptions, setYachtOptions] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from("yachts").select("id, name").order("name").then(({ data }) => {
+      setYachtOptions((data || []) as { id: string; name: string }[]);
+    });
+  }, []);
+
+  async function createDealRoom() {
+    const { buyerEmail, sellerEmail, yachtId, notes } = createForm;
+    if (!yachtId) { setCreateError("Please select a yacht."); return; }
+    if (!buyerEmail.trim() && !sellerEmail.trim()) { setCreateError("Enter at least one participant email."); return; }
+    setCreating(true);
+    setCreateError("");
+
+    try {
+      let buyerUserId: string | null = null;
+      let sellerUserId: string | null = null;
+
+      if (buyerEmail.trim()) {
+        const { data: bu } = await supabaseAdmin.from("users").select("id").eq("email", buyerEmail.trim().toLowerCase()).maybeSingle();
+        if (!bu) { setCreateError(`Buyer email "${buyerEmail}" not found. The user must register first.`); setCreating(false); return; }
+        buyerUserId = bu.id;
+      }
+      if (sellerEmail.trim()) {
+        const { data: su } = await supabaseAdmin.from("users").select("id").eq("email", sellerEmail.trim().toLowerCase()).maybeSingle();
+        if (!su) { setCreateError(`Seller email "${sellerEmail}" not found. The user must register first.`); setCreating(false); return; }
+        sellerUserId = su.id;
+      }
+
+      const now = new Date().toISOString();
+      const { data: room, error: roomErr } = await supabaseAdmin.from("deal_rooms").insert([{
+        yacht_id: yachtId,
+        created_by_admin_id: user?.id || "",
+        status: "draft",
+        buyer_user_id: buyerUserId,
+        seller_user_id: sellerUserId,
+        nda_required: true,
+        buyer_nda_status: "not_sent",
+        seller_nda_status: "not_sent",
+        notes: notes.trim() || null,
+        created_at: now,
+        updated_at: now,
+      }]).select().single();
+
+      if (roomErr || !room) throw new Error(roomErr?.message || "Failed to create room");
+
+      const participants: any[] = [];
+      if (buyerUserId) {
+        participants.push({
+          deal_room_id: room.id,
+          user_id: buyerUserId,
+          role: "buyer",
+          side: "buyer",
+          can_view: true,
+          can_message: true,
+          can_download: true,
+        });
+      }
+      if (sellerUserId) {
+        participants.push({
+          deal_room_id: room.id,
+          user_id: sellerUserId,
+          role: "seller",
+          side: "seller",
+          can_view: true,
+          can_message: true,
+          can_download: true,
+        });
+      }
+      if (participants.length > 0) {
+        await supabaseAdmin.from("deal_room_participants").insert(participants);
+      }
+
+      await supabaseAdmin.from("deal_room_messages").insert([{
+        deal_room_id: room.id,
+        sender_id: user?.id || "",
+        message: `Deal room created. ${buyerEmail ? "Buyer: " + buyerEmail + ". " : ""}${sellerEmail ? "Seller: " + sellerEmail + "." : ""}`,
+        is_system: true,
+      }]);
+
+      await supabaseAdmin.from("audit_logs").insert([{
+        entity_type: "deal_room",
+        entity_id: room.id,
+        user_id: user?.id || "",
+        action: "deal_room_created",
+        meta: { buyer_email: buyerEmail || null, seller_email: sellerEmail || null, yacht_id: yachtId },
+      }]);
+
+      setShowCreate(false);
+      setCreateForm({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
+      await load();
+    } catch (e: any) {
+      setCreateError(e.message || "Error creating deal room.");
+    }
+    setCreating(false);
+  }
 
   async function load() {
     setLoading(true);
@@ -1708,7 +1812,55 @@ function DealsManageView() {
           <h1 className="font-display text-3xl text-white font-bold">Deal Rooms</h1>
           <p className="text-white/50 text-sm font-sans mt-1">{rooms.length} room{rooms.length !== 1 ? "s" : ""} total</p>
         </div>
+        <button onClick={() => { setShowCreate(true); setCreateError(""); }} className="flex items-center gap-2 bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
+          <Plus size={14} /> Create Deal Room
+        </button>
       </div>
+
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
+          <div className="bg-[#0f1d33] border border-white/10 w-full max-w-lg mx-4 p-0 shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+              <h2 className="font-display text-xl text-white">Create Deal Room</h2>
+              <button onClick={() => setShowCreate(false)} className="text-white/30 hover:text-white transition-colors"><X size={18} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Yacht *</label>
+                <select value={createForm.yachtId} onChange={e => setCreateForm(f => ({ ...f, yachtId: e.target.value }))} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors font-sans">
+                  <option value="">Select yacht...</option>
+                  {yachtOptions.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Buyer Email</label>
+                <input type="email" value={createForm.buyerEmail} onChange={e => setCreateForm(f => ({ ...f, buyerEmail: e.target.value }))} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans" placeholder="buyer@example.com" />
+                <p className="text-white/20 text-[10px] mt-1 font-sans">Must be a registered user</p>
+              </div>
+              <div>
+                <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Seller Email</label>
+                <input type="email" value={createForm.sellerEmail} onChange={e => setCreateForm(f => ({ ...f, sellerEmail: e.target.value }))} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans" placeholder="seller@example.com" />
+                <p className="text-white/20 text-[10px] mt-1 font-sans">Must be a registered user (optional — can be added later)</p>
+              </div>
+              <div>
+                <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Notes (optional)</label>
+                <textarea value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans resize-none" placeholder="Internal notes about this deal..." />
+              </div>
+              {createError && (
+                <div className="flex items-center gap-2 text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-3 py-2">
+                  <AlertCircle size={14} /> {createError}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-white/40 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+              <button onClick={createDealRoom} disabled={creating} className="flex items-center gap-2 bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {creating ? "Creating…" : "Create Room"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-6">
         <button onClick={() => setStatusFilter("all")} className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border transition-colors ${statusFilter === "all" ? "border-primary text-primary" : "border-white/10 text-white/30 hover:border-white/20"}`}>
