@@ -479,7 +479,7 @@ export default function YachtDetail() {
     await supabase.from("access_requests").insert([{
       yacht_id: id,
       requester_id: user.id,
-      role: (userProfile as any)?.role || "investor",
+      role: (userProfile as any)?.role || "owner",
       status: "pending",
     }]);
     await supabaseAdmin.from("audit_logs").insert([{

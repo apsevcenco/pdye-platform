@@ -770,17 +770,16 @@ export default function Dashboard() {
 
   if (!user) return <Redirect to="/login" />;
 
-  const role = userProfile?.role || "investor";
+  const role = userProfile?.role || "owner";
   const approved = userProfile?.approved;
   const email = userProfile?.email || user.email || "";
 
   const ROLE_DISPLAY: Record<string, { label: string; style: string }> = {
-    investor: { label: "Private Buyer", style: "text-blue-400 border-blue-400/30 bg-blue-400/8" },
-    broker:   { label: "Broker",        style: "text-purple-400 border-purple-400/30 bg-purple-400/8" },
-    owner:    { label: "Yacht Owner",   style: "text-yellow-400 border-yellow-400/30 bg-yellow-400/8" },
+    owner:  { label: "Boat Owner", style: "text-blue-400 border-blue-400/30 bg-blue-400/8" },
+    broker: { label: "Broker",     style: "text-purple-400 border-purple-400/30 bg-purple-400/8" },
     admin:    { label: "Administrator", style: "text-primary border-primary/30 bg-primary/8" },
   };
-  const roleDisplay = ROLE_DISPLAY[role] || ROLE_DISPLAY.investor;
+  const roleDisplay = ROLE_DISPLAY[role] || ROLE_DISPLAY.owner;
 
   return (
     <Layout>
@@ -828,7 +827,6 @@ export default function Dashboard() {
           {role === "admin" && <AdminDashboard />}
           {role === "broker" && <ListingsDashboard userId={user.id} role={role} />}
           {role === "owner" && <OwnerDashboard userId={user.id} />}
-          {(role === "investor" || role === "buyer") && <BuyerDashboard userId={user.id} />}
 
         </div>
       </div>

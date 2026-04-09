@@ -7,9 +7,8 @@ import { ArrowLeft, CheckCircle, XCircle, Clock, Users, RefreshCw } from "lucide
 type UserRow = UserProfile & { created_at: string };
 
 const ROLE_COLORS: Record<string, string> = {
-  investor: "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  broker:   "text-purple-400 bg-purple-400/10 border-purple-400/20",
-  owner:    "text-amber-400 bg-amber-400/10 border-amber-400/20",
+  owner:  "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  broker: "text-purple-400 bg-purple-400/10 border-purple-400/20",
   admin:    "text-primary bg-primary/10 border-primary/20",
 };
 

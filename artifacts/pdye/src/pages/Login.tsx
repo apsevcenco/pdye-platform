@@ -7,9 +7,8 @@ import { Anchor, TrendingUp, Briefcase, Ship, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const ROLES = [
-  { key: "investor", label: "Private Buyer", icon: TrendingUp, desc: "Access private listings & deal room" },
-  { key: "broker",   label: "Broker",      icon: Briefcase,  desc: "List and manage yacht transactions" },
-  { key: "owner",    label: "Yacht Owner", icon: Ship,       desc: "Sell your vessel confidentially" },
+  { key: "owner",  label: "Boat Owner", icon: Ship,       desc: "List your yacht & access deal room" },
+  { key: "broker", label: "Broker",     icon: Briefcase,  desc: "List and manage yacht transactions" },
 ];
 
 const CAPACITY_OPTIONS = ["Up to €1M", "€1M – €5M", "€5M – €20M", "€20M – €50M", "€50M+", "Deal by deal"];
@@ -24,7 +23,7 @@ export default function Login() {
   const { login, register } = useAuth();
   const [, setLocation] = useLocation();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [role, setRole] = useState("investor");
+  const [role, setRole] = useState("owner");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,18 +89,14 @@ export default function Login() {
           let yacht_type = "";
           let leadMsg = "";
 
-          if (role === "investor") {
-            budget = capacity ? `${capacity}${company ? " · " + company : ""}` : company;
-            yacht_type = "Private Buyer Application";
-            leadMsg = `Focus: ${focus || "—"}. ${message}`;
+          if (role === "owner") {
+            budget = `${vessel}${length ? " · " + length : ""}${year ? " · " + year : ""}`;
+            yacht_type = "Boat Owner Application";
+            leadMsg = message;
           } else if (role === "broker") {
             budget = `${experience}${bCompany ? " · " + bCompany : ""}${license ? " · Lic: " + license : ""}`;
             yacht_type = "Broker Application";
             leadMsg = `Partnership: ${brokerType || "—"}. ${message}`;
-          } else {
-            budget = `${vessel}${length ? " · " + length : ""}${year ? " · " + year : ""}`;
-            yacht_type = "Owner Submission";
-            leadMsg = message;
           }
 
           const { error: leadErr } = await supabase.from("leads").insert([{
@@ -196,37 +191,6 @@ export default function Login() {
                   </div>
 
                   <AnimatePresence mode="wait">
-                    {/* ── INVESTOR fields ── */}
-                    {role === "investor" && (
-                      <motion.div key="investor" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className={lbl}>Company / Fund</label>
-                            <input value={company} onChange={e => setCompany(e.target.value)} className={inp} placeholder="Family Office LLC" />
-                          </div>
-                          <div>
-                            <label className={lbl}>Phone</label>
-                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inp} placeholder="+33 6 00 00 00" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className={lbl}>Investment Capacity *</label>
-                          <select value={capacity} onChange={e => setCapacity(e.target.value)} required className={sel}>
-                            <option value="">Select budget range...</option>
-                            {CAPACITY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={lbl}>Preferred Yacht Type / Region</label>
-                          <input value={focus} onChange={e => setFocus(e.target.value)} className={inp} placeholder="Motor Yacht 30–50m, Mediterranean..." />
-                        </div>
-                        <div>
-                          <label className={lbl}>Message (optional)</label>
-                          <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2} className={inp + " resize-none"} placeholder="Specific requirements or timeline..." />
-                        </div>
-                      </motion.div>
-                    )}
-
                     {/* ── BROKER fields ── */}
                     {role === "broker" && (
                       <motion.div key="broker" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="space-y-4">
