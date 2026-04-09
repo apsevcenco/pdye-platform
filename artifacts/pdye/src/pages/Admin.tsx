@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, Fragment, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { ALL_YACHTS, type Yacht, type YachtDocument } from "@/lib/data";
+import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
@@ -85,35 +85,9 @@ const navItems = [
   { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
 ];
 
-const INVESTOR_REQUESTS = [
-  { id: 1, name: "Jean-Pierre Moreau", company: "Moreau Capital", capacity: "€5M–€20M", status: "pending", date: "2026-03-10" },
-  { id: 2, name: "Roberto Sforza", company: "Sforza Maritime Invest.", capacity: "€10M+", status: "approved", date: "2026-03-08" },
-  { id: 3, name: "Alexandra Voss", company: "Voss Family Office", capacity: "€2M–€8M", status: "approved", date: "2026-03-05" },
-  { id: 4, name: "Marcus Chen", company: "Harbour Peak Ventures", capacity: "€15M+", status: "pending", date: "2026-03-03" },
-  { id: 5, name: "Sophia Laurent", company: "Laurent & Associés", capacity: "€3M–€10M", status: "review", date: "2026-03-01" },
-];
-
-const BROKER_SUBMISSIONS = [
-  { id: 1, broker: "Camille Dubois", yacht: "Azimut 72S", year: 2019, length: "22m", price: "€1.8M", status: "active" },
-  { id: 2, broker: "Marco Ferrara", yacht: "Pershing 82", year: 2017, length: "25m", price: "€2.1M", status: "review" },
-  { id: 3, broker: "Elena Rossi", yacht: "Princess V78", year: 2020, length: "24m", price: "€1.5M", status: "active" },
-];
-
-const DOCUMENTS = [
-  { id: 1, name: "AURELIA – Technical Survey", type: "Survey", yacht: "AURELIA", date: "2026-02-28", size: "4.2 MB" },
-  { id: 2, name: "LADY BLUE – Legal Pack", type: "Legal", yacht: "LADY BLUE", date: "2026-02-25", size: "2.8 MB" },
-  { id: 3, name: "OCEANIS – Financial Report", type: "Financial", yacht: "OCEANIS", date: "2026-02-20", size: "1.6 MB" },
-  { id: 4, name: "AURELIA – NDA Template", type: "NDA", yacht: "AURELIA", date: "2026-02-15", size: "0.3 MB" },
-  { id: 5, name: "STELLA MARIS – Survey", type: "Survey", yacht: "STELLA MARIS", date: "2026-02-10", size: "3.9 MB" },
-];
-
-const MESSAGES = [
-  { id: 1, from: "Roberto Sforza", subject: "Due diligence on LADY BLUE", preview: "I would like to arrange a technical inspection...", date: "2h ago", read: false },
-  { id: 2, from: "Camille Dubois", subject: "New listing submission", preview: "Please find attached the documents for the Sunseeker...", date: "5h ago", read: false },
-  { id: 3, from: "Alexandra Voss", subject: "Re: AURELIA — Offer", preview: "We are prepared to move forward at the agreed price...", date: "1d ago", read: true },
-  { id: 4, from: "Marcus Chen", subject: "Investor access request", preview: "My family office is actively seeking distressed...", date: "2d ago", read: true },
-  { id: 5, from: "Elena Rossi", subject: "Princess V78 documents", preview: "I have uploaded the survey report to the deal room...", date: "3d ago", read: true },
-];
+type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string };
+type DealRoomDoc = { id: string; deal_room_id: string; uploaded_by: string; file_name: string; file_url: string; file_type?: string; file_size?: number; visible_to_roles?: string[]; created_at: string };
+type DealRoomMsg = { id: string; deal_room_id: string; sender_id: string; message: string; is_system: boolean; created_at: string };
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -137,11 +111,71 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function Dashboard() {
-  const stats = [
-    { label: "Active Yachts", value: ALL_YACHTS.length, icon: Ship, trend: "+2 this month", color: "text-primary" },
-    { label: "Buyer Requests", value: INVESTOR_REQUESTS.length, icon: Users, trend: "+3 this week", color: "text-green-400" },
-    { label: "Broker Submissions", value: BROKER_SUBMISSIONS.length, icon: Briefcase, trend: "1 pending review", color: "text-blue-400" },
+  const [stats, setStats] = useState({ yachts: 0, buyers: 0, brokers: 0, owners: 0, pendingRequests: 0, dealRooms: 0, leads: 0 });
+  const [recentRequests, setRecentRequests] = useState<any[]>([]);
+  const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [yRes, uRes, arRes, drRes, lRes, msgRes, actRes] = await Promise.all([
+          supabaseAdmin.from("yachts").select("*", { count: "exact", head: true }),
+          supabaseAdmin.from("users").select("id, email, role, approved"),
+          supabaseAdmin.from("access_requests").select("id, requester_id, yacht_id, status, role, created_at").order("created_at", { ascending: false }).limit(5),
+          supabaseAdmin.from("deal_rooms").select("*", { count: "exact", head: true }),
+          supabaseAdmin.from("leads").select("*", { count: "exact", head: true }),
+          supabaseAdmin.from("deal_room_messages").select("id, deal_room_id, sender_id, message, is_system, created_at").order("created_at", { ascending: false }).limit(5),
+          supabaseAdmin.from("audit_logs").select("id, entity_type, entity_id, action, user_id, meta, created_at").order("created_at", { ascending: false }).limit(8),
+        ]);
+        const users = (uRes.data || []) as any[];
+        setStats({
+          yachts: yRes.count || 0,
+          buyers: users.filter(u => u.role === "investor" || u.role === "buyer").length,
+          brokers: users.filter(u => u.role === "broker").length,
+          owners: users.filter(u => u.role === "owner").length,
+          pendingRequests: (arRes.data || []).filter((r: any) => r.status === "pending").length,
+          dealRooms: drRes.count || 0,
+          leads: lRes.count || 0,
+        });
+        const reqs = arRes.data || [];
+        const reqUserIds = [...new Set(reqs.map((r: any) => r.requester_id))];
+        let reqEmails: Record<string, string> = {};
+        if (reqUserIds.length) {
+          const { data: ru } = await supabaseAdmin.from("users").select("id, email").in("id", reqUserIds);
+          (ru || []).forEach((u: any) => { reqEmails[u.id] = u.email; });
+        }
+        setRecentRequests(reqs.map((r: any) => ({ ...r, email: reqEmails[r.requester_id] || r.requester_id?.slice(0, 8) })));
+        const msgs = (msgRes.data || []).filter((m: any) => !m.is_system);
+        const msgSenderIds = [...new Set(msgs.map((m: any) => m.sender_id))];
+        let senderEmails: Record<string, string> = {};
+        if (msgSenderIds.length) {
+          const { data: su } = await supabaseAdmin.from("users").select("id, email").in("id", msgSenderIds);
+          (su || []).forEach((u: any) => { senderEmails[u.id] = u.email; });
+        }
+        setRecentMessages(msgs.map((m: any) => ({ ...m, sender_email: senderEmails[m.sender_id] || "System" })));
+        setRecentActivity((actRes.data || []) as any[]);
+      } catch (e) {
+        console.error("Dashboard load error:", e);
+      }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+
+  const statItems = [
+    { label: "Active Yachts", value: stats.yachts, icon: Ship, color: "text-primary" },
+    { label: "Private Buyers", value: stats.buyers, icon: Users, color: "text-green-400" },
+    { label: "Brokers", value: stats.brokers, icon: Briefcase, color: "text-blue-400" },
+    { label: "Pending Requests", value: stats.pendingRequests, icon: Clock, color: "text-yellow-400" },
+    { label: "Deal Rooms", value: stats.dealRooms, icon: TrendingUp, color: "text-purple-400" },
+    { label: "Leads", value: stats.leads, icon: Inbox, color: "text-orange-400" },
   ];
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
 
   return (
     <div>
@@ -151,42 +185,39 @@ function Dashboard() {
           <p className="text-white/50 text-sm font-sans mt-1">Welcome back, Administrator</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-white/40 text-xs font-sans">March 11, 2026</span>
+          <span className="text-white/40 text-xs font-sans">{today}</span>
           <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
             <span className="text-primary text-xs font-bold">AD</span>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
-        {stats.map((stat, i) => (
+      <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 mb-10">
+        {statItems.map((stat, i) => (
           <div key={i} className="bg-[#0f1d33] border border-white/5 p-6 hover:border-primary/20 transition-colors">
             <div className="flex items-start justify-between mb-4">
               <stat.icon size={20} className={`${stat.color} opacity-80`} />
               <ArrowUpRight size={14} className="text-white/20" />
             </div>
             <p className={`text-4xl font-display font-bold ${stat.color} mb-1`}>{stat.value}</p>
-            <p className="text-white/80 text-sm font-sans font-medium mb-1">{stat.label}</p>
-            <p className="text-white/40 text-xs font-sans">{stat.trend}</p>
+            <p className="text-white/80 text-sm font-sans font-medium">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Recent Activity */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Recent Investor Requests */}
         <div className="bg-[#0f1d33] border border-white/5">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-            <h2 className="font-display text-lg text-white">Recent Buyer Requests</h2>
-            <span className="text-primary text-xs font-bold uppercase tracking-wider cursor-pointer hover:text-white transition-colors">View All</span>
+            <h2 className="font-display text-lg text-white">Recent Access Requests</h2>
           </div>
           <div className="divide-y divide-white/5">
-            {INVESTOR_REQUESTS.slice(0, 4).map((req) => (
+            {recentRequests.length === 0 ? (
+              <div className="px-6 py-8 text-center text-white/30 text-sm">No requests yet</div>
+            ) : recentRequests.map((req: any) => (
               <div key={req.id} className="flex items-center justify-between px-6 py-4 hover:bg-white/2 transition-colors">
                 <div>
-                  <p className="text-white text-sm font-medium font-sans">{req.name}</p>
-                  <p className="text-white/40 text-xs font-sans">{req.company} · {req.capacity}</p>
+                  <p className="text-white text-sm font-medium font-sans">{req.email}</p>
+                  <p className="text-white/40 text-xs font-sans">{req.role} · {new Date(req.created_at).toLocaleDateString("ru-RU")}</p>
                 </div>
                 <StatusBadge status={req.status} />
               </div>
@@ -194,27 +225,46 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Messages */}
         <div className="bg-[#0f1d33] border border-white/5">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
             <h2 className="font-display text-lg text-white">Recent Messages</h2>
-            <span className="text-primary text-xs font-bold uppercase tracking-wider cursor-pointer hover:text-white transition-colors">View All</span>
           </div>
           <div className="divide-y divide-white/5">
-            {MESSAGES.slice(0, 4).map((msg) => (
+            {recentMessages.length === 0 ? (
+              <div className="px-6 py-8 text-center text-white/30 text-sm">No messages yet</div>
+            ) : recentMessages.map((msg: any) => (
               <div key={msg.id} className="flex items-start gap-3 px-6 py-4 hover:bg-white/2 transition-colors">
-                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${msg.read ? "bg-white/10" : "bg-primary"}`}></div>
+                <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0 bg-primary"></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`text-sm font-sans truncate ${msg.read ? "text-white/60" : "text-white font-medium"}`}>{msg.from}</p>
-                    <span className="text-white/30 text-xs flex-shrink-0">{msg.date}</span>
+                    <p className="text-sm font-sans truncate text-white font-medium">{msg.sender_email}</p>
+                    <span className="text-white/30 text-xs flex-shrink-0">{new Date(msg.created_at).toLocaleDateString("ru-RU")}</span>
                   </div>
-                  <p className="text-white/40 text-xs font-sans truncate">{msg.subject}</p>
+                  <p className="text-white/40 text-xs font-sans truncate">{msg.message}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
+
+        {recentActivity.length > 0 && (
+          <div className="bg-[#0f1d33] border border-white/5 xl:col-span-2">
+            <div className="px-6 py-4 border-b border-white/5">
+              <h2 className="font-display text-lg text-white">Recent Activity</h2>
+            </div>
+            <div className="divide-y divide-white/5">
+              {recentActivity.map((act: any) => (
+                <div key={act.id} className="flex items-center justify-between px-6 py-3 hover:bg-white/2 transition-colors">
+                  <div>
+                    <p className="text-white/80 text-sm font-sans">{act.action.replace(/_/g, " ")}</p>
+                    <p className="text-white/30 text-xs">{act.entity_type} · {act.entity_id?.slice(0, 8)}</p>
+                  </div>
+                  <span className="text-white/30 text-xs">{new Date(act.created_at).toLocaleDateString("ru-RU")}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1925,233 +1975,544 @@ function LeadsView() {
 }
 
 function InvestorsView() {
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<UserRecord | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ company: "", phone: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const [requestCounts, setRequestCounts] = useState<Record<string, number>>({});
+  const [filter, setFilter] = useState<"all" | "approved" | "pending">("all");
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabaseAdmin.from("users").select("*").in("role", ["investor", "buyer"]).order("created_at", { ascending: false });
+    const u = (data || []) as UserRecord[];
+    setUsers(u);
+    if (u.length) {
+      const { data: reqs } = await supabaseAdmin.from("access_requests").select("requester_id").in("requester_id", u.map(x => x.id));
+      const counts: Record<string, number> = {};
+      (reqs || []).forEach((r: any) => { counts[r.requester_id] = (counts[r.requester_id] || 0) + 1; });
+      setRequestCounts(counts);
+    }
+    setLoading(false);
+  }
+
+  async function toggleApproval(user: UserRecord) {
+    await supabaseAdmin.from("users").update({ approved: !user.approved }).eq("id", user.id);
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, approved: !u.approved } : u));
+    if (selected?.id === user.id) setSelected({ ...user, approved: !user.approved });
+  }
+
+  async function saveEdit() {
+    if (!selected) return;
+    setSaving(true);
+    await supabaseAdmin.from("users").update({ company: editForm.company || null, phone: editForm.phone || null, notes: editForm.notes || null }).eq("id", selected.id);
+    const updated = { ...selected, ...editForm };
+    setUsers(prev => prev.map(u => u.id === selected.id ? updated : u));
+    setSelected(updated);
+    setEditing(false);
+    setSaving(false);
+  }
+
+  async function deleteUser(id: string) {
+    if (!window.confirm("Remove this user? This cannot be undone.")) return;
+    await supabaseAdmin.from("users").delete().eq("id", id);
+    setUsers(prev => prev.filter(u => u.id !== id));
+    if (selected?.id === id) setSelected(null);
+  }
+
+  const filtered = filter === "all" ? users : filter === "approved" ? users.filter(u => u.approved) : users.filter(u => !u.approved);
+  const initials = (email: string) => email.split("@")[0].slice(0, 2).toUpperCase();
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display text-3xl text-white font-bold">Private Buyers</h1>
-          <p className="text-white/50 text-sm font-sans mt-1">{INVESTOR_REQUESTS.length} access requests</p>
+    <div className="flex gap-6 h-full">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="font-display text-3xl text-white font-bold">Private Buyers</h1>
+            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered buyers</p>
+          </div>
         </div>
+
+        <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
+          {(["all", "approved", "pending"] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+              {f === "all" ? `All (${users.length})` : f === "approved" ? `Approved (${users.filter(u => u.approved).length})` : `Pending (${users.filter(u => !u.approved).length})`}
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30">
+            <Users size={36} className="mb-3 opacity-30" />
+            <p className="text-sm">No buyers found</p>
+          </div>
+        ) : (
+          <div className="bg-[#0f1d33] border border-white/5">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Email</th>
+                  <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden md:table-cell">Company</th>
+                  <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Requests</th>
+                  <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Registered</th>
+                  <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Status</th>
+                  <th className="px-6 py-4"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filtered.map(user => (
+                  <tr key={user.id} onClick={() => { setSelected(user); setEditing(false); }} className={`cursor-pointer transition-colors group ${selected?.id === user.id ? "bg-primary/8 border-l-2 border-primary" : "hover:bg-white/2"}`}>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-primary text-xs font-bold">{initials(user.email)}</span>
+                        </div>
+                        <p className="text-white font-medium font-sans text-sm">{user.email}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{user.company || "—"}</td>
+                    <td className="px-6 py-4 text-white/60 text-sm hidden lg:table-cell">{requestCounts[user.id] || 0}</td>
+                    <td className="px-6 py-4 text-white/40 text-sm">{new Date(user.created_at).toLocaleDateString("ru-RU")}</td>
+                    <td className="px-6 py-4"><StatusBadge status={user.approved ? "approved" : "pending"} /></td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={e => { e.stopPropagation(); toggleApproval(user); }} className={`text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border ${user.approved ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20" : "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"}`}>
+                          {user.approved ? "Revoke" : "Approve"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      <div className="bg-[#0f1d33] border border-white/5">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-white/5">
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Name</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden md:table-cell">Company</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Capacity</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Date</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Status</th>
-              <th className="px-6 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {INVESTOR_REQUESTS.map((req) => (
-              <tr key={req.id} className="hover:bg-white/2 transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-primary text-xs font-bold">{req.name.split(" ").map(n => n[0]).join("").slice(0,2)}</span>
-                    </div>
-                    <p className="text-white font-medium font-sans text-sm">{req.name}</p>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{req.company}</td>
-                <td className="px-6 py-4 text-white/60 text-sm hidden lg:table-cell">{req.capacity}</td>
-                <td className="px-6 py-4 text-white/40 text-sm">{req.date}</td>
-                <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {req.status === "pending" && (
-                      <button className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 font-bold uppercase tracking-wider hover:bg-green-500/20 transition-colors">
-                        Approve
-                      </button>
-                    )}
-                    <button className="text-white/30 hover:text-primary transition-colors"><ChevronRight size={16} /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {selected && (
+        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+          <div className="flex items-center justify-between mb-5">
+            <StatusBadge status={selected.approved ? "approved" : "pending"} />
+            <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors"><X size={16} /></button>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+            <span className="text-primary text-sm font-bold">{initials(selected.email)}</span>
+          </div>
+          <h2 className="font-display text-xl text-white mb-1 break-all">{selected.email}</h2>
+          <p className="text-white/40 text-xs mb-5">Registered {new Date(selected.created_at).toLocaleString("ru-RU")}</p>
+
+          {!editing ? (
+            <>
+              <div className="space-y-3 mb-5">
+                <div className="flex items-center gap-2 text-sm"><Mail size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.email}</span></div>
+                {selected.phone && <div className="flex items-center gap-2 text-sm"><Phone size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.phone}</span></div>}
+                {selected.company && <div className="flex items-center gap-2 text-sm"><Building2 size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.company}</span></div>}
+              </div>
+              {selected.notes && (
+                <div className="mb-5 pt-5 border-t border-white/8">
+                  <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Notes</p>
+                  <p className="text-white/60 text-sm leading-relaxed">{selected.notes}</p>
+                </div>
+              )}
+              <div className="pt-5 border-t border-white/8">
+                <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Access Requests</p>
+                <p className="text-primary font-bold text-lg">{requestCounts[selected.id] || 0}</p>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => { setEditForm({ company: selected.company || "", phone: selected.phone || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">Edit</button>
+                <button onClick={() => toggleApproval(selected)} className={`text-xs px-4 py-2 font-bold uppercase tracking-wider transition-colors border ${selected.approved ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10" : "border-green-500/30 text-green-400 hover:bg-green-500/10"}`}>
+                  {selected.approved ? "Revoke" : "Approve"}
+                </button>
+                <button onClick={() => deleteUser(selected.id)} className="text-xs border border-red-500/30 text-red-400 px-3 py-2 font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors"><Trash2 size={12} /></button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Company</label>
+                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Phone</label>
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Notes</label>
+                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={saveEdit} disabled={saving} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                <button onClick={() => setEditing(false)} className="text-xs border border-white/10 text-white/60 px-4 py-2 font-bold uppercase tracking-wider hover:border-white/30 transition-colors">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function BrokersView() {
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<UserRecord | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ company: "", phone: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabaseAdmin.from("users").select("*").eq("role", "broker").order("created_at", { ascending: false });
+    const u = (data || []) as UserRecord[];
+    setUsers(u);
+    setLoading(false);
+  }
+
+  async function toggleApproval(user: UserRecord) {
+    await supabaseAdmin.from("users").update({ approved: !user.approved }).eq("id", user.id);
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, approved: !u.approved } : u));
+    if (selected?.id === user.id) setSelected({ ...user, approved: !user.approved });
+  }
+
+  async function saveEdit() {
+    if (!selected) return;
+    setSaving(true);
+    await supabaseAdmin.from("users").update({ company: editForm.company || null, phone: editForm.phone || null, notes: editForm.notes || null }).eq("id", selected.id);
+    const updated = { ...selected, ...editForm };
+    setUsers(prev => prev.map(u => u.id === selected.id ? updated : u));
+    setSelected(updated);
+    setEditing(false);
+    setSaving(false);
+  }
+
+  async function deleteUser(id: string) {
+    if (!window.confirm("Remove this broker? This cannot be undone.")) return;
+    await supabaseAdmin.from("users").delete().eq("id", id);
+    setUsers(prev => prev.filter(u => u.id !== id));
+    if (selected?.id === id) setSelected(null);
+  }
+
+  const initials = (email: string) => email.split("@")[0].slice(0, 2).toUpperCase();
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display text-3xl text-white font-bold">Brokers</h1>
-          <p className="text-white/50 text-sm font-sans mt-1">{BROKER_SUBMISSIONS.length} submissions pending</p>
+    <div className="flex gap-6 h-full">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="font-display text-3xl text-white font-bold">Brokers</h1>
+            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered brokers</p>
+          </div>
         </div>
+
+        {users.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30">
+            <Briefcase size={36} className="mb-3 opacity-30" />
+            <p className="text-sm">No brokers registered</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {users.map(user => (
+              <div key={user.id} onClick={() => { setSelected(user); setEditing(false); }} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
+                    <span className="text-primary text-xs font-bold">{initials(user.email)}</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-medium font-sans text-sm">{user.email}</p>
+                    <p className="text-white/40 text-xs">{user.company || "No company"} · Registered {new Date(user.created_at).toLocaleDateString("ru-RU")}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <StatusBadge status={user.approved ? "approved" : "pending"} />
+                  <button onClick={e => { e.stopPropagation(); toggleApproval(user); }} className={`text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border ${user.approved ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : "bg-green-500/10 text-green-400 border-green-500/20"}`}>
+                    {user.approved ? "Revoke" : "Approve"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      <div className="space-y-4">
-        {BROKER_SUBMISSIONS.map((sub) => (
-          <div key={sub.id} className="bg-[#0f1d33] border border-white/5 hover:border-primary/20 transition-colors p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                <Ship size={16} className="text-primary" />
+
+      {selected && (
+        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+          <div className="flex items-center justify-between mb-5">
+            <StatusBadge status={selected.approved ? "approved" : "pending"} />
+            <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors"><X size={16} /></button>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+            <span className="text-primary text-sm font-bold">{initials(selected.email)}</span>
+          </div>
+          <h2 className="font-display text-xl text-white mb-1 break-all">{selected.email}</h2>
+          <p className="text-white/40 text-xs mb-5">Registered {new Date(selected.created_at).toLocaleString("ru-RU")}</p>
+
+          {!editing ? (
+            <>
+              <div className="space-y-3 mb-5">
+                <div className="flex items-center gap-2 text-sm"><Mail size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.email}</span></div>
+                {selected.phone && <div className="flex items-center gap-2 text-sm"><Phone size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.phone}</span></div>}
+                {selected.company && <div className="flex items-center gap-2 text-sm"><Building2 size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.company}</span></div>}
+              </div>
+              {selected.notes && (
+                <div className="mb-5 pt-5 border-t border-white/8">
+                  <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Notes</p>
+                  <p className="text-white/60 text-sm leading-relaxed">{selected.notes}</p>
+                </div>
+              )}
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => { setEditForm({ company: selected.company || "", phone: selected.phone || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">Edit</button>
+                <button onClick={() => deleteUser(selected.id)} className="text-xs border border-red-500/30 text-red-400 px-3 py-2 font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors"><Trash2 size={12} /></button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Company</label>
+                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
-                <p className="text-white font-medium font-sans">{sub.yacht}</p>
-                <p className="text-white/40 text-xs">{sub.length} · {sub.year} · Submitted by {sub.broker}</p>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Phone</label>
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Notes</label>
+                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={saveEdit} disabled={saving} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                <button onClick={() => setEditing(false)} className="text-xs border border-white/10 text-white/60 px-4 py-2 font-bold uppercase tracking-wider hover:border-white/30 transition-colors">Cancel</button>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <p className="text-primary font-medium font-sans text-sm">{sub.price}</p>
-              <StatusBadge status={sub.status} />
-              <button className="text-white/30 hover:text-primary transition-colors"><Eye size={16} /></button>
-            </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function DocumentsView() {
-  const typeColors: Record<string, string> = {
-    Survey: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-    Legal: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-    Financial: "text-green-400 bg-green-500/10 border-green-500/20",
-    NDA: "text-primary bg-primary/10 border-primary/20",
-  };
+  const [docs, setDocs] = useState<DealRoomDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploaderEmails, setUploaderEmails] = useState<Record<string, string>>({});
+  const [dealRoomNames, setDealRoomNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabaseAdmin.from("deal_room_documents").select("*").order("created_at", { ascending: false });
+      const d = (data || []) as DealRoomDoc[];
+      setDocs(d);
+
+      const uploaderIds = [...new Set(d.map(x => x.uploaded_by).filter(Boolean))];
+      if (uploaderIds.length) {
+        const { data: users } = await supabaseAdmin.from("users").select("id, email").in("id", uploaderIds);
+        const map: Record<string, string> = {};
+        (users || []).forEach((u: any) => { map[u.id] = u.email; });
+        setUploaderEmails(map);
+      }
+
+      const roomIds = [...new Set(d.map(x => x.deal_room_id))];
+      if (roomIds.length) {
+        const { data: rooms } = await supabaseAdmin.from("deal_rooms").select("id, yacht_id").in("id", roomIds);
+        const yachtIds = [...new Set((rooms || []).map((r: any) => r.yacht_id).filter(Boolean))];
+        let yachtNames: Record<string, string> = {};
+        if (yachtIds.length) {
+          const { data: yachts } = await supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds);
+          (yachts || []).forEach((y: any) => { yachtNames[y.id] = y.name; });
+        }
+        const rn: Record<string, string> = {};
+        (rooms || []).forEach((r: any) => { rn[r.id] = yachtNames[r.yacht_id] || r.id.slice(0, 8); });
+        setDealRoomNames(rn);
+      }
+
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function deleteDoc(id: string) {
+    if (!window.confirm("Delete this document?")) return;
+    await supabaseAdmin.from("deal_room_documents").delete().eq("id", id);
+    setDocs(prev => prev.filter(d => d.id !== id));
+  }
+
+  function fmtSize(bytes?: number) {
+    if (!bytes) return "—";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1048576).toFixed(1) + " MB";
+  }
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-3xl text-white font-bold">Documents</h1>
-          <p className="text-white/50 text-sm font-sans mt-1">{DOCUMENTS.length} documents in deal room</p>
+          <p className="text-white/50 text-sm font-sans mt-1">{docs.length} documents across all deal rooms</p>
         </div>
-        <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">
-          <Plus size={14} /> Upload
-        </button>
       </div>
-      <div className="bg-[#0f1d33] border border-white/5">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-white/5">
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Document</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden sm:table-cell">Type</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden md:table-cell">Yacht</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Date</th>
-              <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Size</th>
-              <th className="px-6 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {DOCUMENTS.map((doc) => (
-              <tr key={doc.id} className="hover:bg-white/2 transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <FileText size={16} className="text-white/30 flex-shrink-0" />
-                    <p className="text-white font-medium font-sans text-sm">{doc.name}</p>
-                  </div>
-                </td>
-                <td className="px-6 py-4 hidden sm:table-cell">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${typeColors[doc.type] || ""}`}>{doc.type}</span>
-                </td>
-                <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{doc.yacht}</td>
-                <td className="px-6 py-4 text-white/40 text-sm hidden lg:table-cell">{doc.date}</td>
-                <td className="px-6 py-4 text-white/40 text-sm hidden lg:table-cell">{doc.size}</td>
-                <td className="px-6 py-4 text-right">
-                  <button className="text-white/30 hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
-                    <Eye size={16} />
-                  </button>
-                </td>
+
+      {docs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-white/30">
+          <FileText size={36} className="mb-3 opacity-30" />
+          <p className="text-sm">No documents uploaded yet</p>
+        </div>
+      ) : (
+        <div className="bg-[#0f1d33] border border-white/5">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/5">
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Document</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden sm:table-cell">Deal Room</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden md:table-cell">Uploaded By</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Date</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Size</th>
+                <th className="px-6 py-4"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {docs.map(doc => (
+                <tr key={doc.id} className="hover:bg-white/2 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <FileText size={16} className="text-white/30 flex-shrink-0" />
+                      <p className="text-white font-medium font-sans text-sm">{doc.file_name}</p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-white/60 text-sm hidden sm:table-cell">{dealRoomNames[doc.deal_room_id] || doc.deal_room_id.slice(0, 8)}</td>
+                  <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{uploaderEmails[doc.uploaded_by] || "—"}</td>
+                  <td className="px-6 py-4 text-white/40 text-sm hidden lg:table-cell">{new Date(doc.created_at).toLocaleDateString("ru-RU")}</td>
+                  <td className="px-6 py-4 text-white/40 text-sm hidden lg:table-cell">{fmtSize(doc.file_size)}</td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {doc.file_url && (
+                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-primary transition-colors"><Eye size={16} /></a>
+                      )}
+                      <button onClick={() => deleteDoc(doc.id)} className="text-white/30 hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
 function MessagesView() {
-  const [selected, setSelected] = useState<number | null>(null);
+  const [messages, setMessages] = useState<DealRoomMsg[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [senderEmails, setSenderEmails] = useState<Record<string, string>>({});
+  const [dealRoomNames, setDealRoomNames] = useState<Record<string, string>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "user" | "system">("all");
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabaseAdmin.from("deal_room_messages").select("*").order("created_at", { ascending: false }).limit(50);
+      const msgs = (data || []) as DealRoomMsg[];
+      setMessages(msgs);
+
+      const senderIds = [...new Set(msgs.map(m => m.sender_id).filter(Boolean))];
+      if (senderIds.length) {
+        const { data: users } = await supabaseAdmin.from("users").select("id, email").in("id", senderIds);
+        const map: Record<string, string> = {};
+        (users || []).forEach((u: any) => { map[u.id] = u.email; });
+        setSenderEmails(map);
+      }
+
+      const roomIds = [...new Set(msgs.map(m => m.deal_room_id))];
+      if (roomIds.length) {
+        const { data: rooms } = await supabaseAdmin.from("deal_rooms").select("id, yacht_id").in("id", roomIds);
+        const yachtIds = [...new Set((rooms || []).map((r: any) => r.yacht_id).filter(Boolean))];
+        let yNames: Record<string, string> = {};
+        if (yachtIds.length) {
+          const { data: yachts } = await supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds);
+          (yachts || []).forEach((y: any) => { yNames[y.id] = y.name; });
+        }
+        const rn: Record<string, string> = {};
+        (rooms || []).forEach((r: any) => { rn[r.id] = yNames[r.yacht_id] || r.id.slice(0, 8); });
+        setDealRoomNames(rn);
+      }
+
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function deleteMsg(id: string) {
+    if (!window.confirm("Delete this message?")) return;
+    await supabaseAdmin.from("deal_room_messages").delete().eq("id", id);
+    setMessages(prev => prev.filter(m => m.id !== id));
+  }
+
+  const filtered = filter === "all" ? messages : filter === "system" ? messages.filter(m => m.is_system) : messages.filter(m => !m.is_system);
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="font-display text-3xl text-white font-bold">Messages</h1>
-        <p className="text-white/50 text-sm font-sans mt-1">{MESSAGES.filter(m => !m.read).length} unread messages</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-display text-3xl text-white font-bold">Messages</h1>
+          <p className="text-white/50 text-sm font-sans mt-1">{messages.length} messages across deal rooms</p>
+        </div>
       </div>
-      <div className="bg-[#0f1d33] border border-white/5 divide-y divide-white/5">
-        {MESSAGES.map((msg) => (
-          <div
-            key={msg.id}
-            onClick={() => setSelected(selected === msg.id ? null : msg.id)}
-            className="px-6 py-5 hover:bg-white/2 transition-colors cursor-pointer"
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${msg.read ? "bg-white/10" : "bg-primary"}`}></div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className={`text-sm font-sans ${msg.read ? "text-white/60" : "text-white font-medium"}`}>{msg.from}</p>
-                  <span className="text-white/30 text-xs flex-shrink-0">{msg.date}</span>
-                </div>
-                <p className={`text-sm mb-1 ${msg.read ? "text-white/40" : "text-white/80"}`}>{msg.subject}</p>
-                <p className="text-white/40 text-xs line-clamp-1">{msg.preview}</p>
-                {selected === msg.id && (
-                  <div className="mt-4 pt-4 border-t border-white/5">
-                    <p className="text-white/60 text-sm leading-relaxed">{msg.preview} We look forward to proceeding with the next steps as discussed. Please confirm availability for a call this week.</p>
-                    <div className="flex gap-2 mt-4">
-                      <button className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">Reply</button>
-                      <button className="text-xs border border-white/10 text-white/60 px-4 py-2 font-bold uppercase tracking-wider hover:border-white/30 transition-colors">Archive</button>
+
+      <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
+        {(["all", "user", "system"] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+            {f === "all" ? `All (${messages.length})` : f === "user" ? `User (${messages.filter(m => !m.is_system).length})` : `System (${messages.filter(m => m.is_system).length})`}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-white/30">
+          <MessageSquare size={36} className="mb-3 opacity-30" />
+          <p className="text-sm">No messages yet</p>
+        </div>
+      ) : (
+        <div className="bg-[#0f1d33] border border-white/5 divide-y divide-white/5">
+          {filtered.map(msg => (
+            <div key={msg.id} onClick={() => setExpandedId(expandedId === msg.id ? null : msg.id)} className="px-6 py-5 hover:bg-white/2 transition-colors cursor-pointer">
+              <div className="flex items-start gap-3">
+                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${msg.is_system ? "bg-blue-400" : "bg-primary"}`}></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-sm font-sans text-white font-medium">
+                      {msg.is_system ? "System" : senderEmails[msg.sender_id] || msg.sender_id?.slice(0, 8)}
+                    </p>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-white/20 text-[10px]">{dealRoomNames[msg.deal_room_id] || ""}</span>
+                      <span className="text-white/30 text-xs">{new Date(msg.created_at).toLocaleDateString("ru-RU")}</span>
                     </div>
                   </div>
-                )}
+                  <p className={`text-sm ${expandedId === msg.id ? "text-white/80" : "text-white/40 line-clamp-1"}`}>{msg.message}</p>
+                  {expandedId === msg.id && (
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={e => { e.stopPropagation(); deleteMsg(msg.id); }} className="text-xs border border-red-500/20 text-red-400 px-3 py-1.5 font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors">Delete</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PrivateDealsView() {
-  return (
-    <div>
-      <div className="mb-8">
-        <h1 className="font-display text-3xl text-white font-bold">Private Deals</h1>
-        <p className="text-white/50 text-sm font-sans mt-1">Confidential transactions under NDA</p>
-      </div>
-      <div className="space-y-4">
-        {[
-          { name: "52m Superyacht", location: "Mediterranean", stage: "Due Diligence", ndas: 3, asking: "Confidential" },
-          { name: "Benetti 46m", location: "Monaco", stage: "NDA Signed", ndas: 1, asking: "€22M" },
-          { name: "Feadship 58m", location: "Fort Lauderdale", stage: "Offer Received", ndas: 5, asking: "€45M" },
-        ].map((deal, i) => (
-          <div key={i} className="bg-[#0f1d33] border border-white/5 hover:border-primary/20 transition-colors p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0">
-                  <Lock size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-white font-medium font-sans">{deal.name}</p>
-                  <p className="text-white/40 text-xs">{deal.location} · {deal.ndas} NDA{deal.ndas > 1 ? "s" : ""} active</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Asking</p>
-                  <p className="text-primary text-sm font-medium">{deal.asking}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Stage</p>
-                  <p className="text-white/80 text-sm">{deal.stage}</p>
-                </div>
-                <button className="text-white/30 hover:text-primary transition-colors"><ChevronRight size={18} /></button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2569,6 +2930,7 @@ export default function Admin() {
   const [, setLocation] = useLocation();
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
   useEffect(() => {
     supabaseAdmin
@@ -2581,6 +2943,11 @@ export default function Admin() {
       .select("*", { count: "exact", head: true })
       .eq("approved", false)
       .then(({ count }) => { if (count !== null) setPendingUsersCount(count); });
+    supabaseAdmin
+      .from("deal_room_messages")
+      .select("*", { count: "exact", head: true })
+      .eq("is_system", false)
+      .then(({ count }) => { if (count !== null) setUnreadMsgCount(Math.min(count, 9)); });
   }, []);
 
   return (
@@ -2615,9 +2982,9 @@ export default function Admin() {
               >
                 <item.icon size={16} className={active && !hasHref ? "text-primary" : "text-white/40 group-hover:text-white/70"} />
                 {item.label}
-                {item.id === "messages" && MESSAGES.filter(m => !m.read).length > 0 && (
+                {item.id === "messages" && unreadMsgCount > 0 && (
                   <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {MESSAGES.filter(m => !m.read).length}
+                    {unreadMsgCount}
                   </span>
                 )}
                 {item.id === "requests-link" && pendingRequestsCount > 0 && (
