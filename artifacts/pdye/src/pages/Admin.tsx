@@ -75,7 +75,7 @@ const navItems = [
   { id: "yachts", label: "Yachts", icon: Ship },
   { id: "dealroom", label: "Deal Room", icon: TrendingUp },
   { id: "leads", label: "Leads", icon: Inbox },
-  { id: "investors", label: "Boat Owners", icon: Users },
+  { id: "investors", label: "Private Buyers", icon: Users },
   { id: "brokers", label: "Brokers", icon: Briefcase },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "messages", label: "Messages", icon: MessageSquare },
@@ -111,7 +111,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function Dashboard() {
-  const [stats, setStats] = useState({ yachts: 0, owners: 0, brokers: 0, pendingRequests: 0, dealRooms: 0, leads: 0 });
+  const [stats, setStats] = useState({ yachts: 0, buyers: 0, brokers: 0, owners: 0, pendingRequests: 0, dealRooms: 0, leads: 0 });
   const [recentRequests, setRecentRequests] = useState<any[]>([]);
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -132,8 +132,9 @@ function Dashboard() {
         const users = (uRes.data || []) as any[];
         setStats({
           yachts: yRes.count || 0,
-          owners: users.filter(u => u.role === "owner").length,
+          buyers: users.filter(u => u.role === "investor" || u.role === "buyer").length,
           brokers: users.filter(u => u.role === "broker").length,
+          owners: users.filter(u => u.role === "owner").length,
           pendingRequests: (arRes.data || []).filter((r: any) => r.status === "pending").length,
           dealRooms: drRes.count || 0,
           leads: lRes.count || 0,
@@ -167,7 +168,7 @@ function Dashboard() {
 
   const statItems = [
     { label: "Active Yachts", value: stats.yachts, icon: Ship, color: "text-primary" },
-    { label: "Boat Owners", value: stats.owners, icon: Users, color: "text-green-400" },
+    { label: "Private Buyers", value: stats.buyers, icon: Users, color: "text-green-400" },
     { label: "Brokers", value: stats.brokers, icon: Briefcase, color: "text-blue-400" },
     { label: "Pending Requests", value: stats.pendingRequests, icon: Clock, color: "text-yellow-400" },
     { label: "Deal Rooms", value: stats.dealRooms, icon: TrendingUp, color: "text-purple-400" },
@@ -1794,7 +1795,7 @@ type Lead = {
 };
 
 const LEAD_TYPE_STYLES: Record<string, string> = {
-  "Boat Owner Application": "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  "Private Buyer Application": "text-blue-400 bg-blue-500/10 border-blue-500/20",
   "Investor Application": "text-blue-400 bg-blue-500/10 border-blue-500/20",
   "Broker Application":   "text-purple-400 bg-purple-500/10 border-purple-500/20",
   "Owner Submission":     "text-green-400 bg-green-500/10 border-green-500/20",
@@ -1819,7 +1820,7 @@ function LeadsView() {
       });
   }, []);
 
-  const types = ["all", "Boat Owner Application", "Broker Application", "Owner Submission"];
+  const types = ["all", "Private Buyer Application", "Broker Application", "Owner Submission"];
   const filtered = filter === "all" ? leads : leads.filter(l => l.yacht_type === filter);
 
   return (
@@ -1987,7 +1988,7 @@ function InvestorsView() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("users").select("*").eq("role", "owner").order("created_at", { ascending: false });
+    const { data } = await supabaseAdmin.from("users").select("*").in("role", ["investor", "buyer"]).order("created_at", { ascending: false });
     const u = (data || []) as UserRecord[];
     setUsers(u);
     if (u.length) {
@@ -2033,8 +2034,8 @@ function InvestorsView() {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="font-display text-3xl text-white font-bold">Boat Owners</h1>
-            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered boat owners</p>
+            <h1 className="font-display text-3xl text-white font-bold">Private Buyers</h1>
+            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered buyers</p>
           </div>
         </div>
 
@@ -2889,7 +2890,7 @@ function SettingsView() {
           <div className="space-y-4">
             {[
               { label: "Admin Email", value: "admin@pdye.com", desc: "Used for system notifications" },
-              { label: "NDA Template", value: "PDYE_NDA_v3.pdf", desc: "Default NDA sent to boat owners" },
+              { label: "NDA Template", value: "PDYE_NDA_v3.pdf", desc: "Default NDA sent to investors" },
               { label: "Access Mode", value: "Invitation Only", desc: "Controls who can register" },
             ].map((setting, i) => (
               <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-white/5 last:border-0">

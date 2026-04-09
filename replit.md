@@ -15,7 +15,7 @@ Private B2B off-market yacht platform. pnpm workspace monorepo using TypeScript.
 
 ## Supabase Tables
 
-- **users**: id, email, role (owner/broker/admin), approved, created_at
+- **users**: id, email, role (investor/broker/owner/admin), approved, created_at
 - **yachts**: Full yacht data with images, specs, pricing
 - **access_requests**: yacht_id, requester_id, role, status (pending → approved_spec → rejected → escalated → archived)
 - **deal_rooms**: yacht_id, buyer_user_id, seller_user_id, status (draft → nda_pending → partially_signed → active → closed/cancelled), dual NDA tracking (buyer_nda_status, seller_nda_status), fully_activated_at
@@ -40,7 +40,7 @@ Private B2B off-market yacht platform. pnpm workspace monorepo using TypeScript.
 
 React + Vite app with hash routing (`/#/path`).
 
-**Public pages**: Home, Boat Owners, Brokers, Access, Valuation
+**Public pages**: Home, Boat Owners, Brokers, Private Buyers, Access, Valuation
 **Protected pages**: Yachts, Dashboard, DealRoom, DealDetails, AddYacht
 **Admin pages**: Admin (sidebar nav with sub-views), AdminUsers, AdminRequests
 

@@ -71,7 +71,7 @@ export default function Investors() {
         email: form.email,
         phone: form.phone || null,
         budget: `${form.capacity}${form.company ? " · " + form.company : ""}`,
-        yacht_type: "Boat Owner Application",
+        yacht_type: "Private Buyer Application",
         message: `Focus: ${form.focus || "—"}. ${form.message}`,
       }]);
     } catch (_) {}

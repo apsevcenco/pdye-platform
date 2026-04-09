@@ -23,6 +23,7 @@ import Admin from "./pages/Admin";
 import AdminUsers from "./pages/AdminUsers";
 import AdminRequests from "./pages/AdminRequests";
 import YachtDetail from "./pages/YachtDetail";
+import Investors from "./pages/Investors";
 import BoatOwners from "./pages/BoatOwners";
 import Valuation from "./pages/Valuation";
 import Dashboard from "./pages/Dashboard";
@@ -112,6 +113,7 @@ function Router() {
       <Route path="/access" component={Access} />
       <Route path="/boat-owners" component={BoatOwners} />
       <Route path="/brokers" component={Brokers} />
+      <Route path="/private-buyers" component={Investors} />
       <Route path="/valuation" component={Valuation} />
 
       {/* Protected */}
