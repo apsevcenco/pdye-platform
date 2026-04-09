@@ -3,15 +3,17 @@ import { useParams, Link } from "wouter";
 import {
   ChevronLeft, ChevronRight, MapPin, Calendar, Anchor, Ruler,
   Bed, Bath, Zap, Flag, Gauge, Droplets, Wind,
-  ArrowLeft, Users, X, Lock, Clock, CheckCircle, UserPlus, ShieldCheck,
+  ArrowLeft, Users, X, Lock, Clock, CheckCircle, UserPlus, ShieldCheck, Eye, Info,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { Yacht, FEATURED_YACHTS } from "@/lib/data";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/context/AuthContext";
+import type { DealRoom } from "@/lib/dealTypes";
 
 type UnitSystem = "metric" | "imperial";
-type AccessStatus = "none" | "pending" | "approved" | "rejected";
+type AccessLevel = "none" | "pending" | "approved_spec" | "rejected" | "deal_room_active";
 
 function parseNum(raw: string): number | null {
   if (!raw) return null;
@@ -76,10 +78,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-/* ─── Locked / Pending View ─── */
+/* ─── STATE A: Locked / Pending / Rejected View ─── */
 function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }: {
   yacht: Yacht;
-  status: AccessStatus;
+  status: "none" | "pending" | "rejected";
   onRequest: () => void;
   requesting: boolean;
   introSent: boolean;
@@ -91,14 +93,14 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
     none: {
       icon: <Lock size={20} className="text-primary" />,
       title: "Full Details Restricted",
-      body: "This listing is confidential. Submit a request to unlock pricing, specifications, location and documentation.",
+      body: "This listing is confidential. Submit a request to unlock extended specifications and technical data.",
       btn: (
         <button
           onClick={onRequest}
           disabled={requesting}
           className="flex items-center justify-center gap-2 w-full bg-primary text-background py-4 font-bold tracking-widest uppercase text-sm hover:bg-primary/90 transition-colors disabled:opacity-60"
         >
-          {requesting ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Submitting…</> : <><Lock size={14} /> Request Full Details</>}
+          {requesting ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Submitting…</> : <><Lock size={14} /> Request Access</>}
         </button>
       ),
     },
@@ -122,7 +124,6 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
         </a>
       ),
     },
-    approved: { icon: null, title: "", body: "", btn: null },
   };
 
   const cfg = statusBlock[status];
@@ -135,9 +136,8 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
         </Link>
       </div>
 
-      {/* Hero */}
       <div className="relative h-[55vh] min-h-[400px] overflow-hidden">
-        <img src={image} alt={yacht.name} className="w-full h-full object-cover" />
+        <img src={image} alt="Confidential Listing" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
@@ -147,7 +147,6 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
             </div>
           </div>
         </div>
-        {/* Status badge */}
         <div className="absolute top-20 right-6 flex flex-col gap-2 items-end">
           <span className="bg-background/80 backdrop-blur-sm border border-white/10 text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5">{yacht.status}</span>
           {yacht.type && <span className="bg-primary/20 backdrop-blur-sm border border-primary/40 text-primary text-xs font-bold tracking-widest uppercase px-3 py-1.5">{yacht.type}</span>}
@@ -155,17 +154,13 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-10">
-
-        {/* Left: public info */}
         <div className="lg:col-span-2 space-y-6">
           <div>
-            <h1 className="font-display text-5xl md:text-6xl text-white mb-3">{yacht.name}</h1>
             <p className="text-white/40 font-sans text-sm tracking-widest uppercase">
               {[yacht.builder, yacht.year].filter(Boolean).join(" · ")}
             </p>
           </div>
 
-          {/* Public specs */}
           <div className="grid grid-cols-3 gap-px bg-white/5">
             {[
               { icon: <Ruler size={16} />, label: "Length", value: yacht.length || "—" },
@@ -180,11 +175,10 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
             ))}
           </div>
 
-          {/* Hidden data teaser */}
           <div className="border border-white/5 bg-white/2 p-6">
             <p className="text-white/30 text-[10px] uppercase tracking-widest font-sans mb-4">Restricted Information</p>
             <div className="grid grid-cols-2 gap-3">
-              {["Asking Price", "Location", "Full Specifications", "Engine Details", "Accommodation", "Documents & Reports"].map(item => (
+              {["Yacht Name", "Location", "Full Specifications", "Engine Details", "Accommodation", "Documents & Reports"].map(item => (
                 <div key={item} className="flex items-center gap-2 text-white/20 text-sm font-sans">
                   <Lock size={11} className="text-white/15 flex-shrink-0" />
                   <span>{item}</span>
@@ -193,7 +187,6 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
             </div>
           </div>
 
-          {/* Intro request */}
           <div className="border border-white/5 bg-white/2 p-6">
             <div className="flex items-start gap-3">
               <UserPlus size={18} className="text-primary/60 mt-0.5 flex-shrink-0" />
@@ -219,7 +212,6 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
           </div>
         </div>
 
-        {/* Right: access request card */}
         <div>
           <div className="bg-white/3 border border-white/8 p-6 sticky top-24 space-y-4">
             <div className="flex items-center gap-3 mb-2">
@@ -240,13 +232,169 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
   );
 }
 
+/* ─── STATE B: Approved Spec Access (Anonymized Extended View) ─── */
+function ApprovedSpecView({ yacht, units, setUnits }: {
+  yacht: Yacht;
+  units: UnitSystem;
+  setUnits: (u: UnitSystem) => void;
+}) {
+  const M = units === "metric";
+  const image = (yacht as any).main_image || yacht.image || DEFAULT_IMAGE;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="fixed top-6 left-6 z-40">
+        <Link href="/yachts" className="flex items-center gap-2 bg-background/80 backdrop-blur-md border border-white/10 text-white/70 hover:text-primary hover:border-primary/40 px-4 py-2 text-sm font-sans tracking-wider uppercase transition-all">
+          <ArrowLeft size={14} /> Fleet
+        </Link>
+      </div>
+
+      <div className="fixed top-6 right-6 z-40 flex items-center gap-2">
+        <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1.5 text-xs font-bold tracking-widest uppercase">
+          <Eye size={12} /> Spec Access Approved
+        </div>
+      </div>
+
+      <div className="relative h-[45vh] min-h-[350px] overflow-hidden">
+        <img src={image} alt="Confidential Listing" className="w-full h-full object-cover filter blur-[2px]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background/20" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <Lock size={24} className="text-primary/40 mx-auto mb-2" />
+            <p className="text-white/30 font-sans text-xs tracking-widest uppercase">Full gallery available in Deal Room</p>
+          </div>
+        </div>
+        <div className="absolute top-20 right-6 flex flex-col gap-2 items-end">
+          <span className="bg-background/80 backdrop-blur-sm border border-white/10 text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5">{yacht.status}</span>
+          {yacht.type && <span className="bg-primary/20 backdrop-blur-sm border border-primary/40 text-primary text-xs font-bold tracking-widest uppercase px-3 py-1.5">{yacht.type}</span>}
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-2 space-y-8">
+            <div>
+              <p className="text-white/50 font-sans tracking-wide text-lg mb-2">
+                {[yacht.builder, yacht.year, yacht.refit ? `Refit ${yacht.refit}` : null].filter(Boolean).join(" · ")}
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <Info size={13} className="text-blue-400/60" />
+                <p className="text-blue-400/70 text-xs font-sans">Vessel identity and location are disclosed only after Deal Room activation and NDA completion.</p>
+              </div>
+            </div>
+
+            {yacht.description && (
+              <div className="border-l-2 border-primary/40 pl-5">
+                <p className="text-white/65 font-sans leading-relaxed text-base">{yacht.description}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/5">
+              {[
+                { icon: <Ruler size={16} />, label: "Length", value: cvtLength(yacht.length, units) },
+                { icon: <Anchor size={16} />, label: "Draft", value: cvtLength(yacht.draft, units) },
+                { icon: <Bed size={16} />, label: "Cabins", value: yacht.cabins != null ? `${yacht.cabins}` : null },
+                { icon: <Users size={16} />, label: "Crew", value: yacht.crew != null ? `${yacht.crew}` : null },
+              ].map(({ icon, label, value }) => value ? (
+                <div key={label} className="bg-background flex flex-col items-center justify-center gap-1 py-5 text-center">
+                  <span className="text-primary/70">{icon}</span>
+                  <span className="text-white/85 font-sans text-lg font-semibold">{value}</span>
+                  <span className="text-white/35 font-sans text-xs tracking-widest uppercase">{label}</span>
+                </div>
+              ) : null)}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-white/30 text-[10px] uppercase tracking-widest font-sans">Full Technical Specifications</p>
+                <button onClick={() => setUnits(u => u === "metric" ? "imperial" : "metric" as any)} className="flex items-center gap-0 border border-white/10 overflow-hidden hover:border-primary/30 transition-colors">
+                  <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>Metric</span>
+                  <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${!M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>Imperial</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Section title="Dimensions">
+                  <SpecRow label="Length Overall" value={cvtLength(yacht.length, units)} />
+                  <SpecRow label="Beam" value={cvtLength(yacht.beam, units)} />
+                  <SpecRow label="Draft" value={cvtLength(yacht.draft, units)} />
+                  <SpecRow label="Displacement" value={cvtDisp(yacht.displacement, units)} />
+                  <SpecRow label="Gross Tonnage" value={yacht.gross_tonnage ? `${parseNum(String(yacht.gross_tonnage)) ?? yacht.gross_tonnage} GT` : null} />
+                </Section>
+                <Section title="Hull & Construction">
+                  <SpecRow label="Hull Material" value={yacht.hull_material} />
+                  <SpecRow label="Hull Type" value={yacht.hull_type} />
+                  <SpecRow label="Condition" value={yacht.condition} />
+                  <SpecRow label="Year Built" value={yacht.year} />
+                  <SpecRow label="Last Refit" value={yacht.refit} />
+                </Section>
+                <Section title="Performance">
+                  <SpecRow label="Max Speed" value={yacht.max_speed ? `${parseNum(String(yacht.max_speed)) ?? yacht.max_speed} kn` : null} />
+                  <SpecRow label="Cruise Speed" value={yacht.cruise_speed ? `${parseNum(String(yacht.cruise_speed)) ?? yacht.cruise_speed} kn` : null} />
+                  <SpecRow label="Range" value={yacht.range ? `${parseNum(String(yacht.range))?.toLocaleString() ?? yacht.range} nm` : null} />
+                  <SpecRow label="Fuel Type" value={yacht.fuel_type} />
+                  <SpecRow label="Fuel Capacity" value={cvtCapacity(yacht.fuel_capacity, units)} />
+                  <SpecRow label="Water Capacity" value={cvtCapacity(yacht.water_capacity, units)} />
+                </Section>
+                <Section title="Propulsion">
+                  <SpecRow label="Engines" value={yacht.engines} />
+                  <SpecRow label="Engine Count" value={yacht.engine_count} />
+                  <SpecRow label="Horse Power" value={yacht.horse_power ? `${yacht.horse_power} hp` : null} />
+                </Section>
+                <Section title="Accommodation">
+                  <SpecRow label="Guest Cabins" value={yacht.cabins} />
+                  <SpecRow label="Heads / Bathrooms" value={yacht.heads} />
+                  <SpecRow label="Berths" value={yacht.berths} />
+                  <SpecRow label="Crew" value={yacht.crew} />
+                </Section>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white/3 border border-white/8 p-6 sticky top-24 space-y-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye size={16} className="text-blue-400" />
+                <p className="text-white font-display text-base">Approved Access</p>
+              </div>
+              <p className="text-white/50 text-sm font-sans leading-relaxed">
+                You have access to the full anonymized technical specification for this vessel.
+              </p>
+
+              <div className="border border-white/5 bg-white/2 p-4 space-y-2">
+                <p className="text-white/25 text-[10px] uppercase tracking-widest font-sans mb-3">Still Restricted</p>
+                {["Vessel Name", "Current Location", "Full Photo Gallery", "Seller / Broker Identity", "Deal Documents"].map(item => (
+                  <div key={item} className="flex items-center gap-2 text-white/25 text-xs font-sans">
+                    <Lock size={10} className="text-white/15 flex-shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-blue-500/5 border border-blue-500/15 p-4">
+                <p className="text-blue-400/80 text-xs font-sans leading-relaxed">
+                  If you wish to proceed, the admin will open a Deal Room and send NDA documents to both parties. Full access is granted only after both sides sign the NDA.
+                </p>
+              </div>
+
+              <div className="border-t border-white/5 pt-4">
+                <p className="text-white/25 text-[10px] font-sans tracking-widest uppercase">Deal Room will be opened by admin if discussion proceeds.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Component ─── */
 export default function YachtDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user, profile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [yacht, setYacht] = useState<Yacht | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accessStatus, setAccessStatus] = useState<AccessStatus>("none");
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>("none");
   const [accessLoading, setAccessLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [introSent, setIntroSent] = useState(false);
@@ -256,7 +404,7 @@ export default function YachtDetail() {
   const { formatPrice } = useCurrency();
   const M = units === "metric";
 
-  const isAdmin = (profile as any)?.role === "admin";
+  const isAdmin = (userProfile as any)?.role === "admin";
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -272,16 +420,43 @@ export default function YachtDetail() {
 
   const loadAccessStatus = useCallback(async () => {
     if (!user || !id) { setAccessLoading(false); return; }
-    if (isAdmin) { setAccessStatus("approved"); setAccessLoading(false); return; }
-    const { data } = await supabase
+    if (isAdmin) { setAccessLevel("deal_room_active"); setAccessLoading(false); return; }
+
+    const { data: req } = await supabase
       .from("access_requests")
-      .select("status")
+      .select("status, approved_spec_access, deal_room_id")
       .eq("yacht_id", id)
       .eq("requester_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    setAccessStatus(data ? (data.status as AccessStatus) : "none");
+
+    if (!req) { setAccessLevel("none"); setAccessLoading(false); return; }
+
+    if (req.deal_room_id) {
+      const { data: room } = await supabaseAdmin
+        .from("deal_rooms")
+        .select("status")
+        .eq("id", req.deal_room_id)
+        .single();
+      if (room && room.status === "active") {
+        setAccessLevel("deal_room_active");
+        setAccessLoading(false);
+        return;
+      }
+    }
+
+    if (req.status === "approved" || req.status === "approved_spec" || req.approved_spec_access) {
+      setAccessLevel("approved_spec");
+    } else if (req.status === "pending") {
+      setAccessLevel("pending");
+    } else if (req.status === "rejected") {
+      setAccessLevel("rejected");
+    } else if (req.status === "escalated") {
+      setAccessLevel("approved_spec");
+    } else {
+      setAccessLevel("none");
+    }
     setAccessLoading(false);
   }, [user, id, isAdmin]);
 
@@ -304,10 +479,17 @@ export default function YachtDetail() {
     await supabase.from("access_requests").insert([{
       yacht_id: id,
       requester_id: user.id,
-      role: (profile as any)?.role || "investor",
+      role: (userProfile as any)?.role || "investor",
       status: "pending",
     }]);
-    setAccessStatus("pending");
+    await supabaseAdmin.from("audit_logs").insert([{
+      entity_type: "access_request",
+      entity_id: id,
+      user_id: user.id,
+      action: "access_requested",
+      meta: { yacht_id: id },
+    }]);
+    setAccessLevel("pending");
     setRequesting(false);
   }
 
@@ -338,12 +520,12 @@ export default function YachtDetail() {
     );
   }
 
-  /* Show locked view for non-approved users */
-  if (accessStatus !== "approved") {
+  /* STATE A: Locked / Pending / Rejected */
+  if (accessLevel === "none" || accessLevel === "pending" || accessLevel === "rejected") {
     return (
       <LockedView
         yacht={yacht}
-        status={accessStatus}
+        status={accessLevel}
         onRequest={handleRequest}
         requesting={requesting}
         introSent={introSent}
@@ -352,7 +534,18 @@ export default function YachtDetail() {
     );
   }
 
-  /* ─── APPROVED VIEW: Full details ─── */
+  /* STATE B: Approved Spec Access — anonymized extended view */
+  if (accessLevel === "approved_spec") {
+    return (
+      <ApprovedSpecView
+        yacht={yacht}
+        units={units}
+        setUnits={setUnits}
+      />
+    );
+  }
+
+  /* ─── STATE F: FULL ACCESS (Deal Room Active + NDA signed, or admin) ─── */
   const allPhotos: string[] = (() => {
     const pool: string[] = [];
     if (yacht.photos && yacht.photos.length > 0) pool.push(...yacht.photos);
@@ -367,22 +560,18 @@ export default function YachtDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-
-      {/* Back nav */}
       <div className="fixed top-6 left-6 z-40">
         <Link href="/yachts" className="flex items-center gap-2 bg-background/80 backdrop-blur-md border border-white/10 text-white/70 hover:text-primary hover:border-primary/40 px-4 py-2 text-sm font-sans tracking-wider uppercase transition-all duration-300">
           <ArrowLeft size={14} /> Fleet
         </Link>
       </div>
 
-      {/* Access granted badge */}
       <div className="fixed top-6 right-6 z-40">
         <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-3 py-1.5 text-xs font-bold tracking-widest uppercase">
-          <ShieldCheck size={12} /> Access Granted
+          <ShieldCheck size={12} /> Full Access
         </div>
       </div>
 
-      {/* Hero Gallery */}
       <div className="relative h-[70vh] min-h-[480px] overflow-hidden">
         <img key={allPhotos[idx]} src={allPhotos[idx]} alt={`${yacht.name} — ${idx + 1}`} className="w-full h-full object-cover transition-all duration-500" onClick={() => setLightbox(idx)} style={{ cursor: "zoom-in" }} />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent pointer-events-none" />
@@ -418,11 +607,8 @@ export default function YachtDetail() {
         )}
       </div>
 
-      {/* Main content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-
-          {/* Left */}
           <div className="lg:col-span-2 space-y-8">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -456,7 +642,6 @@ export default function YachtDetail() {
               ) : null)}
             </div>
 
-            {/* Specs */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <p className="text-white/30 text-[10px] uppercase tracking-widest font-sans">Specifications</p>
@@ -504,7 +689,6 @@ export default function YachtDetail() {
               </div>
             </div>
 
-            {/* Broker Introduction */}
             <div className="border border-white/5 bg-white/2 p-6">
               <div className="flex items-start gap-3">
                 <UserPlus size={18} className="text-primary/60 mt-0.5 flex-shrink-0" />
@@ -523,7 +707,6 @@ export default function YachtDetail() {
             </div>
           </div>
 
-          {/* Right: Price + CTA */}
           <div className="space-y-6">
             <div className="bg-white/3 border border-white/8 p-8 sticky top-24">
               {hasDistressed ? (
@@ -565,7 +748,6 @@ export default function YachtDetail() {
         </div>
       </div>
 
-      {/* Gallery */}
       {allPhotos.length > 1 && (
         <div className="max-w-7xl mx-auto px-6 pb-16">
           <h2 className="font-display text-2xl text-white mb-6 tracking-wide">Gallery</h2>
@@ -580,7 +762,6 @@ export default function YachtDetail() {
         </div>
       )}
 
-      {/* Lightbox */}
       {lightbox !== null && (
         <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center" onClick={() => setLightbox(null)}>
           <button className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-white/60 hover:text-white border border-white/10 hover:border-white/30 transition-all" onClick={() => setLightbox(null)}>

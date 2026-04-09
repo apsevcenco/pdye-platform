@@ -5,14 +5,14 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, FileText, Shield, Lock, Anchor, CheckCircle, Clock,
   Send, Download, AlertTriangle, RefreshCw, ShieldAlert, MessageSquare,
-  Activity, ChevronDown, ChevronUp, Ship,
+  Activity, ChevronDown, ChevronUp, Ship, Eye, Users,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import {
-  type DealFlow, type DealMessage, type DealDocument, type DealActivityLog,
-  DEAL_STATUS_CONFIG, TIMELINE_STEPS,
+  type DealRoom, type DealRoomMessage, type DealRoomDocument, type AuditLog,
+  DEAL_ROOM_STATUS_CONFIG, DEAL_ROOM_TIMELINE,
 } from "@/lib/dealTypes";
 import { NDA_TEXT, TERMS_TEXT, DISCLAIMER_TEXT } from "@/lib/legalText";
 
@@ -20,13 +20,13 @@ type Yacht = { id: string; name: string; builder: string | null; length: string 
 
 export default function DealDetails() {
   const params = useParams<{ id: string }>();
-  const dealId = params.id;
+  const roomId = params.id;
   const { user, userProfile } = useAuth();
-  const [deal, setDeal] = useState<DealFlow | null>(null);
+  const [room, setRoom] = useState<DealRoom | null>(null);
   const [yacht, setYacht] = useState<Yacht | null>(null);
-  const [messages, setMessages] = useState<DealMessage[]>([]);
-  const [documents, setDocuments] = useState<DealDocument[]>([]);
-  const [activity, setActivity] = useState<DealActivityLog[]>([]);
+  const [messages, setMessages] = useState<DealRoomMessage[]>([]);
+  const [documents, setDocuments] = useState<DealRoomDocument[]>([]);
+  const [activity, setActivity] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [msgText, setMsgText] = useState("");
   const [sending, setSending] = useState(false);
@@ -37,92 +37,159 @@ export default function DealDetails() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = userProfile?.role === "admin";
+  const isBuyer = room?.buyer_user_id === user?.id;
+  const isSeller = room?.seller_user_id === user?.id;
+  const mySide = isAdmin ? "admin" : isBuyer ? "buyer" : isSeller ? "seller" : "unknown";
 
   useEffect(() => {
-    if (!user || !dealId) return;
-    loadDeal();
-  }, [user, dealId]);
+    if (!user || !roomId) return;
+    loadRoom();
+  }, [user, roomId]);
 
-  async function loadDeal() {
+  async function loadRoom() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("deals").select("*").eq("id", dealId).single();
-    if (!data || !data.buyer_id) { setLoading(false); return; }
-    setDeal(data as DealFlow);
+    const { data } = await supabaseAdmin.from("deal_rooms").select("*").eq("id", roomId).single();
+    if (!data) { setLoading(false); return; }
+    setRoom(data as DealRoom);
 
     const { data: y } = await supabase.from("yachts").select("id, name, builder, length, year, main_image, image").eq("id", data.yacht_id).single();
     if (y) setYacht(y as Yacht);
 
-    if (data.deal_room_enabled || isAdmin) {
+    if (data.status === "active" || isAdmin) {
       const { data: msgs } = await supabaseAdmin
-        .from("deal_messages")
+        .from("deal_room_messages")
         .select("*")
-        .eq("deal_id", dealId)
+        .eq("deal_room_id", roomId)
         .order("created_at", { ascending: true });
-      setMessages((msgs as DealMessage[]) || []);
+      setMessages((msgs as DealRoomMessage[]) || []);
 
       const { data: docs } = await supabaseAdmin
-        .from("deal_documents")
+        .from("deal_room_documents")
         .select("*")
-        .eq("deal_id", dealId)
+        .eq("deal_room_id", roomId)
         .order("created_at", { ascending: false });
-      setDocuments((docs as DealDocument[]) || []);
+      setDocuments((docs as DealRoomDocument[]) || []);
     }
 
     if (isAdmin) {
       const { data: logs } = await supabaseAdmin
-        .from("deal_activity_logs")
+        .from("audit_logs")
         .select("*")
-        .eq("deal_id", dealId)
+        .eq("entity_type", "deal_room")
+        .eq("entity_id", roomId)
         .order("created_at", { ascending: false });
-      setActivity((logs as DealActivityLog[]) || []);
+      setActivity((logs as AuditLog[]) || []);
     }
 
     setLoading(false);
   }
 
-  async function acceptNda() {
-    if (!deal || !user) return;
+  async function signNda() {
+    if (!room || !user) return;
+    if (mySide !== "buyer" && mySide !== "seller") return;
     setAcceptingNda(true);
-
     const now = new Date().toISOString();
 
-    await supabaseAdmin.from("deals").update({
-      nda_accepted: true,
-      nda_accepted_at: now,
-      terms_accepted: true,
-      terms_accepted_at: now,
-      status: "nda_signed",
-      updated_at: now,
-    }).eq("id", deal.id);
+    const updates: Record<string, any> = { updated_at: now };
+    if (isBuyer) {
+      updates.buyer_nda_status = "signed";
+      updates.buyer_nda_signed_at = now;
+    }
+    if (isSeller) {
+      updates.seller_nda_status = "signed";
+      updates.seller_nda_signed_at = now;
+    }
 
-    await supabaseAdmin.from("nda_acceptance_logs").insert([{
-      deal_id: deal.id,
+    await supabaseAdmin.from("deal_rooms").update(updates).eq("id", room.id);
+
+    await supabaseAdmin.from("nda_envelopes").insert([{
+      deal_room_id: room.id,
       user_id: user.id,
-      document_version: "v1",
-      accepted: true,
-      accepted_at: now,
+      side: mySide,
+      provider: "internal",
+      status: "signed",
+      signed_at: now,
+      completed_at: now,
     }]);
 
-    await supabaseAdmin.from("deal_activity_logs").insert([
-      { deal_id: deal.id, user_id: user.id, action: "nda_accepted", meta: {} },
-      { deal_id: deal.id, user_id: user.id, action: "terms_accepted", meta: {} },
-    ]);
+    await supabaseAdmin.from("audit_logs").insert([{
+      entity_type: "deal_room",
+      entity_id: room.id,
+      user_id: user.id,
+      action: "nda_signed",
+      meta: { side: mySide },
+    }]);
+
+    await supabaseAdmin.from("deal_room_messages").insert([{
+      deal_room_id: room.id,
+      sender_id: user.id,
+      message: `NDA signed by ${mySide} party.`,
+      is_system: true,
+    }]);
+
+    const { data: refreshed } = await supabaseAdmin.from("deal_rooms").select("*").eq("id", room.id).single();
+    if (refreshed) {
+      const buyerSigned = refreshed.buyer_nda_status === "signed";
+      const sellerSigned = refreshed.seller_nda_status === "signed";
+
+      if (buyerSigned && sellerSigned && refreshed.status !== "active") {
+        await supabaseAdmin.from("deal_rooms").update({
+          status: "active",
+          fully_activated_at: now,
+          updated_at: now,
+        }).eq("id", room.id);
+
+        await supabaseAdmin.from("deal_room_participants").update({
+          can_view: true,
+          can_message: true,
+          can_download: true,
+        }).eq("deal_room_id", room.id);
+
+        await supabaseAdmin.from("audit_logs").insert([{
+          entity_type: "deal_room",
+          entity_id: room.id,
+          user_id: user.id,
+          action: "deal_room_activated",
+          meta: {
+            yacht_id: room.yacht_id,
+            buyer_id: room.buyer_user_id,
+            seller_id: room.seller_user_id,
+            buyer_nda_signed_at: refreshed.buyer_nda_signed_at,
+            seller_nda_signed_at: refreshed.seller_nda_signed_at,
+            activated_at: now,
+          },
+        }]);
+
+        await supabaseAdmin.from("deal_room_messages").insert([{
+          deal_room_id: room.id,
+          sender_id: user.id,
+          message: "Deal room activated after NDA completion by both parties. Full access is now available.",
+          is_system: true,
+        }]);
+      } else if (buyerSigned !== sellerSigned) {
+        await supabaseAdmin.from("deal_rooms").update({
+          status: "partially_signed",
+          updated_at: now,
+        }).eq("id", room.id);
+      }
+    }
 
     setAcceptingNda(false);
-    loadDeal();
+    loadRoom();
   }
 
   async function sendMessage() {
-    if (!msgText.trim() || !deal || !user) return;
+    if (!msgText.trim() || !room || !user) return;
     setSending(true);
-    await supabaseAdmin.from("deal_messages").insert([{
-      deal_id: deal.id,
+    await supabaseAdmin.from("deal_room_messages").insert([{
+      deal_room_id: room.id,
       sender_id: user.id,
       message: msgText.trim(),
       is_system: false,
     }]);
-    await supabaseAdmin.from("deal_activity_logs").insert([{
-      deal_id: deal.id,
+    await supabaseAdmin.from("audit_logs").insert([{
+      entity_type: "deal_room",
+      entity_id: room.id,
       user_id: user.id,
       action: "message_sent",
       meta: {},
@@ -130,11 +197,11 @@ export default function DealDetails() {
     setMsgText("");
     setSending(false);
     const { data: msgs } = await supabaseAdmin
-      .from("deal_messages")
+      .from("deal_room_messages")
       .select("*")
-      .eq("deal_id", deal.id)
+      .eq("deal_room_id", room.id)
       .order("created_at", { ascending: true });
-    setMessages((msgs as DealMessage[]) || []);
+    setMessages((msgs as DealRoomMessage[]) || []);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }
 
@@ -144,7 +211,7 @@ export default function DealDetails() {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <Lock size={32} className="text-primary mx-auto mb-4" />
-            <p className="text-white/50 font-sans">Please log in to access this deal.</p>
+            <p className="text-white/50 font-sans">Please log in to access this deal room.</p>
           </div>
         </div>
       </Layout>
@@ -161,24 +228,25 @@ export default function DealDetails() {
     );
   }
 
-  if (!deal) {
+  if (!room) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <ShieldAlert size={32} className="text-primary mx-auto mb-4" />
-            <p className="text-white font-display text-xl mb-2">Deal Not Found</p>
-            <Link href="/dealroom" className="text-primary text-sm hover:underline">Back to Deal Room</Link>
+            <p className="text-white font-display text-xl mb-2">Deal Room Not Found</p>
+            <Link href="/dealroom" className="text-primary text-sm hover:underline">Back to Opportunities</Link>
           </div>
         </div>
       </Layout>
     );
   }
 
-  const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
+  const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
   const currentStep = cfg.step;
-  const showNdaForm = deal.status === "nda_pending" && !isAdmin;
-  const showDealRoom = deal.deal_room_enabled || isAdmin;
+  const myNdaStatus = isBuyer ? room.buyer_nda_status : isSeller ? room.seller_nda_status : "n/a";
+  const showNdaForm = (room.status === "nda_pending" || room.status === "partially_signed" || room.status === "draft") && myNdaStatus !== "signed" && !isAdmin;
+  const showDealRoom = room.status === "active" || isAdmin;
 
   return (
     <Layout>
@@ -186,7 +254,7 @@ export default function DealDetails() {
         <div className="max-w-5xl mx-auto px-6 md:px-10">
           <Link href="/dealroom">
             <div className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-8 cursor-pointer text-sm font-sans">
-              <ArrowLeft size={14} /> Back to Deal Room
+              <ArrowLeft size={14} /> Back to Opportunities
             </div>
           </Link>
 
@@ -194,30 +262,23 @@ export default function DealDetails() {
             <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
               <div>
                 <h1 className="font-display text-3xl text-white mb-2">
-                  {yacht?.name || "Vessel"}
+                  {room.status === "active" || isAdmin ? yacht?.name || "Vessel" : `${yacht?.builder || "Vessel"} · ${yacht?.year || ""}`}
                 </h1>
                 <p className="text-white/40 text-sm font-sans">
-                  {[yacht?.builder, yacht?.length ? `${yacht.length}m` : null, yacht?.year].filter(Boolean).join(" · ")}
+                  {room.status === "active" || isAdmin
+                    ? [yacht?.builder, yacht?.length ? `${yacht.length}m` : null, yacht?.year].filter(Boolean).join(" · ")
+                    : "Vessel identity disclosed after Deal Room activation"
+                  }
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border ${cfg.color} border-current/20 bg-black/30`}>
                   {cfg.label}
                 </span>
-                {deal.nda_accepted && (
-                  <span className="text-[10px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-1 flex items-center gap-1">
-                    <FileText size={9} /> NDA Signed
-                  </span>
-                )}
-                {deal.intro_locked && (
-                  <span className="text-[10px] text-cyan-400 border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 flex items-center gap-1">
-                    <Lock size={9} /> Intro Locked
-                  </span>
-                )}
               </div>
             </div>
             <p className="text-white/20 text-xs font-sans">
-              Deal created {new Date(deal.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+              Deal room created {new Date(room.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
             </p>
           </motion.div>
 
@@ -225,7 +286,45 @@ export default function DealDetails() {
             <p className="text-primary/80 text-xs font-sans">{DISCLAIMER_TEXT.slice(0, 200)}...</p>
           </div>
 
-          <StatusTimeline currentStep={currentStep} dealStatus={deal.status} />
+          <RoomTimeline currentStep={currentStep} status={room.status} />
+
+          <div className="bg-[#0f1d33] border border-white/8 p-6 mb-8">
+            <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Shield size={13} /> NDA Status
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm font-sans">
+              <div>
+                <p className="text-white/30 text-xs mb-1">Buyer NDA</p>
+                <p className={room.buyer_nda_status === "signed" ? "text-green-400" : room.buyer_nda_status === "sent" ? "text-orange-400" : "text-white/30"}>
+                  {room.buyer_nda_status === "signed" ? "Signed" : room.buyer_nda_status === "sent" ? "Sent" : "Not Sent"}
+                </p>
+                {room.buyer_nda_signed_at && (
+                  <p className="text-white/15 text-[10px] mt-0.5">{new Date(room.buyer_nda_signed_at).toLocaleDateString("en-GB")}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-white/30 text-xs mb-1">Seller NDA</p>
+                <p className={room.seller_nda_status === "signed" ? "text-green-400" : room.seller_nda_status === "sent" ? "text-orange-400" : "text-white/30"}>
+                  {room.seller_nda_status === "signed" ? "Signed" : room.seller_nda_status === "sent" ? "Sent" : "Not Sent"}
+                </p>
+                {room.seller_nda_signed_at && (
+                  <p className="text-white/15 text-[10px] mt-0.5">{new Date(room.seller_nda_signed_at).toLocaleDateString("en-GB")}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-white/30 text-xs mb-1">Room Status</p>
+                <p className={room.status === "active" ? "text-green-400" : "text-white/40"}>
+                  {room.status === "active" ? "Active" : room.status.replace(/_/g, " ")}
+                </p>
+              </div>
+              <div>
+                <p className="text-white/30 text-xs mb-1">Activated</p>
+                <p className={room.fully_activated_at ? "text-green-400" : "text-white/30"}>
+                  {room.fully_activated_at ? new Date(room.fully_activated_at).toLocaleDateString("en-GB") : "Pending"}
+                </p>
+              </div>
+            </div>
+          </div>
 
           {showNdaForm && (
             <NdaSection
@@ -233,24 +332,24 @@ export default function DealDetails() {
               termsCheck={termsCheck}
               onNdaChange={setNdaCheck}
               onTermsChange={setTermsCheck}
-              onAccept={acceptNda}
+              onAccept={signNda}
               accepting={acceptingNda}
             />
           )}
 
-          {deal.status === "pending_admin_review" && !isAdmin && (
-            <div className="bg-yellow-500/5 border border-yellow-500/20 p-8 text-center mb-8">
-              <Clock size={28} className="text-yellow-400 mx-auto mb-3" />
-              <h3 className="font-display text-xl text-white mb-2">Awaiting Admin Review</h3>
-              <p className="text-white/50 text-sm font-sans">Your request is being reviewed. You will be notified once it's processed.</p>
+          {myNdaStatus === "signed" && room.status !== "active" && !isAdmin && (
+            <div className="bg-cyan-500/5 border border-cyan-500/20 p-8 text-center mb-8">
+              <Shield size={28} className="text-cyan-400 mx-auto mb-3" />
+              <h3 className="font-display text-xl text-white mb-2">NDA Signed — Awaiting Other Party</h3>
+              <p className="text-white/50 text-sm font-sans">Your NDA has been signed. The deal room will activate once the other party also signs.</p>
             </div>
           )}
 
-          {deal.status === "nda_signed" && !deal.intro_locked && !isAdmin && (
-            <div className="bg-cyan-500/5 border border-cyan-500/20 p-8 text-center mb-8">
-              <Shield size={28} className="text-cyan-400 mx-auto mb-3" />
-              <h3 className="font-display text-xl text-white mb-2">NDA Accepted — Awaiting Introduction</h3>
-              <p className="text-white/50 text-sm font-sans">Your NDA has been signed. The admin will now process the formal introduction with the broker.</p>
+          {room.status === "draft" && !isAdmin && myNdaStatus === "not_sent" && (
+            <div className="bg-yellow-500/5 border border-yellow-500/20 p-8 text-center mb-8">
+              <Clock size={28} className="text-yellow-400 mx-auto mb-3" />
+              <h3 className="font-display text-xl text-white mb-2">Deal Room Created</h3>
+              <p className="text-white/50 text-sm font-sans">The admin has created this deal room. NDA documents will be sent shortly.</p>
             </div>
           )}
 
@@ -296,7 +395,7 @@ export default function DealDetails() {
                 </div>
                 <div className="max-h-80 overflow-y-auto p-6 space-y-4">
                   {messages.length === 0 ? (
-                    <p className="text-white/30 text-sm font-sans text-center py-4">No messages yet. Start the conversation.</p>
+                    <p className="text-white/30 text-sm font-sans text-center py-4">No messages yet.</p>
                   ) : (
                     messages.map(msg => {
                       const isOwn = msg.sender_id === user?.id;
@@ -315,57 +414,24 @@ export default function DealDetails() {
                   )}
                   <div ref={messagesEndRef} />
                 </div>
-                <div className="border-t border-white/5 p-4 flex gap-3">
-                  <input
-                    value={msgText}
-                    onChange={e => setMsgText(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-white/5 border border-white/10 px-4 py-2.5 text-white text-sm font-sans focus:outline-none focus:border-primary/40"
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={sending || !msgText.trim()}
-                    className="bg-primary text-background px-5 py-2.5 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 transition-colors flex items-center gap-2"
-                  >
-                    <Send size={12} /> Send
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-[#0f1d33] border border-white/8 p-6">
-                <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Shield size={13} /> Deal Details
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm font-sans">
-                  <div>
-                    <p className="text-white/30 text-xs mb-1">NDA Status</p>
-                    <p className={deal.nda_accepted ? "text-green-400" : "text-yellow-400"}>
-                      {deal.nda_accepted ? "Accepted" : "Pending"}
-                    </p>
-                    {deal.nda_accepted_at && (
-                      <p className="text-white/20 text-[10px] mt-0.5">{new Date(deal.nda_accepted_at).toLocaleDateString("en-GB")}</p>
-                    )}
+                {room.status === "active" && (
+                  <div className="border-t border-white/5 p-4 flex gap-3">
+                    <input
+                      value={msgText}
+                      onChange={e => setMsgText(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                      placeholder="Type a message..."
+                      className="flex-1 bg-white/5 border border-white/10 px-4 py-2.5 text-white text-sm font-sans focus:outline-none focus:border-primary/40"
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={sending || !msgText.trim()}
+                      className="bg-primary text-background px-5 py-2.5 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 transition-colors flex items-center gap-2"
+                    >
+                      <Send size={12} /> Send
+                    </button>
                   </div>
-                  <div>
-                    <p className="text-white/30 text-xs mb-1">Terms Status</p>
-                    <p className={deal.terms_accepted ? "text-green-400" : "text-yellow-400"}>
-                      {deal.terms_accepted ? "Accepted" : "Pending"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-white/30 text-xs mb-1">Intro Locked</p>
-                    <p className={deal.intro_locked ? "text-cyan-400" : "text-white/40"}>
-                      {deal.intro_locked ? "Yes" : "No"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-white/30 text-xs mb-1">Deal Room</p>
-                    <p className={deal.deal_room_enabled ? "text-green-400" : "text-white/40"}>
-                      {deal.deal_room_enabled ? "Enabled" : "Disabled"}
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -374,7 +440,7 @@ export default function DealDetails() {
             <div className="mt-8 bg-[#0f1d33] border border-white/8">
               <button onClick={() => setShowActivity(!showActivity)} className="w-full px-6 py-4 flex items-center justify-between border-b border-white/5 hover:bg-white/2 transition-colors">
                 <p className="text-white/70 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Activity size={13} /> Activity Log ({activity.length})
+                  <Activity size={13} /> Audit Log ({activity.length})
                 </p>
                 {showActivity ? <ChevronUp size={14} className="text-white/30" /> : <ChevronDown size={14} className="text-white/30" />}
               </button>
@@ -392,22 +458,160 @@ export default function DealDetails() {
               )}
             </div>
           )}
+
+          {isAdmin && (
+            <AdminRoomControls room={room} onReload={loadRoom} />
+          )}
         </div>
       </div>
     </Layout>
   );
 }
 
-function StatusTimeline({ currentStep, dealStatus }: { currentStep: number; dealStatus: string }) {
-  const isTerminal = dealStatus === "rejected" || dealStatus === "cancelled";
+function AdminRoomControls({ room, onReload }: { room: DealRoom; onReload: () => void }) {
+  const { user } = useAuth();
+  const [sending, setSending] = useState(false);
+
+  async function sendNda() {
+    setSending(true);
+    const now = new Date().toISOString();
+
+    const updates: Record<string, any> = { updated_at: now };
+    if (room.buyer_nda_status === "not_sent") {
+      updates.buyer_nda_status = "sent";
+      updates.buyer_nda_sent_at = now;
+    }
+    if (room.seller_nda_status === "not_sent" && room.seller_user_id) {
+      updates.seller_nda_status = "sent";
+      updates.seller_nda_sent_at = now;
+    }
+    if (room.status === "draft") {
+      updates.status = "nda_pending";
+    }
+
+    await supabaseAdmin.from("deal_rooms").update(updates).eq("id", room.id);
+
+    const envelopes = [];
+    if (room.buyer_user_id && room.buyer_nda_status === "not_sent") {
+      envelopes.push({
+        deal_room_id: room.id,
+        user_id: room.buyer_user_id,
+        side: "buyer",
+        provider: "internal",
+        status: "sent",
+        sent_at: now,
+        document_name: "PDYE NDA v1",
+      });
+    }
+    if (room.seller_user_id && room.seller_nda_status === "not_sent") {
+      envelopes.push({
+        deal_room_id: room.id,
+        user_id: room.seller_user_id,
+        side: "seller",
+        provider: "internal",
+        status: "sent",
+        sent_at: now,
+        document_name: "PDYE NDA v1",
+      });
+    }
+    if (envelopes.length > 0) {
+      await supabaseAdmin.from("nda_envelopes").insert(envelopes);
+    }
+
+    await supabaseAdmin.from("audit_logs").insert([{
+      entity_type: "deal_room",
+      entity_id: room.id,
+      user_id: user?.id,
+      action: "nda_sent",
+      meta: { buyer: room.buyer_user_id, seller: room.seller_user_id },
+    }]);
+
+    await supabaseAdmin.from("deal_room_messages").insert([{
+      deal_room_id: room.id,
+      sender_id: user?.id || "",
+      message: "NDA documents have been sent to both parties for review and signature.",
+      is_system: true,
+    }]);
+
+    setSending(false);
+    onReload();
+  }
+
+  async function closeRoom() {
+    if (!confirm("Close this deal room?")) return;
+    const now = new Date().toISOString();
+    await supabaseAdmin.from("deal_rooms").update({ status: "closed", updated_at: now }).eq("id", room.id);
+    await supabaseAdmin.from("audit_logs").insert([{
+      entity_type: "deal_room",
+      entity_id: room.id,
+      user_id: user?.id,
+      action: "deal_room_closed",
+      meta: {},
+    }]);
+    onReload();
+  }
+
+  async function cancelRoom() {
+    if (!confirm("Cancel this deal room? This cannot be undone.")) return;
+    const now = new Date().toISOString();
+    await supabaseAdmin.from("deal_rooms").update({ status: "cancelled", updated_at: now }).eq("id", room.id);
+    await supabaseAdmin.from("audit_logs").insert([{
+      entity_type: "deal_room",
+      entity_id: room.id,
+      user_id: user?.id,
+      action: "deal_room_cancelled",
+      meta: {},
+    }]);
+    onReload();
+  }
+
+  const canSendNda = room.status === "draft" && (room.buyer_nda_status === "not_sent" || (room.seller_user_id && room.seller_nda_status === "not_sent"));
+
+  return (
+    <div className="mt-8 bg-[#0f1d33] border border-white/8 p-6">
+      <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+        <Users size={13} /> Admin Controls
+      </h3>
+      <div className="flex flex-wrap gap-3">
+        {canSendNda && (
+          <button
+            onClick={sendNda}
+            disabled={sending}
+            className="flex items-center gap-2 bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-40"
+          >
+            {sending ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
+            Send NDA to Both Parties
+          </button>
+        )}
+        {room.status !== "closed" && room.status !== "cancelled" && (
+          <>
+            <button
+              onClick={closeRoom}
+              className="flex items-center gap-2 border border-white/10 text-white/40 hover:text-white hover:border-white/30 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors"
+            >
+              Close Room
+            </button>
+            <button
+              onClick={cancelRoom}
+              className="flex items-center gap-2 border border-red-500/20 text-red-400/60 hover:text-red-400 hover:border-red-500/40 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors"
+            >
+              Cancel Room
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RoomTimeline({ currentStep, status }: { currentStep: number; status: string }) {
+  const isTerminal = status === "cancelled";
 
   return (
     <div className="mb-8 bg-[#0f1d33] border border-white/8 p-6">
-      <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-6">Deal Progress</h3>
+      <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-6">Deal Room Progress</h3>
       <div className="flex items-center gap-0 overflow-x-auto pb-2">
-        {TIMELINE_STEPS.map((step, i) => {
-          const isActive = currentStep >= step.key === "closed" ? 7 : i;
-          const isCurrent = currentStep === (step.key === "closed" ? 7 : i);
+        {DEAL_ROOM_TIMELINE.map((step, i) => {
           const stepNum = i;
           const reached = currentStep >= stepNum;
 
@@ -425,7 +629,7 @@ function StatusTimeline({ currentStep, dealStatus }: { currentStep: number; deal
                   {step.label}
                 </p>
               </div>
-              {i < TIMELINE_STEPS.length - 1 && (
+              {i < DEAL_ROOM_TIMELINE.length - 1 && (
                 <div className={`w-8 h-0.5 mx-1 mt-[-12px] ${reached && currentStep > stepNum ? "bg-primary" : "bg-white/10"}`} />
               )}
             </div>
@@ -435,7 +639,7 @@ function StatusTimeline({ currentStep, dealStatus }: { currentStep: number; deal
       {isTerminal && (
         <div className="mt-4 flex items-center gap-2 text-red-400 text-xs font-sans">
           <AlertTriangle size={12} />
-          This deal has been {dealStatus}.
+          This deal room has been cancelled.
         </div>
       )}
     </div>
@@ -489,7 +693,7 @@ function NdaSection({ ndaCheck, termsCheck, onNdaChange, onTermsChange, onAccept
         {accepting ? (
           <><RefreshCw size={14} className="animate-spin" /> Processing...</>
         ) : (
-          <><CheckCircle size={14} /> Accept & Continue</>
+          <><CheckCircle size={14} /> Sign NDA & Accept Terms</>
         )}
       </button>
     </div>

@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { Layout } from "@/components/layout/Layout";
-import { type DealFlow, DEAL_STATUS_CONFIG } from "@/lib/dealTypes";
+import type { DealRoom } from "@/lib/dealTypes";
 import {
   User, Clock, CheckCircle, XCircle, Ship, Plus, TrendingUp,
   LayoutDashboard, ArrowRight, FileText, Lock, ShieldCheck,
@@ -16,7 +16,7 @@ import {
 type AccessRequest = {
   id: string;
   yacht_id: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "approved_spec" | "escalated" | "rejected" | "archived";
   created_at: string;
   yacht_name?: string;
 };
@@ -37,9 +37,11 @@ type MyYacht = {
 
 /* ─── Status helpers ─── */
 const REQ_STATUS: Record<string, { label: string; icon: React.ReactNode; style: string }> = {
-  pending:  { label: "Under Review", icon: <Clock size={11} />,       style: "text-yellow-400 border-yellow-500/20 bg-yellow-500/8" },
-  approved: { label: "Approved",     icon: <CheckCircle size={11} />, style: "text-green-400  border-green-500/20  bg-green-500/8" },
-  rejected: { label: "Declined",     icon: <XCircle size={11} />,     style: "text-red-400    border-red-500/20    bg-red-500/8" },
+  pending:       { label: "Under Review",    icon: <Clock size={11} />,       style: "text-yellow-400 border-yellow-500/20 bg-yellow-500/8" },
+  approved:      { label: "Spec Access",     icon: <Eye size={11} />,         style: "text-blue-400   border-blue-500/20  bg-blue-500/8" },
+  approved_spec: { label: "Spec Access",     icon: <Eye size={11} />,         style: "text-blue-400   border-blue-500/20  bg-blue-500/8" },
+  rejected:      { label: "Declined",        icon: <XCircle size={11} />,     style: "text-red-400    border-red-500/20    bg-red-500/8" },
+  escalated:     { label: "In Deal Room",    icon: <CheckCircle size={11} />, style: "text-green-400  border-green-500/20  bg-green-500/8" },
 };
 
 const DEAL_STATUS: Record<string, { label: string; style: string }> = {
@@ -89,16 +91,18 @@ function BuyerDashboard({ userId }: { userId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const approved = requests.filter(r => r.status === "approved");
+  const specAccess = requests.filter(r => r.status === "approved" || r.status === "approved_spec");
+  const inDealRoom = requests.filter(r => r.status === "escalated");
 
   return (
     <div className="space-y-6">
       {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-px bg-white/5">
+      <div className="grid grid-cols-4 gap-px bg-white/5">
         {[
-          { label: "Total Requests", value: requests.length, icon: <FileText size={16} /> },
+          { label: "Total Requests", value: requests.length, icon: <Ship size={16} /> },
           { label: "Under Review",   value: requests.filter(r => r.status === "pending").length, icon: <Clock size={16} /> },
-          { label: "Access Granted", value: approved.length, icon: <CheckCircle size={16} /> },
+          { label: "Spec Access",    value: specAccess.length, icon: <Eye size={16} /> },
+          { label: "In Deal Room",   value: inDealRoom.length, icon: <CheckCircle size={16} /> },
         ].map(s => (
           <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-6 text-center">
             <span className="text-primary/60">{s.icon}</span>
@@ -141,9 +145,14 @@ function BuyerDashboard({ userId }: { userId: string }) {
                     <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.style}`}>
                       {cfg.icon} {cfg.label}
                     </span>
-                    {req.status === "approved" && (
-                      <Link href={`/yacht/${req.yacht_id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
-                        View <ChevronRight size={11} />
+                    {(req.status === "approved" || req.status === "approved_spec") && (
+                      <Link href={`/yacht/${req.yacht_id}`} className="flex items-center gap-1 text-blue-400 text-xs font-bold uppercase tracking-wider hover:underline">
+                        View Specs <ChevronRight size={11} />
+                      </Link>
+                    )}
+                    {req.status === "escalated" && (
+                      <Link href="/dealroom" className="flex items-center gap-1 text-green-400 text-xs font-bold uppercase tracking-wider hover:underline">
+                        Deal Room <ChevronRight size={11} />
                       </Link>
                     )}
                   </div>
@@ -154,7 +163,7 @@ function BuyerDashboard({ userId }: { userId: string }) {
         )}
       </Block>
 
-      <MyDealsSection userId={userId} />
+      <MyDealRoomsSection userId={userId} />
 
       <Link href="/dealroom">
         <div className="bg-primary/5 border border-primary/20 p-6 flex items-center justify-between cursor-pointer hover:bg-primary/8 transition-colors">
@@ -171,57 +180,64 @@ function BuyerDashboard({ userId }: { userId: string }) {
   );
 }
 
-function MyDealsSection({ userId }: { userId: string }) {
-  const [deals, setDeals] = useState<(DealFlow & { yacht_name?: string })[]>([]);
+function MyDealRoomsSection({ userId }: { userId: string }) {
+  const [rooms, setRooms] = useState<{ id: string; yacht_id: string; status: string; buyer_nda_status: string; seller_nda_status: string; created_at: string; yacht_name?: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadDeals() {
+    async function loadRooms() {
       const { data } = await supabaseAdmin
-        .from("deals")
-        .select("*")
-        .eq("buyer_id", userId)
-        .not("status", "in", '("cancelled","rejected")')
+        .from("deal_rooms")
+        .select("id, yacht_id, status, buyer_nda_status, seller_nda_status, created_at")
+        .or(`buyer_user_id.eq.${userId},seller_user_id.eq.${userId}`)
+        .not("status", "in", '("cancelled")')
         .order("created_at", { ascending: false });
 
-      const flowDeals = ((data || []) as DealFlow[]).filter(d => d.buyer_id != null);
-
-      if (flowDeals.length > 0) {
-        const yachtIds = [...new Set(flowDeals.map(d => d.yacht_id))];
+      const allRooms = data || [];
+      if (allRooms.length > 0) {
+        const yachtIds = [...new Set(allRooms.map((r: any) => r.yacht_id))];
         const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
         const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
-        setDeals(flowDeals.map(d => ({ ...d, yacht_name: yachtMap[d.yacht_id] || "Unknown" })));
+        setRooms(allRooms.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
       }
       setLoading(false);
     }
-    loadDeals();
+    loadRooms();
   }, [userId]);
 
-  if (loading || deals.length === 0) return null;
+  if (loading || rooms.length === 0) return null;
+
+  const ROOM_STYLE: Record<string, { label: string; color: string }> = {
+    draft:            { label: "Draft",            color: "text-white/40 border-white/10" },
+    nda_pending:      { label: "NDA Pending",      color: "text-orange-400 border-orange-500/20" },
+    partially_signed: { label: "Partially Signed", color: "text-yellow-400 border-yellow-500/20" },
+    active:           { label: "Active",           color: "text-green-400 border-green-500/20" },
+    closed:           { label: "Closed",           color: "text-white/30 border-white/10" },
+  };
 
   return (
-    <Block title="My Deals">
+    <Block title="My Deal Rooms">
       <div className="divide-y divide-white/5">
-        {deals.map(deal => {
-          const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
-          const needsAction = deal.status === "nda_pending";
+        {rooms.map(room => {
+          const cfg = ROOM_STYLE[room.status] || ROOM_STYLE.draft;
+          const needsNda = room.status === "nda_pending" || room.status === "partially_signed";
           return (
-            <div key={deal.id} className="flex items-center justify-between px-6 py-4">
+            <div key={room.id} className="flex items-center justify-between px-6 py-4">
               <div>
-                <p className="text-white text-sm font-medium">{deal.yacht_name}</p>
-                <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(deal.created_at).toLocaleDateString("en-GB")}</p>
+                <p className="text-white text-sm font-medium">{room.yacht_name}</p>
+                <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color} border-current/20`}>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color}`}>
                   {cfg.label}
                 </span>
-                {needsAction && (
-                  <Link href={`/dealroom/${deal.id}`} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
+                {needsNda && (
+                  <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
                     Sign NDA <ChevronRight size={11} />
                   </Link>
                 )}
-                {deal.deal_room_enabled && (
-                  <Link href={`/dealroom/${deal.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                {room.status === "active" && (
+                  <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
                     Open Room <ChevronRight size={11} />
                   </Link>
                 )}
@@ -372,63 +388,57 @@ function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
         )}
       </Block>
 
-      {role === "broker" && <BrokerDealsSection userId={userId} />}
+      {role === "broker" && <BrokerDealRoomsSection userId={userId} />}
     </div>
   );
 }
 
-function BrokerDealsSection({ userId }: { userId: string }) {
-  const [deals, setDeals] = useState<(DealFlow & { yacht_name?: string })[]>([]);
+function BrokerDealRoomsSection({ userId }: { userId: string }) {
+  const [rooms, setRooms] = useState<{ id: string; yacht_id: string; status: string; created_at: string; yacht_name?: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       const { data } = await supabaseAdmin
-        .from("deals")
-        .select("*")
-        .eq("broker_id", userId)
-        .not("status", "in", '("cancelled","rejected")')
+        .from("deal_rooms")
+        .select("id, yacht_id, status, created_at")
+        .eq("seller_user_id", userId)
+        .not("status", "in", '("cancelled")')
         .order("created_at", { ascending: false });
 
-      const flowDeals = ((data || []) as DealFlow[]).filter(d => d.buyer_id != null);
-
-      if (flowDeals.length > 0) {
-        const yachtIds = [...new Set(flowDeals.map(d => d.yacht_id))];
+      const allRooms = data || [];
+      if (allRooms.length > 0) {
+        const yachtIds = [...new Set(allRooms.map((r: any) => r.yacht_id))];
         const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
         const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
-        setDeals(flowDeals.map(d => ({ ...d, yacht_name: yachtMap[d.yacht_id] || "Unknown" })));
+        setRooms(allRooms.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
       }
       setLoading(false);
     }
     load();
   }, [userId]);
 
-  if (loading || deals.length === 0) return null;
+  if (loading || rooms.length === 0) return null;
 
   return (
-    <Block title="Assigned Deals">
+    <Block title="Deal Rooms (as Seller)">
       <div className="divide-y divide-white/5">
-        {deals.map(deal => {
-          const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
-          return (
-            <div key={deal.id} className="flex items-center justify-between px-6 py-4">
-              <div>
-                <p className="text-white text-sm font-medium">{deal.yacht_name}</p>
-                <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(deal.created_at).toLocaleDateString("en-GB")}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color} border-current/20`}>
-                  {cfg.label}
-                </span>
-                {deal.deal_room_enabled && (
-                  <Link href={`/dealroom/${deal.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
-                    Open <ChevronRight size={11} />
-                  </Link>
-                )}
-              </div>
+        {rooms.map(room => (
+          <div key={room.id} className="flex items-center justify-between px-6 py-4">
+            <div>
+              <p className="text-white text-sm font-medium">{room.yacht_name}</p>
+              <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
             </div>
-          );
-        })}
+            <div className="flex items-center gap-3">
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${room.status === "active" ? "text-green-400 border-green-500/20" : "text-white/40 border-white/10"}`}>
+                {room.status.replace(/_/g, " ")}
+              </span>
+              <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                Open <ChevronRight size={11} />
+              </Link>
+            </div>
+          </div>
+        ))}
       </div>
     </Block>
   );

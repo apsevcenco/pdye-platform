@@ -2,21 +2,33 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
-import { Lock, ArrowRight, ShieldAlert, Anchor, RefreshCw, Ship, Clock, CheckCircle, FileText, AlertTriangle } from "lucide-react";
+import {
+  Lock, ArrowRight, ShieldAlert, Anchor, RefreshCw, Ship, Clock,
+  CheckCircle, FileText, AlertTriangle, Eye, Shield,
+} from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { type DealFlow, DEAL_STATUS_CONFIG } from "@/lib/dealTypes";
+import { type DealRoom, DEAL_ROOM_STATUS_CONFIG } from "@/lib/dealTypes";
 
-type DealWithYacht = DealFlow & {
+type RoomWithYacht = DealRoom & {
   yacht_name?: string;
   yacht_builder?: string;
   yacht_image?: string;
 };
 
-export default function DealRoom() {
+type ApprovedSpec = {
+  id: string;
+  yacht_id: string;
+  yacht_name?: string;
+  yacht_builder?: string;
+  approved_spec_access_at: string | null;
+};
+
+export default function DealRoomPage() {
   const { user, userProfile } = useAuth();
-  const [deals, setDeals] = useState<DealWithYacht[]>([]);
+  const [rooms, setRooms] = useState<RoomWithYacht[]>([]);
+  const [approvedSpecs, setApprovedSpecs] = useState<ApprovedSpec[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isApproved = userProfile?.approved || userProfile?.role === "admin";
@@ -24,38 +36,62 @@ export default function DealRoom() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
-    loadDeals();
+    loadData();
   }, [user]);
 
-  async function loadDeals() {
+  async function loadData() {
     setLoading(true);
-    let query = supabaseAdmin
-      .from("deals")
+
+    let roomQuery = supabaseAdmin
+      .from("deal_rooms")
       .select("*")
-      .not("status", "in", '("cancelled","rejected")')
+      .not("status", "in", '("cancelled")')
       .order("created_at", { ascending: false });
 
     if (!isAdmin) {
-      query = query.eq("buyer_id", user!.id);
+      roomQuery = roomQuery.or(`buyer_user_id.eq.${user!.id},seller_user_id.eq.${user!.id}`);
     }
 
-    const { data } = await query;
-    const flowDeals = ((data || []) as DealFlow[]).filter(d => d.buyer_id != null);
+    const { data: roomData } = await roomQuery;
+    const dealRooms = (roomData || []) as DealRoom[];
 
-    if (flowDeals.length > 0) {
-      const yachtIds = [...new Set(flowDeals.map(d => d.yacht_id).filter(Boolean))];
-      const { data: yachts } = await supabase.from("yachts").select("id, name, builder, main_image, image").in("id", yachtIds);
-      const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y]));
+    const { data: specData } = await supabase
+      .from("access_requests")
+      .select("id, yacht_id, approved_spec_access_at")
+      .eq("requester_id", user!.id)
+      .or("status.eq.approved_spec,status.eq.approved")
+      .eq("escalated_to_deal_room", false)
+      .order("created_at", { ascending: false });
 
-      setDeals(flowDeals.map(d => ({
-        ...d,
-        yacht_name: yachtMap[d.yacht_id]?.name || "Unknown Vessel",
-        yacht_builder: yachtMap[d.yacht_id]?.builder || "",
-        yacht_image: yachtMap[d.yacht_id]?.main_image || yachtMap[d.yacht_id]?.image || "",
-      })));
-    } else {
-      setDeals([]);
+    const allYachtIds = [
+      ...new Set([
+        ...dealRooms.map(r => r.yacht_id),
+        ...(specData || []).map((s: any) => s.yacht_id),
+      ].filter(Boolean)),
+    ];
+
+    let yachtMap: Record<string, any> = {};
+    if (allYachtIds.length > 0) {
+      const { data: yachts } = await supabase
+        .from("yachts")
+        .select("id, name, builder, main_image, image")
+        .in("id", allYachtIds);
+      yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y]));
     }
+
+    setRooms(dealRooms.map(r => ({
+      ...r,
+      yacht_name: yachtMap[r.yacht_id]?.name || "Vessel",
+      yacht_builder: yachtMap[r.yacht_id]?.builder || "",
+      yacht_image: yachtMap[r.yacht_id]?.main_image || yachtMap[r.yacht_id]?.image || "",
+    })));
+
+    setApprovedSpecs((specData || []).map((s: any) => ({
+      ...s,
+      yacht_name: yachtMap[s.yacht_id]?.name || "Vessel",
+      yacht_builder: yachtMap[s.yacht_id]?.builder || "",
+    })));
+
     setLoading(false);
   }
 
@@ -84,18 +120,19 @@ export default function DealRoom() {
     );
   }
 
-  const activeDeals = deals.filter(d => d.status === "active" || d.deal_room_enabled);
-  const pendingDeals = deals.filter(d => !d.deal_room_enabled && d.status !== "active");
+  const activeRooms = rooms.filter(r => r.status === "active");
+  const ndaPendingRooms = rooms.filter(r => r.status === "nda_pending" || r.status === "partially_signed" || r.status === "draft");
+  const closedRooms = rooms.filter(r => r.status === "closed");
 
   return (
     <Layout>
       <div className="min-h-screen bg-background pt-28 pb-20">
         <div className="max-w-6xl mx-auto px-6 md:px-10">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-12">
-            <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Secure Deal Room</span>
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-4">My Deals</h1>
+            <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Secure Platform</span>
+            <h1 className="font-display text-4xl md:text-5xl text-white mb-4">My Opportunities</h1>
             <p className="text-white/50 font-sans max-w-xl">
-              Track your yacht acquisition requests, complete NDA requirements, and access deal rooms for approved opportunities.
+              Track your yacht access requests, approved specifications, and active deal rooms.
             </p>
           </motion.div>
 
@@ -110,11 +147,11 @@ export default function DealRoom() {
             <div className="flex items-center justify-center py-24">
               <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             </div>
-          ) : deals.length === 0 ? (
+          ) : rooms.length === 0 && approvedSpecs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <Anchor size={40} className="text-white/15 mb-4" />
-              <p className="font-display text-xl text-white/30 mb-2">No Active Deals</p>
-              <p className="text-white/25 text-sm font-sans mb-6">Browse yacht listings and request details to start a deal.</p>
+              <p className="font-display text-xl text-white/30 mb-2">No Active Opportunities</p>
+              <p className="text-white/25 text-sm font-sans mb-6">Browse yacht listings and request details to start.</p>
               <Link href="/yachts">
                 <div className="bg-primary text-background px-6 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors cursor-pointer">
                   Browse Yachts
@@ -122,25 +159,73 @@ export default function DealRoom() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-8">
-              {activeDeals.length > 0 && (
+            <div className="space-y-10">
+              {approvedSpecs.length > 0 && (
+                <div>
+                  <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2">
+                    <Eye size={16} className="text-blue-400" /> Approved Specifications
+                  </h2>
+                  <p className="text-white/30 text-xs font-sans mb-4">
+                    These vessels have granted you extended specification access. Deal rooms have not been opened yet.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {approvedSpecs.map(spec => (
+                      <Link key={spec.id} href={`/yacht/${spec.yacht_id}`}>
+                        <div className="group border border-blue-500/15 bg-blue-500/3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-300 cursor-pointer p-5">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Eye size={13} className="text-blue-400" />
+                                <span className="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Spec Access</span>
+                              </div>
+                              <p className="text-white/50 text-xs font-sans mb-1">{spec.yacht_builder}</p>
+                              {spec.approved_spec_access_at && (
+                                <p className="text-white/20 text-[10px] font-sans">Approved {new Date(spec.approved_spec_access_at).toLocaleDateString("en-GB")}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-blue-400 text-xs font-bold uppercase tracking-widest group-hover:gap-3 transition-all">
+                              View Specs <ArrowRight size={13} />
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeRooms.length > 0 && (
                 <div>
                   <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2">
                     <CheckCircle size={16} className="text-green-400" /> Active Deal Rooms
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {activeDeals.map(deal => <DealCard key={deal.id} deal={deal} />)}
+                    {activeRooms.map(room => <RoomCard key={room.id} room={room} />)}
                   </div>
                 </div>
               )}
 
-              {pendingDeals.length > 0 && (
+              {ndaPendingRooms.length > 0 && (
                 <div>
                   <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2">
-                    <Clock size={16} className="text-yellow-400" /> In Progress
+                    <Clock size={16} className="text-orange-400" /> NDA Pending
                   </h2>
+                  <p className="text-white/30 text-xs font-sans mb-4">
+                    Deal rooms awaiting NDA signature from one or both parties.
+                  </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {pendingDeals.map(deal => <DealCard key={deal.id} deal={deal} />)}
+                    {ndaPendingRooms.map(room => <RoomCard key={room.id} room={room} />)}
+                  </div>
+                </div>
+              )}
+
+              {closedRooms.length > 0 && (
+                <div>
+                  <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2 opacity-60">
+                    <Shield size={16} className="text-white/30" /> Closed
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-60">
+                    {closedRooms.map(room => <RoomCard key={room.id} room={room} />)}
                   </div>
                 </div>
               )}
@@ -152,20 +237,20 @@ export default function DealRoom() {
   );
 }
 
-function DealCard({ deal }: { deal: DealWithYacht }) {
-  const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
-  const needsNda = deal.status === "nda_pending";
+function RoomCard({ room }: { room: RoomWithYacht }) {
+  const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
+  const isNdaPending = room.status === "nda_pending" || room.status === "partially_signed";
 
   return (
-    <Link href={`/dealroom/${deal.id}`}>
+    <Link href={`/dealroom/${room.id}`}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="group border border-white/8 bg-white/2 hover:border-primary/40 hover:bg-white/4 transition-all duration-300 cursor-pointer"
       >
         <div className="relative h-36 overflow-hidden bg-[#0a1526]">
-          {deal.yacht_image ? (
-            <img src={deal.yacht_image} alt={deal.yacht_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          {room.yacht_image ? (
+            <img src={room.yacht_image} alt={room.yacht_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Ship size={28} className="text-white/10" />
@@ -177,7 +262,7 @@ function DealCard({ deal }: { deal: DealWithYacht }) {
               {cfg.label}
             </span>
           </div>
-          {needsNda && (
+          {isNdaPending && (
             <div className="absolute top-3 right-3 bg-orange-500/90 text-white text-[10px] font-bold px-2 py-1 flex items-center gap-1">
               <AlertTriangle size={10} /> NDA Required
             </div>
@@ -185,30 +270,30 @@ function DealCard({ deal }: { deal: DealWithYacht }) {
         </div>
 
         <div className="p-5">
-          <h3 className="font-display text-lg text-white mb-1 group-hover:text-primary transition-colors">{deal.yacht_name}</h3>
-          {deal.yacht_builder && (
-            <p className="text-white/40 text-xs font-sans mb-3">{deal.yacht_builder}</p>
+          <h3 className="font-display text-lg text-white mb-1 group-hover:text-primary transition-colors">{room.yacht_name}</h3>
+          {room.yacht_builder && (
+            <p className="text-white/40 text-xs font-sans mb-3">{room.yacht_builder}</p>
           )}
           <div className="flex items-center justify-between pt-3 border-t border-white/5">
             <div className="flex items-center gap-3">
-              {deal.nda_accepted && (
+              {room.buyer_nda_status === "signed" && (
                 <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-0.5 flex items-center gap-1">
-                  <FileText size={8} /> NDA
+                  <FileText size={8} /> Buyer NDA
                 </span>
               )}
-              {deal.intro_locked && (
-                <span className="text-[9px] text-cyan-400 border border-cyan-500/20 bg-cyan-500/5 px-2 py-0.5 flex items-center gap-1">
-                  <Lock size={8} /> Intro
+              {room.seller_nda_status === "signed" && (
+                <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-0.5 flex items-center gap-1">
+                  <FileText size={8} /> Seller NDA
                 </span>
               )}
-              {deal.deal_room_enabled && (
+              {room.status === "active" && (
                 <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-0.5 flex items-center gap-1">
-                  <CheckCircle size={8} /> Room
+                  <CheckCircle size={8} /> Active
                 </span>
               )}
             </div>
             <div className="flex items-center gap-1.5 text-primary text-xs font-bold uppercase tracking-widest group-hover:gap-3 transition-all">
-              {needsNda ? "Sign NDA" : deal.deal_room_enabled ? "Open Room" : "View"} <ArrowRight size={13} />
+              {isNdaPending ? "Sign NDA" : room.status === "active" ? "Open Room" : "View"} <ArrowRight size={13} />
             </div>
           </div>
         </div>

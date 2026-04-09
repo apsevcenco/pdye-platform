@@ -3,36 +3,69 @@ import { Link } from "wouter";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   CheckCircle, XCircle, Clock, ArrowLeft, Ship, User,
-  Calendar, Filter, RefreshCw,
+  Calendar, Filter, RefreshCw, Eye, Plus, ArrowRight, Users,
 } from "lucide-react";
+import type { AccessRequestStatus, DealRoom } from "@/lib/dealTypes";
+import { ACCESS_STATUS_CONFIG } from "@/lib/dealTypes";
+import { useAuth } from "@/context/AuthContext";
 
-type RequestStatus = "pending" | "approved" | "rejected";
-type FilterTab = "all" | "pending" | "approved" | "rejected";
+type FilterTab = "all" | "pending" | "approved_spec" | "rejected" | "escalated";
 
 type AccessRequest = {
   id: string;
   yacht_id: string;
   requester_id: string;
   role: string;
-  status: RequestStatus;
+  status: string;
+  approved_spec_access: boolean;
+  approved_spec_access_at: string | null;
+  escalated_to_deal_room: boolean;
+  deal_room_id: string | null;
   created_at: string;
+  updated_at: string;
   yacht_name?: string;
   user_email?: string;
-  user_name?: string;
 };
 
-const STATUS_CONFIG: Record<RequestStatus, { label: string; icon: React.ReactNode; style: string }> = {
-  pending: { label: "Under Review", icon: <Clock size={12} />, style: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
-  approved: { label: "Approved", icon: <CheckCircle size={12} />, style: "text-green-400 bg-green-500/10 border-green-500/20" },
-  rejected: { label: "Rejected", icon: <XCircle size={12} />, style: "text-red-400 bg-red-500/10 border-red-500/20" },
+const STATUS_ICON: Record<string, React.ReactNode> = {
+  pending: <Clock size={12} />,
+  approved_spec: <Eye size={12} />,
+  approved: <Eye size={12} />,
+  rejected: <XCircle size={12} />,
+  escalated: <CheckCircle size={12} />,
+  archived: <XCircle size={12} />,
+};
+
+const STATUS_STYLE: Record<string, string> = {
+  pending: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+  approved_spec: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  approved: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  rejected: "text-red-400 bg-red-500/10 border-red-500/20",
+  escalated: "text-green-400 bg-green-500/10 border-green-500/20",
+  archived: "text-white/30 bg-white/5 border-white/10",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Under Review",
+  approved_spec: "Spec Access",
+  approved: "Spec Access",
+  rejected: "Rejected",
+  escalated: "In Deal Room",
+  archived: "Archived",
 };
 
 export default function AdminRequests() {
+  const { user } = useAuth();
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>("pending");
   const [updating, setUpdating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [creatingRoom, setCreatingRoom] = useState<string | null>(null);
+  const [sellerModal, setSellerModal] = useState<{ reqId: string; yachtId: string } | null>(null);
+  const [sellerEmail, setSellerEmail] = useState("");
+  const [sellerType, setSellerType] = useState<"broker" | "owner">("broker");
+  const [allUsers, setAllUsers] = useState<{ id: string; email: string; role: string }[]>([]);
 
   async function load() {
     setLoading(true);
@@ -41,14 +74,8 @@ export default function AdminRequests() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("access_requests error:", error.message);
-      setLoading(false);
-      return;
-    }
-    if (!rqs) { setLoading(false); return; }
+    if (error || !rqs) { setLoading(false); return; }
 
-    // Enrich with yacht names
     const yachtIds = [...new Set(rqs.map((r: any) => r.yacht_id).filter(Boolean))];
     const userIds = [...new Set(rqs.map((r: any) => r.requester_id).filter(Boolean))];
 
@@ -58,40 +85,165 @@ export default function AdminRequests() {
     ]);
 
     const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
-    const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, { email: u.email }]));
+    const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, u.email]));
 
     const enriched: AccessRequest[] = rqs.map((r: any) => ({
       ...r,
+      approved_spec_access: r.approved_spec_access ?? false,
+      escalated_to_deal_room: r.escalated_to_deal_room ?? false,
+      deal_room_id: r.deal_room_id ?? null,
       yacht_name: yachtMap[r.yacht_id] || "Unknown Vessel",
-      user_email: userMap[r.requester_id]?.email || "—",
-      user_name: userMap[r.requester_id]?.email || "—",
+      user_email: userMap[r.requester_id] || "—",
     }));
 
     setRequests(enriched);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  async function loadUsers() {
+    const { data } = await supabaseAdmin.from("users").select("id, email, role").order("email");
+    setAllUsers(data || []);
+  }
 
-  async function updateStatus(id: string, status: RequestStatus) {
+  useEffect(() => { load(); loadUsers(); }, []);
+
+  function normalizeStatus(status: string): string {
+    if (status === "approved") return "approved_spec";
+    return status;
+  }
+
+  async function approveSpecAccess(id: string) {
     setUpdating(id);
-    await supabaseAdmin.from("access_requests").update({ status }).eq("id", id);
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    const now = new Date().toISOString();
+    await supabaseAdmin.from("access_requests").update({
+      status: "approved_spec",
+      approved_spec_access: true,
+      approved_spec_access_at: now,
+      updated_at: now,
+    }).eq("id", id);
+
+    const req = requests.find(r => r.id === id);
+    if (req) {
+      await supabaseAdmin.from("audit_logs").insert([{
+        entity_type: "access_request",
+        entity_id: id,
+        user_id: user?.id,
+        action: "spec_access_approved",
+        meta: { yacht_id: req.yacht_id, requester_id: req.requester_id },
+      }]);
+    }
+
+    setRequests(prev => prev.map(r => r.id === id ? {
+      ...r, status: "approved_spec", approved_spec_access: true, approved_spec_access_at: now,
+    } : r));
     setUpdating(null);
   }
 
-  const filtered = filter === "all" ? requests : requests.filter(r => r.status === filter);
+  async function rejectRequest(id: string) {
+    setUpdating(id);
+    await supabaseAdmin.from("access_requests").update({
+      status: "rejected",
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+
+    const req = requests.find(r => r.id === id);
+    if (req) {
+      await supabaseAdmin.from("audit_logs").insert([{
+        entity_type: "access_request",
+        entity_id: id,
+        user_id: user?.id,
+        action: "spec_access_rejected",
+        meta: { yacht_id: req.yacht_id, requester_id: req.requester_id },
+      }]);
+    }
+
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "rejected" } : r));
+    setUpdating(null);
+  }
+
+  function openCreateRoomModal(reqId: string, yachtId: string) {
+    setSellerModal({ reqId, yachtId });
+    setSellerEmail("");
+    setSellerType("broker");
+  }
+
+  async function createDealRoom() {
+    if (!sellerModal || !user) return;
+    setCreatingRoom(sellerModal.reqId);
+    const req = requests.find(r => r.id === sellerModal.reqId);
+    if (!req) { setCreatingRoom(null); return; }
+
+    const sellerUser = allUsers.find(u => u.email === sellerEmail);
+    const now = new Date().toISOString();
+
+    const { data: room } = await supabaseAdmin.from("deal_rooms").insert([{
+      yacht_id: req.yacht_id,
+      access_request_id: req.id,
+      created_by_admin_id: user.id,
+      status: "draft",
+      buyer_user_id: req.requester_id,
+      seller_user_id: sellerUser?.id || null,
+      seller_type: sellerType,
+      nda_required: true,
+      buyer_nda_status: "not_sent",
+      seller_nda_status: "not_sent",
+    }]).select("id").single();
+
+    if (!room) { setCreatingRoom(null); return; }
+
+    await supabaseAdmin.from("deal_room_participants").insert([
+      { deal_room_id: room.id, user_id: req.requester_id, role: "buyer", side: "buyer", can_view: false, can_message: false, can_download: false },
+      { deal_room_id: room.id, user_id: user.id, role: "admin", side: "platform", can_view: true, can_message: true, can_download: true },
+      ...(sellerUser ? [{ deal_room_id: room.id, user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false }] : []),
+    ]);
+
+    await supabaseAdmin.from("access_requests").update({
+      status: "escalated",
+      escalated_to_deal_room: true,
+      deal_room_id: room.id,
+      updated_at: now,
+    }).eq("id", req.id);
+
+    await supabaseAdmin.from("audit_logs").insert([{
+      entity_type: "deal_room",
+      entity_id: room.id,
+      user_id: user.id,
+      action: "deal_room_created",
+      meta: { yacht_id: req.yacht_id, buyer_id: req.requester_id, seller_id: sellerUser?.id, access_request_id: req.id },
+    }]);
+
+    await supabaseAdmin.from("deal_room_messages").insert([{
+      deal_room_id: room.id,
+      sender_id: user.id,
+      message: "Deal room created. NDA will be sent to both parties for review and signature.",
+      is_system: true,
+    }]);
+
+    setRequests(prev => prev.map(r => r.id === req.id ? {
+      ...r, status: "escalated", escalated_to_deal_room: true, deal_room_id: room.id,
+    } : r));
+    setSellerModal(null);
+    setCreatingRoom(null);
+  }
+
+  const filtered = (() => {
+    if (filter === "all") return requests;
+    return requests.filter(r => {
+      const ns = normalizeStatus(r.status);
+      return ns === filter;
+    });
+  })();
 
   const counts = {
     all: requests.length,
     pending: requests.filter(r => r.status === "pending").length,
-    approved: requests.filter(r => r.status === "approved").length,
+    approved_spec: requests.filter(r => normalizeStatus(r.status) === "approved_spec").length,
     rejected: requests.filter(r => r.status === "rejected").length,
+    escalated: requests.filter(r => r.status === "escalated").length,
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="border-b border-white/5 bg-secondary">
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -108,24 +260,25 @@ export default function AdminRequests() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 md:px-12 py-10">
-
-        {/* Filter tabs */}
-        <div className="flex gap-2 mb-8 border-b border-white/5 pb-4">
-          {(["all", "pending", "approved", "rejected"] as FilterTab[]).map(tab => (
+        <div className="flex gap-2 mb-8 border-b border-white/5 pb-4 flex-wrap">
+          {([
+            { key: "all", label: "All", icon: <Filter size={11} /> },
+            { key: "pending", label: "Pending", icon: <Clock size={11} /> },
+            { key: "approved_spec", label: "Spec Access", icon: <Eye size={11} /> },
+            { key: "escalated", label: "In Deal Room", icon: <CheckCircle size={11} /> },
+            { key: "rejected", label: "Rejected", icon: <XCircle size={11} /> },
+          ] as { key: FilterTab; label: string; icon: React.ReactNode }[]).map(tab => (
             <button
-              key={tab}
-              onClick={() => setFilter(tab)}
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest transition-all ${
-                filter === tab ? "text-primary border border-primary/30 bg-primary/5" : "text-white/40 border border-transparent hover:text-white/70"
+                filter === tab.key ? "text-primary border border-primary/30 bg-primary/5" : "text-white/40 border border-transparent hover:text-white/70"
               }`}
             >
-              {tab === "pending" && <Clock size={11} />}
-              {tab === "approved" && <CheckCircle size={11} />}
-              {tab === "rejected" && <XCircle size={11} />}
-              {tab === "all" && <Filter size={11} />}
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              <span className={`ml-1 px-1.5 py-0.5 text-[10px] rounded-sm ${filter === tab ? "bg-primary/20 text-primary" : "bg-white/5 text-white/30"}`}>
-                {counts[tab]}
+              {tab.icon}
+              {tab.label}
+              <span className={`ml-1 px-1.5 py-0.5 text-[10px] rounded-sm ${filter === tab.key ? "bg-primary/20 text-primary" : "bg-white/5 text-white/30"}`}>
+                {counts[tab.key]}
               </span>
             </button>
           ))}
@@ -141,90 +294,109 @@ export default function AdminRequests() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-white/30">
             <Clock size={36} className="mb-3 opacity-20" />
-            <p className="text-sm font-sans">No {filter === "all" ? "" : filter} requests.</p>
+            <p className="text-sm font-sans">No {filter === "all" ? "" : filter.replace("_", " ")} requests.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {filtered.map(req => {
-              const cfg = STATUS_CONFIG[req.status];
+              const ns = normalizeStatus(req.status);
+              const style = STATUS_STYLE[ns] || STATUS_STYLE.pending;
+              const icon = STATUS_ICON[ns] || <Clock size={12} />;
+              const label = STATUS_LABEL[ns] || req.status;
               const isExpanded = expanded === req.id;
+              const canApprove = req.status === "pending";
+              const canReject = req.status === "pending";
+              const canCreateRoom = (ns === "approved_spec") && !req.escalated_to_deal_room;
 
               return (
                 <div key={req.id} className="bg-[#0f1d33] border border-white/5 hover:border-white/10 transition-colors">
-                  {/* Row */}
                   <div
                     className="flex items-center gap-4 px-5 py-4 cursor-pointer"
                     onClick={() => setExpanded(isExpanded ? null : req.id)}
                   >
-                    {/* User */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-8 h-8 bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
                         <User size={14} className="text-white/40" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{req.user_name !== "—" ? req.user_name : req.user_email}</p>
-                        <p className="text-white/40 text-xs font-sans truncate">{req.user_email}</p>
+                        <p className="text-white text-sm font-medium truncate">{req.user_email}</p>
+                        <p className="text-white/40 text-xs font-sans truncate capitalize">{req.role || "—"}</p>
                       </div>
                     </div>
 
-                    {/* Yacht */}
                     <div className="hidden md:flex items-center gap-2 flex-1 min-w-0">
                       <Ship size={13} className="text-primary/40 flex-shrink-0" />
                       <span className="text-white/60 text-sm font-sans truncate">{req.yacht_name}</span>
                     </div>
 
-                    {/* Role */}
-                    <div className="hidden lg:block w-24 flex-shrink-0">
-                      <span className="text-white/40 text-xs font-sans capitalize">{req.role || "—"}</span>
-                    </div>
-
-                    {/* Date */}
                     <div className="hidden sm:flex items-center gap-1 text-white/30 text-xs font-sans flex-shrink-0 w-28">
                       <Calendar size={11} />
                       {new Date(req.created_at).toLocaleDateString("en-GB")}
                     </div>
 
-                    {/* Status */}
                     <div className="flex-shrink-0">
-                      <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 border ${cfg.style}`}>
-                        {cfg.icon} {cfg.label}
+                      <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 border ${style}`}>
+                        {icon} {label}
                       </span>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {req.status !== "approved" && (
+                      {canApprove && (
                         <button
-                          onClick={e => { e.stopPropagation(); updateStatus(req.id, "approved"); }}
+                          onClick={e => { e.stopPropagation(); approveSpecAccess(req.id); }}
                           disabled={updating === req.id}
-                          className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-xs font-bold uppercase tracking-wider px-3 py-1.5 transition-colors disabled:opacity-40"
+                          className="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 text-xs font-bold uppercase tracking-wider px-3 py-1.5 transition-colors disabled:opacity-40"
+                          title="Approve first-level specification access"
                         >
-                          <CheckCircle size={11} /> Approve
+                          <Eye size={11} /> Approve Spec
                         </button>
                       )}
-                      {req.status !== "rejected" && (
+                      {canReject && (
                         <button
-                          onClick={e => { e.stopPropagation(); updateStatus(req.id, "rejected"); }}
+                          onClick={e => { e.stopPropagation(); rejectRequest(req.id); }}
                           disabled={updating === req.id}
                           className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-xs font-bold uppercase tracking-wider px-3 py-1.5 transition-colors disabled:opacity-40"
                         >
                           <XCircle size={11} /> Reject
                         </button>
                       )}
+                      {canCreateRoom && (
+                        <button
+                          onClick={e => { e.stopPropagation(); openCreateRoomModal(req.id, req.yacht_id); }}
+                          disabled={creatingRoom === req.id}
+                          className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-xs font-bold uppercase tracking-wider px-3 py-1.5 transition-colors disabled:opacity-40"
+                        >
+                          <Plus size={11} /> Create Deal Room
+                        </button>
+                      )}
+                      {req.deal_room_id && (
+                        <Link
+                          href={`/dealroom/${req.deal_room_id}`}
+                          onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-bold uppercase tracking-wider px-3 py-1.5 transition-colors"
+                        >
+                          <ArrowRight size={11} /> View Room
+                        </Link>
+                      )}
                     </div>
                   </div>
 
-                  {/* Expanded detail */}
                   {isExpanded && (
                     <div className="px-5 pb-5 border-t border-white/5 pt-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
                         <div>
                           <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Request ID</p>
-                          <p className="text-white/60 font-sans text-xs">{req.id}</p>
+                          <p className="text-white/60 font-sans text-xs break-all">{req.id}</p>
                         </div>
                         <div>
                           <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Yacht ID</p>
-                          <p className="text-white/60 font-sans text-xs">{req.yacht_id}</p>
+                          <p className="text-white/60 font-sans text-xs break-all">{req.yacht_id}</p>
+                        </div>
+                        <div>
+                          <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Spec Access</p>
+                          <p className={`font-sans text-xs ${req.approved_spec_access ? "text-blue-400" : "text-white/30"}`}>
+                            {req.approved_spec_access ? `Approved ${req.approved_spec_access_at ? new Date(req.approved_spec_access_at).toLocaleDateString("en-GB") : ""}` : "Not approved"}
+                          </p>
                         </div>
                         <div>
                           <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Submitted</p>
@@ -239,6 +411,68 @@ export default function AdminRequests() {
           </div>
         )}
       </div>
+
+      {sellerModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6" onClick={() => setSellerModal(null)}>
+          <div className="bg-[#0f1d33] border border-white/10 max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display text-xl text-white">Create Deal Room</h3>
+            <p className="text-white/50 text-sm font-sans">
+              This will create a dedicated deal room. The buyer (requester) is added automatically.
+              Assign the seller below. NDA will be sent to both parties.
+            </p>
+
+            <div>
+              <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-2 font-sans">Seller Type</label>
+              <div className="flex gap-2">
+                {(["broker", "owner"] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setSellerType(t)}
+                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-colors ${
+                      sellerType === t ? "bg-primary/20 border-primary/40 text-primary" : "border-white/10 text-white/40 hover:text-white/70"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-2 font-sans">Seller Email (Platform User)</label>
+              <input
+                value={sellerEmail}
+                onChange={e => setSellerEmail(e.target.value)}
+                placeholder="seller@example.com"
+                className="w-full bg-background border border-white/10 px-4 py-3 text-white text-sm font-sans focus:outline-none focus:border-primary/40"
+                list="user-emails"
+              />
+              <datalist id="user-emails">
+                {allUsers.filter(u => u.role !== "admin").map(u => (
+                  <option key={u.id} value={u.email}>{u.email} ({u.role})</option>
+                ))}
+              </datalist>
+              <p className="text-white/25 text-xs font-sans mt-1">Leave empty if seller is not yet on the platform.</p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={createDealRoom}
+                disabled={!!creatingRoom}
+                className="flex-1 bg-primary text-background py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+              >
+                {creatingRoom ? <><RefreshCw size={12} className="animate-spin" /> Creating…</> : <><Plus size={12} /> Create Deal Room</>}
+              </button>
+              <button
+                onClick={() => setSellerModal(null)}
+                className="px-6 py-3 border border-white/10 text-white/50 text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

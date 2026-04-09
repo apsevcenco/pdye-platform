@@ -1,0 +1,784 @@
+PROMPT FOR REPLIT AGENT
+
+We are continuing an existing project called PDYE (Private Distressed Yacht Exchange).
+
+This is a private B2B off-market yacht platform, not a public marketplace.
+
+The current project already has:
+
+Supabase
+authentication
+user roles
+admin
+yacht listings
+requests
+partial dashboard
+partial deal room logic
+
+Your task is to correct and implement the access workflow properly based on the following exact business logic.
+
+Do not rebuild the project from scratch.
+Do not replace working parts unnecessarily.
+Extend the existing codebase carefully and keep current working functionality intact.
+
+CORE BUSINESS MODEL
+
+This platform is not a public yacht marketplace.
+
+The real business value is:
+
+controlling access to off-market yachts
+controlling who gets what level of information
+controlling when buyer and seller are introduced
+opening a deal room only at the right stage
+protecting the intermediary role of the platform/admin
+
+The platform must support situations where:
+
+the listing is created by a broker or a private owner
+the requester can also be a broker or another qualified buyer
+seller and buyer are not automatically connected
+direct access is staged and controlled by the admin
+CORRECT ACCESS LOGIC
+
+There are 2 separate access levels before and after the deal room.
+
+STAGE 1 — LIMITED PUBLIC LISTING VIEW
+
+A user browsing the catalog can see only limited teaser data.
+
+Public listing must show only:
+
+builder
+model if already used in project
+length
+year
+one teaser image if current project already allows it
+
+Public listing must NOT show:
+
+yacht name
+yacht location
+full photo gallery
+seller identity
+broker identity
+documents
+full detailed options/specification
+direct contacts
+sensitive commercial information
+
+Each listing must have a CTA such as:
+
+Request Access
+Request Details
+STAGE 2 — APPROVED SPECIFICATION ACCESS (NOT DEAL ROOM YET)
+
+This is the important correction.
+
+When a requester submits access request for a yacht, and the admin presses Approve, this does NOT open the deal room yet.
+
+Instead, this first approval must grant access only to an extended anonymized specification view.
+
+That extended spec view must include:
+
+full technical specification
+equipment/options
+data relevant for evaluation
+non-sensitive yacht information needed for serious interest
+
+But it must still NOT include:
+
+yacht name
+yacht location
+full photos
+seller contact details
+broker contact details
+documents intended for deal room only
+
+So after first admin approval, the requester gets access to a requested yacht detail page with anonymized extended info.
+
+This yacht must also appear in the requester dashboard in a separate block such as:
+
+Requested Yachts
+Approved Requests
+My Approved Opportunities
+
+From there the requester can open that yacht’s anonymized detailed page.
+
+DEAL ROOM SHOULD OPEN ONLY LATER
+
+The deal room must NOT open automatically after first approval.
+
+The correct logic is:
+
+Listing exists
+Interested broker/buyer requests access
+Admin approves first-level access
+Requester sees anonymized full specification
+Admin separately communicates with listing owner/seller outside the platform if needed
+If the opportunity becomes serious and ready for discussion, then admin manually opens a dedicated deal room
+Seller and buyer are added to that deal room
+NDA is sent automatically to both sides
+Only after NDA is signed by both sides, access to deal room is granted
+Then both sides can see each other, communicate, and access full deal information
+
+This distinction is critical.
+
+IMPORTANT CONCEPTUAL MODEL
+
+A yacht request and a deal room are not the same thing.
+
+Request flow:
+
+used for access to anonymized specification
+
+Deal room flow:
+
+used only when admin decides to move the opportunity into active negotiation
+
+So implement them as separate but linked entities.
+
+USER TYPES / ROLES
+
+Do not rename roles already used in project unless absolutely necessary.
+
+Current role model includes:
+
+buyer
+broker
+owner
+admin
+
+Important note:
+
+a seller can be either a broker or a private owner
+a requester can also be a broker
+do not hardcode simplistic assumptions like “seller is always owner” or “buyer is never broker”
+
+The system must support flexible participation per deal.
+
+WHAT MUST BE IMPLEMENTED
+
+You must implement:
+
+request workflow with first-level approval
+anonymized approved-specification page
+separate deal room creation by admin
+adding participants to deal room
+NDA sending to both parties
+DocuSign integration hooks or implementation if current stack supports it
+deal room access only after both signatures are completed
+full post-signature access control
+admin dashboard control over all of the above
+proper audit trail / logs
+DATABASE / DATA MODEL CHANGES
+
+Do not duplicate existing tables if equivalent ones already exist.
+If similar structures already exist, extend them safely.
+
+1) access_requests
+
+Use or extend existing requests table.
+
+It should clearly represent:
+
+who requested access
+for which yacht
+current access stage
+whether first-level spec access was approved
+whether request later escalated into a deal room
+
+Suggested fields if missing:
+
+id uuid primary key default gen_random_uuid()
+yacht_id uuid not null
+requester_id uuid not null
+listing_owner_user_id uuid null
+status text not null default 'pending'
+approved_spec_access boolean not null default false
+approved_spec_access_at timestamptz null
+escalated_to_deal_room boolean not null default false
+deal_id uuid null
+created_at timestamptz not null default now()
+updated_at timestamptz not null default now()
+
+Allowed status values:
+
+pending
+approved_spec
+rejected
+escalated
+archived
+2) yacht_private_details or equivalent protected fields model
+
+You need a protected way to store fields that are NOT visible publicly and are NOT visible even after first approval.
+
+These include:
+
+yacht name
+exact location
+full gallery
+sensitive documents
+direct seller/broker details if tied to listing
+
+If current yachts table already contains these fields, do not expose them directly.
+Create a secure visibility layer in backend/query logic.
+
+Important rule:
+
+first-level approved request shows anonymized extended spec only
+full identity/media/contact access only after deal room is active and NDA signed
+3) deal_rooms
+
+Create a dedicated deal room table if not already present.
+
+Suggested structure:
+
+id uuid primary key default gen_random_uuid()
+yacht_id uuid not null
+access_request_id uuid null
+created_by_admin_id uuid not null
+status text not null default 'draft'
+buyer_user_id uuid null
+seller_user_id uuid null
+seller_type text null
+nda_required boolean not null default true
+buyer_nda_status text not null default 'not_sent'
+seller_nda_status text not null default 'not_sent'
+buyer_nda_sent_at timestamptz null
+seller_nda_sent_at timestamptz null
+buyer_nda_signed_at timestamptz null
+seller_nda_signed_at timestamptz null
+fully_activated_at timestamptz null
+created_at timestamptz not null default now()
+updated_at timestamptz not null default now()
+
+Allowed status values:
+
+draft
+nda_pending
+partially_signed
+active
+closed
+cancelled
+
+seller_type can be:
+
+broker
+owner
+4) deal_room_participants
+
+Explicit participant mapping.
+
+id uuid primary key default gen_random_uuid()
+deal_room_id uuid not null
+user_id uuid not null
+role text not null
+side text null
+can_view boolean not null default false
+can_message boolean not null default false
+can_download boolean not null default false
+created_at timestamptz not null default now()
+
+Examples:
+
+admin / platform
+buyer
+seller
+broker
+
+Unique constraint on (deal_room_id, user_id).
+
+5) nda_envelopes or equivalent signature tracking table
+
+You need a table to store signature workflow state.
+
+Suggested fields:
+
+id uuid primary key default gen_random_uuid()
+deal_room_id uuid not null
+user_id uuid not null
+side text not null
+provider text not null default 'docusign'
+envelope_id text null
+document_name text null
+status text not null default 'pending'
+sent_at timestamptz null
+signed_at timestamptz null
+completed_at timestamptz null
+raw_payload jsonb null
+created_at timestamptz not null default now()
+updated_at timestamptz not null default now()
+
+Allowed statuses:
+
+pending
+sent
+delivered
+viewed
+signed
+completed
+failed
+cancelled
+6) deal_room_documents
+
+Used only after full activation.
+
+id uuid primary key default gen_random_uuid()
+deal_room_id uuid not null
+title text not null
+file_path text not null
+file_type text null
+uploaded_by uuid not null
+visible_to_buyer boolean not null default true
+visible_to_seller boolean not null default true
+created_at timestamptz not null default now()
+
+These files must be private.
+
+7) deal_room_messages
+
+Internal communication after activation.
+
+id uuid primary key default gen_random_uuid()
+deal_room_id uuid not null
+sender_id uuid not null
+message text not null
+is_system boolean not null default false
+created_at timestamptz not null default now()
+8) audit_logs
+
+Track all sensitive actions.
+
+id uuid primary key default gen_random_uuid()
+entity_type text not null
+entity_id uuid null
+user_id uuid null
+action text not null
+meta jsonb not null default '{}'::jsonb
+created_at timestamptz not null default now()
+
+Example actions:
+
+access_requested
+spec_access_approved
+spec_access_rejected
+deal_room_created
+participant_added
+nda_sent
+nda_signed
+deal_room_activated
+document_uploaded
+document_viewed
+message_sent
+deal_room_closed
+REQUIRED ACCESS STATES
+
+Implement the logic with these clear stages:
+
+STATE A — request pending
+
+User requested access.
+Admin has not approved anything yet.
+
+User sees:
+
+pending badge
+no extended info
+no deal room
+STATE B — spec access approved
+
+Admin approved the request.
+
+User sees:
+
+full anonymized specification
+no yacht name
+no location
+no full photos
+no seller identity
+no deal room access yet
+STATE C — deal room created
+
+Admin manually creates a deal room for this opportunity.
+
+At this stage:
+
+buyer and seller are assigned
+NDA process starts
+users still do NOT access full deal room yet until signatures are complete
+STATE D — NDA pending
+
+System sends NDA to both sides by email.
+
+Users see:
+
+“NDA sent”
+waiting state
+no full deal room access
+STATE E — partially signed
+
+One side signed, the other has not.
+
+Users see:
+
+status indicator
+still no full deal room access
+STATE F — deal room active
+
+Both sides signed NDA.
+
+Only now:
+
+deal room opens
+buyer gets full photos
+parties gain access to each other
+controlled communication becomes available
+deal documents become available
+ADMIN ACTIONS
+
+Admin must have explicit control.
+
+Add or extend admin dashboard so admin can:
+
+review access requests
+approve first-level spec access
+reject requests
+create a deal room manually from an approved request
+select/add participants:
+buyer/requester
+seller (broker or owner)
+trigger NDA sending
+monitor NDA status for each side
+activate deal room automatically only after both signed
+upload deal room documents
+close/cancel deal room
+see full audit logs
+
+Admin must clearly see the difference between:
+
+approved spec access
+deal room not yet created
+deal room created but NDA pending
+active deal room
+APPROVED SPECIFICATION VIEW
+
+This is a key screen that must be built correctly.
+
+After first approval, the requester should see a page accessible from their dashboard.
+
+Suggested route:
+
+/dashboard/opportunities/:id
+
+or adapt to existing routes.
+
+This page must show:
+
+builder
+model if allowed
+length
+year
+full technical details
+options/equipment/specification
+non-sensitive comments if applicable
+
+This page must NOT show:
+
+yacht name
+location
+gallery
+seller contact
+broker contact
+deal room chat
+sensitive files
+
+The page should clearly display status:
+
+Approved Access
+Negotiation not yet opened
+Deal Room will be opened by admin if discussion proceeds
+DEAL ROOM CREATION FLOW
+
+The deal room must be created manually by admin from a qualified approved request.
+
+Required flow:
+
+Admin opens approved request
+Admin clicks “Create Deal Room”
+System creates a deal room record
+Admin assigns seller participant
+Requester becomes buyer-side participant
+Status becomes nda_pending
+NDA is generated/sent to both sides
+System tracks both signature states
+When both are signed, deal room becomes active automatically
+
+Do not automatically open deal room simply from the first approval.
+
+DOCUSIGN / NDA REQUIREMENTS
+
+This is important.
+
+When admin creates a deal room and participants are assigned:
+
+NDA must be sent automatically by email to both seller and buyer
+use DocuSign if integration is already feasible in the current stack
+if full live DocuSign credentials are not yet available, implement the integration structure cleanly so it is ready:
+service layer
+environment variables
+webhook/callback endpoint
+signature status synchronization
+clear placeholder mode if credentials missing
+
+Do not fake the business logic.
+If live DocuSign cannot fully function without credentials, still build it in a production-ready integration pattern.
+
+The system must be able to recognize:
+
+sent
+viewed
+signed
+completed
+failed
+
+Use webhook handling if possible.
+
+Required env placeholders may include:
+
+DOCUSIGN_CLIENT_ID
+DOCUSIGN_CLIENT_SECRET
+DOCUSIGN_ACCOUNT_ID
+DOCUSIGN_BASE_URL
+DOCUSIGN_WEBHOOK_SECRET
+NDA TEMPLATE MANAGEMENT
+
+For now, NDA content can be a simple template.
+
+But the system must be structured so that later admin can:
+
+edit the NDA text
+replace the template
+manage versioning
+
+For now implement at least:
+
+central NDA template source
+not hardcoded in many places
+easy future replacement
+DEAL ROOM ACCESS AFTER BOTH SIGNATURES
+
+This is the most important permission rule.
+
+Only after both NDA signatures are completed:
+
+Buyer gets access to:
+
+full photo gallery
+full deal room
+messages
+documents
+seller visibility if intended by flow
+
+Seller gets access to:
+
+buyer identity / interaction in deal room
+messages
+documents
+
+Before both signatures:
+
+no full deal room access
+no full images
+no mutual direct access
+FIX THE “HOW TO RECORD INTRODUCTION” PART
+
+You asked for the system to properly record the moment where access is really opened and both sides are introduced.
+
+Implement this as a formal event.
+
+When deal room becomes active:
+
+save fully_activated_at
+create audit log deal_room_activated
+create system message like:
+“Deal room activated after NDA completion by both parties.”
+lock a clear historical record of:
+yacht
+buyer-side participant
+seller-side participant
+admin who activated/created it
+timestamps of signatures
+activation timestamp
+
+This becomes the platform’s official record of introduction.
+
+That is the best practical digital record for later commission / introduction protection.
+
+MESSAGING RULES
+
+Inside active deal room:
+
+participants can message each other
+all messages are stored
+system messages appear for key events
+only assigned participants and admin can read them
+
+Before activation:
+
+no direct free messaging between sides
+admin-only control is acceptable if existing system supports pre-activation notes
+DOCUMENT RULES
+
+Before deal room activation:
+
+no sensitive deal documents for both parties
+
+After activation:
+
+allow documents
+use private Supabase Storage
+use signed URLs or secure fetching
+no public buckets
+DASHBOARD REQUIREMENTS
+Buyer / requester dashboard
+
+Must show:
+
+pending requests
+approved anonymized opportunities
+deal rooms in NDA stage
+active deal rooms
+
+Each item should have a clear CTA:
+
+Awaiting Review
+View Approved Specs
+NDA Pending
+Open Deal Room
+Seller dashboard if seller is platform user
+
+If seller is a registered user on platform:
+
+show deal rooms where they were added
+show NDA status
+show active rooms
+
+If seller is not yet a platform user:
+
+structure system so future invitation/onboarding is possible
+do not break current logic
+Admin dashboard
+
+Must clearly separate:
+
+access requests queue
+approved spec-access opportunities
+deal rooms pending NDA
+active deal rooms
+closed/cancelled deal rooms
+RLS / SECURITY REQUIREMENTS
+
+Enable and tighten RLS everywhere sensitive.
+
+Important rules:
+
+anon
+
+Must not access:
+
+private yacht details
+approved anonymized spec pages unless authenticated and permitted
+deal rooms
+messages
+documents
+NDA records
+audit logs
+authenticated users
+
+Can only access records where they are explicitly allowed.
+
+approved spec access
+
+A requester can access approved anonymized yacht details only if:
+
+they are the requester
+admin approved spec access for that request
+active deal room access
+
+A user can access deal room only if:
+
+they are admin
+or they are an assigned participant
+and the room is active or the specific stage permits their view
+audit logs
+
+Admin only by default
+
+Do not rely on frontend hiding.
+Enforce permissions in DB policies and backend logic.
+
+UI REQUIREMENTS
+
+Keep UI clean and minimal.
+Do not redesign the whole project.
+
+But make sure these screens exist and are usable:
+
+request list / queue
+approved spec page
+admin request review page
+deal room creation modal or page
+NDA status panel
+active deal room page
+dashboard sections for each stage
+
+Use existing styles/components where possible.
+
+IMPLEMENTATION PRIORITY
+
+Do this in the following order:
+
+correct data model for request stages
+build approved anonymized specification access
+create separate deal room entity
+implement admin “Create Deal Room” flow
+implement participant assignment
+implement NDA sending architecture with DocuSign integration layer
+activate room only after both signatures complete
+implement active room access to photos/messages/documents
+tighten RLS
+update dashboards and admin panels
+DELIVERABLES REQUIRED
+
+After implementation, provide:
+
+summary of what was changed
+DB migrations added
+routes/pages added or updated
+RLS policies added or changed
+DocuSign integration status:
+fully working
+partially scaffolded pending credentials
+manual setup steps still needed
+any blockers caused by the existing codebase
+
+Do not only describe the solution.
+Actually implement the changes.
+
+If equivalent logic already exists, fix and extend it rather than duplicating it.
+
+КОРОТКОЕ ПОЯСНЕНИЕ ДЛЯ ТЕБЯ
+
+Вот в чем ключевая разница нового промпта от прошлого:
+
+Раньше:
+
+approve → почти сразу путь к deal room
+
+Теперь правильно:
+
+approve → только доступ к расширенной обезличенной спецификации
+а deal room создается отдельно и позже вручную админом
+
+Это намного логичнее и ближе к реальной брокерской модели.

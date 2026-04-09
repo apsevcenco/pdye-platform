@@ -17,13 +17,13 @@ Private B2B off-market yacht platform. pnpm workspace monorepo using TypeScript.
 
 - **users**: id, email, role (buyer/broker/owner/admin), approved, created_at
 - **yachts**: Full yacht data with images, specs, pricing
-- **access_requests**: yacht_id, requester_id, role, status (pending/approved/rejected)
-- **deals**: Workflow pipeline — yacht_id, buyer_id, broker_id, owner_id, status (created → pending_admin_review → approved → nda_pending → nda_signed → intro_sent → active → closed/cancelled), NDA/terms acceptance, intro lock, deal_room_enabled
-- **deal_documents**: Files visible inside deal room with role-based visibility
-- **deal_messages**: Internal communication inside deal room
-- **deal_activity_logs**: Audit trail for all deal actions
-- **deal_participants**: Explicit access control per deal
-- **nda_acceptance_logs**: Legal confirmation records
+- **access_requests**: yacht_id, requester_id, role, status (pending → approved_spec → rejected → escalated → archived)
+- **deal_rooms**: yacht_id, buyer_user_id, seller_user_id, status (draft → nda_pending → partially_signed → active → closed/cancelled), dual NDA tracking (buyer_nda_status, seller_nda_status), fully_activated_at
+- **deal_room_participants**: deal_room_id, user_id, role, can_view, can_message, can_download
+- **deal_room_documents**: deal_room_id, uploaded_by, file_name, file_url, visible_to_roles
+- **deal_room_messages**: deal_room_id, sender_id, message, is_system
+- **nda_envelopes**: deal_room_id, user_id, side (buyer/seller), provider, status, envelope_id, sent_at, signed_at
+- **audit_logs**: entity_type, entity_id, user_id, action, meta
 - **leads**: Public form submissions
 - **introductions**: Formal introduction records
 
@@ -50,16 +50,25 @@ Express on port 8080. Routes:
 - `/api/health` — health check
 - `/api/upload-photo` — yacht photo upload to Supabase Storage
 - `/api/estimate` — AI yacht valuation
+- `/api/nda/send` — Send NDA to deal room participant (admin only, auth required)
+- `/api/nda/sign` — Sign NDA as participant (auth required, validates participant)
+- `/api/nda/webhook/docusign` — DocuSign webhook endpoint (placeholder)
+- `/api/nda/status/:dealRoomId` — Get NDA status for deal room (auth required)
 
-### Deal Flow (Core Business Logic)
+### Access & Deal Flow (Core Business Logic — Two-Stage)
 
+**Stage 1: Spec Access**
 1. Buyer browses limited yacht catalog (builder, length, year, 1 photo only)
-2. Clicks "Request Details" → creates access_request + deal (pending_admin_review)
-3. Admin reviews → approves (→ nda_pending) or rejects
-4. Buyer signs NDA + Terms → nda_signed
-5. Admin sends intro (intro_locked) → intro_sent
-6. Admin enables deal room → active
-7. Full deal room access: documents, messages, deal details
+2. Clicks "Request Details" → creates access_request (status: pending)
+3. Admin reviews → approves to spec access (status: approved_spec) or rejects
+4. Buyer gets anonymized spec view: full tech specs but name/location/gallery/seller hidden
+
+**Stage 2: Deal Room**
+5. Admin manually creates deal_room from approved request (status: escalated on request)
+6. Deal room created (status: draft), participants assigned
+7. Admin sends NDA to both parties → status: nda_pending
+8. Each party signs NDA independently → partially_signed → active (auto-activates when both signed)
+9. Full deal room access: documents, messages, full yacht details, seller identity revealed
 
 ### User Roles
 
@@ -91,7 +100,7 @@ Express on port 8080. Routes:
 - **Currency switching** — €/$/£ with useCurrency hook
 - **WordToolbar** — Full MS Word-like formatting panel on all text editors (CMS, yacht description). Yacht specs use ONE shared toolbar that styles ALL spec inputs at once (font, size, bold, etc.). Settings saved to localStorage key `pdye_spec_styles`.
 - **RLS disabled** on access_requests and users tables (supabaseAdmin uses anon key)
-- **SQL migration** at `migrations/001_deal_flow.sql` must be run in Supabase SQL Editor
+- **SQL migrations** at `migrations/001_deal_flow.sql` and `migrations/002_access_workflow.sql` must be run in Supabase SQL Editor
 
 ## Structure
 
