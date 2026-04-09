@@ -63,18 +63,73 @@ export default function Yachts() {
     if (!user) { window.location.hash = "/login"; return; }
     setRequesting(yachtId);
     setRequestError(null);
-    const { error } = await supabaseAdmin.from("access_requests").insert([{
+
+    const { data: existingDeal } = await supabaseAdmin
+      .from("deals")
+      .select("id")
+      .eq("yacht_id", yachtId)
+      .eq("buyer_id", user.id)
+      .not("status", "in", '("cancelled","rejected","closed")')
+      .maybeSingle();
+
+    if (existingDeal) {
+      setRequests(prev => ({ ...prev, [yachtId]: "pending" }));
+      setRequesting(null);
+      return;
+    }
+
+    const { data: accessReq, error: arError } = await supabaseAdmin.from("access_requests").insert([{
       yacht_id: yachtId,
       requester_id: user.id,
-      role: userProfile?.role || "investor",
+      role: userProfile?.role || "buyer",
       status: "pending",
-    }]);
-    if (error) {
-      console.error("access_requests insert error:", error.message, error.details, error.hint);
-      setRequestError(`Ошибка при отправке запроса: ${error.message}`);
-    } else {
-      setRequests(prev => ({ ...prev, [yachtId]: "pending" }));
+    }]).select("id").single();
+
+    if (arError) {
+      console.error("access_requests insert error:", arError.message, arError.details, arError.hint);
+      setRequestError(`Error submitting request: ${arError.message}`);
+      setRequesting(null);
+      return;
     }
+
+    const { error: dealError } = await supabaseAdmin.from("deals").insert([{
+      yacht_id: yachtId,
+      request_id: accessReq?.id || null,
+      buyer_id: user.id,
+      created_by: user.id,
+      status: "pending_admin_review",
+    }]);
+
+    if (dealError) {
+      console.error("deal create error:", dealError.message);
+    } else {
+      const { data: newDeal } = await supabaseAdmin
+        .from("deals")
+        .select("id")
+        .eq("yacht_id", yachtId)
+        .eq("buyer_id", user.id)
+        .eq("status", "pending_admin_review")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (newDeal) {
+        await supabaseAdmin.from("deal_participants").insert([{
+          deal_id: newDeal.id,
+          user_id: user.id,
+          role: "buyer",
+          can_view: true,
+          can_message: true,
+          can_download: false,
+        }]);
+        await supabaseAdmin.from("deal_activity_logs").insert([
+          { deal_id: newDeal.id, user_id: user.id, action: "request_created", meta: { yacht_id: yachtId } },
+          { deal_id: newDeal.id, user_id: user.id, action: "deal_created", meta: { status: "pending_admin_review" } },
+        ]);
+      }
+    }
+
+    setRequests(prev => ({ ...prev, [yachtId]: "pending" }));
     setRequesting(null);
   }
 

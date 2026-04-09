@@ -1,388 +1,497 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, MapPin, Download, FileText, Shield, TrendingDown,
-  Lock, Anchor, Mail, Phone, ChevronRight, AlertCircle, RefreshCw, ShieldAlert,
+  ArrowLeft, FileText, Shield, Lock, Anchor, CheckCircle, Clock,
+  Send, Download, AlertTriangle, RefreshCw, ShieldAlert, MessageSquare,
+  Activity, ChevronDown, ChevronUp, Ship,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import {
+  type DealFlow, type DealMessage, type DealDocument, type DealActivityLog,
+  DEAL_STATUS_CONFIG, TIMELINE_STEPS,
+} from "@/lib/dealTypes";
+import { NDA_TEXT, TERMS_TEXT, DISCLAIMER_TEXT } from "@/lib/legalText";
 
-type Deal = {
-  id: string;
-  yacht_id: string | null;
-  title: string;
-  description: string | null;
-  market_price: string | null;
-  deal_price: string | null;
-  location: string | null;
-  status: string;
-  image_url: string | null;
-  created_at: string;
-};
-
-type DealDocument = {
-  id: string;
-  deal_id: string;
-  name: string;
-  file_url: string | null;
-  created_at: string;
-};
-
-const STATUS_STYLE: Record<string, string> = {
-  active: "text-green-400 bg-green-500/10 border-green-500/25",
-  under_offer: "text-yellow-400 bg-yellow-500/10 border-yellow-500/25",
-  closed: "text-white/30 bg-white/5 border-white/10",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  active: "Active",
-  under_offer: "Under Offer",
-  closed: "Closed",
-};
-
-function calcDiscount(market: string | null, deal: string | null): string | null {
-  if (!market || !deal) return null;
-  const parse = (s: string) => parseFloat(s.replace(/[^0-9.]/g, ""));
-  const m = parse(market);
-  const d = parse(deal);
-  if (!m || !d || m <= d) return null;
-  return Math.round(((m - d) / m) * 100) + "%";
-}
-
-function RestrictedScreen({ icon, title, text, action }: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-  action?: { label: string; href: string };
-}) {
-  return (
-    <div className="min-h-screen flex items-center justify-center px-6">
-      <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }} className="max-w-md w-full text-center">
-        <div className="flex items-center justify-center gap-2 mb-10">
-          <Anchor size={26} className="text-primary" strokeWidth={2} />
-          <span className="font-display text-2xl tracking-widest text-white">PDYE</span>
-        </div>
-        <div className="bg-[#0f1d33] border border-white/8 p-10">
-          <div className="w-16 h-16 border border-primary/25 flex items-center justify-center mx-auto mb-6">{icon}</div>
-          <h2 className="font-display text-2xl text-white mb-3">{title}</h2>
-          <p className="text-white/50 font-sans text-sm leading-relaxed mb-6">{text}</p>
-          {action && (
-            <Link href={action.href}>
-              <div className="bg-primary text-background font-bold uppercase tracking-widest py-3.5 px-8 text-xs hover:bg-primary/85 transition-colors cursor-pointer inline-block">
-                {action.label}
-              </div>
-            </Link>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-function ContactModal({ dealTitle, onClose }: { dealTitle: string; onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [msg, setMsg] = useState("");
-  const [sent, setSent] = useState(false);
-  const { userProfile } = useAuth();
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    await supabaseAdmin.from("leads").insert([{
-      name: name || userProfile?.email || "Investor",
-      email: email || userProfile?.email || "",
-      yacht_type: "Deal Room Inquiry",
-      message: `Deal: ${dealTitle}\n\n${msg}`,
-    }]);
-    setSent(true);
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative bg-[#0f1d33] border border-white/10 p-8 w-full max-w-md z-10"
-      >
-        <button onClick={onClose} className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors">
-          ✕
-        </button>
-        {sent ? (
-          <div className="text-center py-6">
-            <div className="w-12 h-12 border border-primary/30 flex items-center justify-center mx-auto mb-4">
-              <Shield size={22} className="text-primary" />
-            </div>
-            <h3 className="font-display text-xl text-white mb-2">Request Received</h3>
-            <p className="text-white/50 text-sm font-sans">Your advisor will contact you within 24 hours regarding this opportunity.</p>
-          </div>
-        ) : (
-          <>
-            <h3 className="font-display text-xl text-white mb-1">Request Deal Access</h3>
-            <p className="text-white/40 text-xs font-sans mb-6 tracking-wide">{dealTitle}</p>
-            <form onSubmit={submit} className="space-y-4">
-              <div>
-                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1.5">Your Name</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" required
-                  className="w-full bg-white/5 border border-white/10 text-white text-sm px-4 py-3 font-sans focus:outline-none focus:border-primary/40 placeholder:text-white/20" />
-              </div>
-              <div>
-                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1.5">Email</label>
-                <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="your@email.com" required
-                  className="w-full bg-white/5 border border-white/10 text-white text-sm px-4 py-3 font-sans focus:outline-none focus:border-primary/40 placeholder:text-white/20" />
-              </div>
-              <div>
-                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1.5">Message</label>
-                <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={3} placeholder="Your interest in this opportunity..."
-                  className="w-full bg-white/5 border border-white/10 text-white text-sm px-4 py-3 font-sans focus:outline-none focus:border-primary/40 placeholder:text-white/20 resize-none" />
-              </div>
-              <button type="submit" className="w-full bg-primary text-background font-bold uppercase tracking-widest py-3.5 text-xs hover:bg-primary/85 transition-colors">
-                Send Request
-              </button>
-            </form>
-          </>
-        )}
-      </motion.div>
-    </div>
-  );
-}
+type Yacht = { id: string; name: string; builder: string | null; length: string | null; year: string | null; main_image: string | null; image: string | null };
 
 export default function DealDetails() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const dealId = params.id;
   const { user, userProfile } = useAuth();
-  const [deal, setDeal] = useState<Deal | null>(null);
-  const [docs, setDocs] = useState<DealDocument[]>([]);
+  const [deal, setDeal] = useState<DealFlow | null>(null);
+  const [yacht, setYacht] = useState<Yacht | null>(null);
+  const [messages, setMessages] = useState<DealMessage[]>([]);
+  const [documents, setDocuments] = useState<DealDocument[]>([]);
+  const [activity, setActivity] = useState<DealActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [contactOpen, setContactOpen] = useState(false);
+  const [msgText, setMsgText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [ndaCheck, setNdaCheck] = useState(false);
+  const [termsCheck, setTermsCheck] = useState(false);
+  const [acceptingNda, setAcceptingNda] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const isInvestor = userProfile?.role === "investor" || userProfile?.role === "admin";
-  const isApproved = userProfile?.approved || userProfile?.role === "admin";
-  const hasAccess = isInvestor && isApproved;
+  const isAdmin = userProfile?.role === "admin";
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-    if (!hasAccess || !id) { setLoading(false); return; }
-    Promise.all([
-      supabaseAdmin.from("deals").select("*").eq("id", id).single(),
-      supabaseAdmin.from("deal_documents").select("*").eq("deal_id", id).order("created_at"),
-    ]).then(([dealRes, docsRes]) => {
-      setDeal(dealRes.data as Deal | null);
-      setDocs((docsRes.data as DealDocument[]) || []);
-      setLoading(false);
-    });
-  }, [id, hasAccess]);
+    if (!user || !dealId) return;
+    loadDeal();
+  }, [user, dealId]);
 
-  if (!user) return <Layout><RestrictedScreen icon={<Lock size={32} className="text-primary" />} title="Login Required" text="Please sign in to access the Deal Room." action={{ label: "Sign In", href: "/login" }} /></Layout>;
-  if (!isApproved) return <Layout><RestrictedScreen icon={<RefreshCw size={32} className="text-primary" />} title="Under Review" text="Your account is under review. Access will be granted once approved." /></Layout>;
-  if (!isInvestor) return <Layout><RestrictedScreen icon={<ShieldAlert size={32} className="text-primary" />} title="Private Buyer Access Only" text="The Deal Room is exclusively available to verified private buyers." action={{ label: "Request Access", href: "/access" }} /></Layout>;
+  async function loadDeal() {
+    setLoading(true);
+    const { data } = await supabaseAdmin.from("deals").select("*").eq("id", dealId).single();
+    if (!data || !data.buyer_id) { setLoading(false); return; }
+    setDeal(data as DealFlow);
 
-  if (loading) return <Layout><div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div></Layout>;
+    const { data: y } = await supabase.from("yachts").select("id, name, builder, length, year, main_image, image").eq("id", data.yacht_id).single();
+    if (y) setYacht(y as Yacht);
 
-  if (!deal) return (
-    <Layout>
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 pt-24">
-        <AlertCircle size={36} className="text-white/20" />
-        <p className="font-display text-2xl text-white/30">Deal not found</p>
-        <Link href="/dealroom" className="text-primary text-sm font-sans tracking-widest uppercase hover:underline">← Back to Deal Room</Link>
-      </div>
-    </Layout>
-  );
+    if (data.deal_room_enabled || isAdmin) {
+      const { data: msgs } = await supabaseAdmin
+        .from("deal_messages")
+        .select("*")
+        .eq("deal_id", dealId)
+        .order("created_at", { ascending: true });
+      setMessages((msgs as DealMessage[]) || []);
 
-  const discount = calcDiscount(deal.market_price, deal.deal_price);
+      const { data: docs } = await supabaseAdmin
+        .from("deal_documents")
+        .select("*")
+        .eq("deal_id", dealId)
+        .order("created_at", { ascending: false });
+      setDocuments((docs as DealDocument[]) || []);
+    }
+
+    if (isAdmin) {
+      const { data: logs } = await supabaseAdmin
+        .from("deal_activity_logs")
+        .select("*")
+        .eq("deal_id", dealId)
+        .order("created_at", { ascending: false });
+      setActivity((logs as DealActivityLog[]) || []);
+    }
+
+    setLoading(false);
+  }
+
+  async function acceptNda() {
+    if (!deal || !user) return;
+    setAcceptingNda(true);
+
+    const now = new Date().toISOString();
+
+    await supabaseAdmin.from("deals").update({
+      nda_accepted: true,
+      nda_accepted_at: now,
+      terms_accepted: true,
+      terms_accepted_at: now,
+      status: "nda_signed",
+      updated_at: now,
+    }).eq("id", deal.id);
+
+    await supabaseAdmin.from("nda_acceptance_logs").insert([{
+      deal_id: deal.id,
+      user_id: user.id,
+      document_version: "v1",
+      accepted: true,
+      accepted_at: now,
+    }]);
+
+    await supabaseAdmin.from("deal_activity_logs").insert([
+      { deal_id: deal.id, user_id: user.id, action: "nda_accepted", meta: {} },
+      { deal_id: deal.id, user_id: user.id, action: "terms_accepted", meta: {} },
+    ]);
+
+    setAcceptingNda(false);
+    loadDeal();
+  }
+
+  async function sendMessage() {
+    if (!msgText.trim() || !deal || !user) return;
+    setSending(true);
+    await supabaseAdmin.from("deal_messages").insert([{
+      deal_id: deal.id,
+      sender_id: user.id,
+      message: msgText.trim(),
+      is_system: false,
+    }]);
+    await supabaseAdmin.from("deal_activity_logs").insert([{
+      deal_id: deal.id,
+      user_id: user.id,
+      action: "message_sent",
+      meta: {},
+    }]);
+    setMsgText("");
+    setSending(false);
+    const { data: msgs } = await supabaseAdmin
+      .from("deal_messages")
+      .select("*")
+      .eq("deal_id", deal.id)
+      .order("created_at", { ascending: true });
+    setMessages((msgs as DealMessage[]) || []);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  }
+
+  if (!user) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Lock size={32} className="text-primary mx-auto mb-4" />
+            <p className="text-white/50 font-sans">Please log in to access this deal.</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!deal) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <ShieldAlert size={32} className="text-primary mx-auto mb-4" />
+            <p className="text-white font-display text-xl mb-2">Deal Not Found</p>
+            <Link href="/dealroom" className="text-primary text-sm hover:underline">Back to Deal Room</Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
+  const currentStep = cfg.step;
+  const showNdaForm = deal.status === "nda_pending" && !isAdmin;
+  const showDealRoom = deal.deal_room_enabled || isAdmin;
 
   return (
     <Layout>
-      {contactOpen && <ContactModal dealTitle={deal.title} onClose={() => setContactOpen(false)} />}
-
-      {/* Hero image */}
-      <div className="relative h-[50vh] min-h-[320px] overflow-hidden bg-[#0a1526]">
-        {deal.image_url ? (
-          <img src={deal.image_url} alt={deal.title} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Anchor size={48} className="text-white/8" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/10" />
-
-        {/* Back */}
-        <div className="absolute top-24 left-6 z-10">
-          <Link href="/dealroom" className="flex items-center gap-2 bg-background/70 backdrop-blur-md border border-white/10 text-white/70 hover:text-primary hover:border-primary/30 px-4 py-2 text-xs font-sans tracking-widest uppercase transition-all">
-            <ArrowLeft size={12} /> Deal Room
+      <div className="min-h-screen bg-background pt-28 pb-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-10">
+          <Link href="/dealroom">
+            <div className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-8 cursor-pointer text-sm font-sans">
+              <ArrowLeft size={14} /> Back to Deal Room
+            </div>
           </Link>
-        </div>
 
-        {/* Badges */}
-        <div className="absolute top-24 right-6 flex flex-col gap-2 items-end z-10">
-          <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border ${STATUS_STYLE[deal.status] || STATUS_STYLE.active}`}>
-            {STATUS_LABEL[deal.status] || deal.status}
-          </span>
-          {discount && (
-            <span className="bg-primary text-background text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 flex items-center gap-1">
-              <TrendingDown size={10} /> -{discount} off market
-            </span>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+              <div>
+                <h1 className="font-display text-3xl text-white mb-2">
+                  {yacht?.name || "Vessel"}
+                </h1>
+                <p className="text-white/40 text-sm font-sans">
+                  {[yacht?.builder, yacht?.length ? `${yacht.length}m` : null, yacht?.year].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border ${cfg.color} border-current/20 bg-black/30`}>
+                  {cfg.label}
+                </span>
+                {deal.nda_accepted && (
+                  <span className="text-[10px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-1 flex items-center gap-1">
+                    <FileText size={9} /> NDA Signed
+                  </span>
+                )}
+                {deal.intro_locked && (
+                  <span className="text-[10px] text-cyan-400 border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 flex items-center gap-1">
+                    <Lock size={9} /> Intro Locked
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="text-white/20 text-xs font-sans">
+              Deal created {new Date(deal.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+          </motion.div>
+
+          <div className="bg-primary/5 border border-primary/15 px-5 py-3 mb-8">
+            <p className="text-primary/80 text-xs font-sans">{DISCLAIMER_TEXT.slice(0, 200)}...</p>
+          </div>
+
+          <StatusTimeline currentStep={currentStep} dealStatus={deal.status} />
+
+          {showNdaForm && (
+            <NdaSection
+              ndaCheck={ndaCheck}
+              termsCheck={termsCheck}
+              onNdaChange={setNdaCheck}
+              onTermsChange={setTermsCheck}
+              onAccept={acceptNda}
+              accepting={acceptingNda}
+            />
+          )}
+
+          {deal.status === "pending_admin_review" && !isAdmin && (
+            <div className="bg-yellow-500/5 border border-yellow-500/20 p-8 text-center mb-8">
+              <Clock size={28} className="text-yellow-400 mx-auto mb-3" />
+              <h3 className="font-display text-xl text-white mb-2">Awaiting Admin Review</h3>
+              <p className="text-white/50 text-sm font-sans">Your request is being reviewed. You will be notified once it's processed.</p>
+            </div>
+          )}
+
+          {deal.status === "nda_signed" && !deal.intro_locked && !isAdmin && (
+            <div className="bg-cyan-500/5 border border-cyan-500/20 p-8 text-center mb-8">
+              <Shield size={28} className="text-cyan-400 mx-auto mb-3" />
+              <h3 className="font-display text-xl text-white mb-2">NDA Accepted — Awaiting Introduction</h3>
+              <p className="text-white/50 text-sm font-sans">Your NDA has been signed. The admin will now process the formal introduction with the broker.</p>
+            </div>
+          )}
+
+          {showDealRoom && (
+            <div className="space-y-8">
+              <div className="bg-[#0f1d33] border border-white/8">
+                <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+                  <p className="text-white/70 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <FileText size={13} /> Documents
+                  </p>
+                </div>
+                <div className="p-6">
+                  {documents.length === 0 ? (
+                    <p className="text-white/30 text-sm font-sans text-center py-4">No documents uploaded yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {documents.map(doc => (
+                        <div key={doc.id} className="flex items-center justify-between bg-white/3 border border-white/5 px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <FileText size={16} className="text-primary/60" />
+                            <div>
+                              <p className="text-white text-sm">{doc.title || "Untitled"}</p>
+                              <p className="text-white/30 text-xs font-sans">{doc.file_type || "Document"} · {new Date(doc.created_at).toLocaleDateString("en-GB")}</p>
+                            </div>
+                          </div>
+                          {doc.file_path && (
+                            <a href={doc.file_path} target="_blank" rel="noopener noreferrer" className="text-primary text-xs font-bold uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1">
+                              <Download size={12} /> View
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-[#0f1d33] border border-white/8">
+                <div className="px-6 py-4 border-b border-white/5">
+                  <p className="text-white/70 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                    <MessageSquare size={13} /> Messages
+                  </p>
+                </div>
+                <div className="max-h-80 overflow-y-auto p-6 space-y-4">
+                  {messages.length === 0 ? (
+                    <p className="text-white/30 text-sm font-sans text-center py-4">No messages yet. Start the conversation.</p>
+                  ) : (
+                    messages.map(msg => {
+                      const isOwn = msg.sender_id === user?.id;
+                      return (
+                        <div key={msg.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[70%] px-4 py-3 ${msg.is_system ? "bg-primary/10 border border-primary/20 text-primary/80" : isOwn ? "bg-primary/15 border border-primary/25" : "bg-white/5 border border-white/8"}`}>
+                            {msg.is_system && <p className="text-[10px] uppercase tracking-widest mb-1 opacity-60">System</p>}
+                            <p className="text-sm font-sans text-white/80">{msg.message}</p>
+                            <p className="text-[10px] text-white/20 mt-1 font-sans">
+                              {new Date(msg.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+                <div className="border-t border-white/5 p-4 flex gap-3">
+                  <input
+                    value={msgText}
+                    onChange={e => setMsgText(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-white/5 border border-white/10 px-4 py-2.5 text-white text-sm font-sans focus:outline-none focus:border-primary/40"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={sending || !msgText.trim()}
+                    className="bg-primary text-background px-5 py-2.5 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 transition-colors flex items-center gap-2"
+                  >
+                    <Send size={12} /> Send
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-[#0f1d33] border border-white/8 p-6">
+                <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Shield size={13} /> Deal Details
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm font-sans">
+                  <div>
+                    <p className="text-white/30 text-xs mb-1">NDA Status</p>
+                    <p className={deal.nda_accepted ? "text-green-400" : "text-yellow-400"}>
+                      {deal.nda_accepted ? "Accepted" : "Pending"}
+                    </p>
+                    {deal.nda_accepted_at && (
+                      <p className="text-white/20 text-[10px] mt-0.5">{new Date(deal.nda_accepted_at).toLocaleDateString("en-GB")}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-white/30 text-xs mb-1">Terms Status</p>
+                    <p className={deal.terms_accepted ? "text-green-400" : "text-yellow-400"}>
+                      {deal.terms_accepted ? "Accepted" : "Pending"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-white/30 text-xs mb-1">Intro Locked</p>
+                    <p className={deal.intro_locked ? "text-cyan-400" : "text-white/40"}>
+                      {deal.intro_locked ? "Yes" : "No"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-white/30 text-xs mb-1">Deal Room</p>
+                    <p className={deal.deal_room_enabled ? "text-green-400" : "text-white/40"}>
+                      {deal.deal_room_enabled ? "Enabled" : "Disabled"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isAdmin && activity.length > 0 && (
+            <div className="mt-8 bg-[#0f1d33] border border-white/8">
+              <button onClick={() => setShowActivity(!showActivity)} className="w-full px-6 py-4 flex items-center justify-between border-b border-white/5 hover:bg-white/2 transition-colors">
+                <p className="text-white/70 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                  <Activity size={13} /> Activity Log ({activity.length})
+                </p>
+                {showActivity ? <ChevronUp size={14} className="text-white/30" /> : <ChevronDown size={14} className="text-white/30" />}
+              </button>
+              {showActivity && (
+                <div className="max-h-60 overflow-y-auto p-4 space-y-2">
+                  {activity.map(log => (
+                    <div key={log.id} className="flex items-start gap-3 text-xs font-sans">
+                      <span className="text-white/20 flex-shrink-0 w-28">
+                        {new Date(log.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      <span className="text-primary/60">{log.action.replace(/_/g, " ")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
+      </div>
+    </Layout>
+  );
+}
 
-        {/* Title */}
-        <div className="absolute bottom-0 left-0 right-0 px-6 md:px-12 pb-8">
-          <div className="max-w-5xl mx-auto">
-            <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-2">Confidential Deal — Secure Data Room</span>
-            <h1 className="font-display text-4xl md:text-5xl text-white leading-none">{deal.title}</h1>
-            {deal.location && (
-              <div className="flex items-center gap-1.5 text-white/50 text-sm mt-2">
-                <MapPin size={13} /> {deal.location}
+function StatusTimeline({ currentStep, dealStatus }: { currentStep: number; dealStatus: string }) {
+  const isTerminal = dealStatus === "rejected" || dealStatus === "cancelled";
+
+  return (
+    <div className="mb-8 bg-[#0f1d33] border border-white/8 p-6">
+      <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-6">Deal Progress</h3>
+      <div className="flex items-center gap-0 overflow-x-auto pb-2">
+        {TIMELINE_STEPS.map((step, i) => {
+          const isActive = currentStep >= step.key === "closed" ? 7 : i;
+          const isCurrent = currentStep === (step.key === "closed" ? 7 : i);
+          const stepNum = i;
+          const reached = currentStep >= stepNum;
+
+          return (
+            <div key={step.key} className="flex items-center flex-shrink-0">
+              <div className="flex flex-col items-center">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-colors ${
+                  reached
+                    ? "bg-primary border-primary text-background"
+                    : "border-white/15 text-white/20"
+                }`}>
+                  {reached ? <CheckCircle size={12} /> : i + 1}
+                </div>
+                <p className={`text-[9px] mt-1.5 text-center max-w-[70px] leading-tight ${reached ? "text-primary" : "text-white/20"}`}>
+                  {step.label}
+                </p>
               </div>
-            )}
-          </div>
+              {i < TIMELINE_STEPS.length - 1 && (
+                <div className={`w-8 h-0.5 mx-1 mt-[-12px] ${reached && currentStep > stepNum ? "bg-primary" : "bg-white/10"}`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {isTerminal && (
+        <div className="mt-4 flex items-center gap-2 text-red-400 text-xs font-sans">
+          <AlertTriangle size={12} />
+          This deal has been {dealStatus}.
         </div>
+      )}
+    </div>
+  );
+}
+
+function NdaSection({ ndaCheck, termsCheck, onNdaChange, onTermsChange, onAccept, accepting }: {
+  ndaCheck: boolean; termsCheck: boolean;
+  onNdaChange: (v: boolean) => void; onTermsChange: (v: boolean) => void;
+  onAccept: () => void; accepting: boolean;
+}) {
+  return (
+    <div className="mb-8 space-y-6">
+      <div className="bg-[#0f1d33] border border-orange-500/20 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle size={16} className="text-orange-400" />
+          <h3 className="font-display text-lg text-white">Non-Disclosure Agreement Required</h3>
+        </div>
+        <div className="bg-black/30 border border-white/5 p-4 max-h-48 overflow-y-auto mb-4">
+          <pre className="text-white/60 text-xs font-sans whitespace-pre-wrap leading-relaxed">{NDA_TEXT}</pre>
+        </div>
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input type="checkbox" checked={ndaCheck} onChange={e => onNdaChange(e.target.checked)} className="mt-1 accent-primary" />
+          <span className="text-white/70 text-sm font-sans group-hover:text-white transition-colors">
+            I have read and agree to the Non-Disclosure Agreement
+          </span>
+        </label>
       </div>
 
-      {/* Content */}
-      <section className="py-12 bg-background">
-        <div className="max-w-5xl mx-auto px-6 md:px-12">
-
-          {/* Confidentiality notice */}
-          <div className="flex items-center gap-3 bg-primary/6 border border-primary/15 px-5 py-3 mb-10">
-            <Lock size={13} className="text-primary flex-shrink-0" />
-            <p className="text-primary/80 text-xs font-sans">
-              This information is strictly confidential and subject to NDA. Unauthorized sharing is prohibited.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-
-            {/* Left: description + documents */}
-            <div className="lg:col-span-2 space-y-10">
-
-              {/* Description */}
-              {deal.description && (
-                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-                  <h2 className="font-display text-xl text-white mb-4 uppercase tracking-wide">Opportunity Overview</h2>
-                  <p className="text-white/60 font-sans leading-relaxed">{deal.description}</p>
-                </motion.div>
-              )}
-
-              {/* Documents */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
-                <h2 className="font-display text-xl text-white mb-4 uppercase tracking-wide">Due Diligence Documents</h2>
-                {docs.length === 0 ? (
-                  <div className="bg-white/2 border border-white/8 p-8 text-center">
-                    <FileText size={28} className="text-white/15 mx-auto mb-3" />
-                    <p className="text-white/30 text-sm font-sans">Documents will be made available upon confirmation of interest.</p>
-                  </div>
-                ) : (
-                  <div className="border border-white/8 divide-y divide-white/5">
-                    {docs.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between px-5 py-4 hover:bg-white/2 transition-colors group">
-                        <div className="flex items-center gap-4">
-                          <div className="w-9 h-9 bg-background border border-white/10 flex items-center justify-center flex-shrink-0">
-                            <FileText size={15} className="text-primary" />
-                          </div>
-                          <p className="text-white text-sm font-sans group-hover:text-primary transition-colors">{doc.name}</p>
-                        </div>
-                        {doc.file_url ? (
-                          <a href={doc.file_url} download target="_blank" rel="noopener noreferrer"
-                            className="w-9 h-9 border border-white/10 flex items-center justify-center text-white/40 hover:bg-primary hover:text-background hover:border-primary transition-all flex-shrink-0"
-                            title="Download">
-                            <Download size={15} />
-                          </a>
-                        ) : (
-                          <div className="w-9 h-9 border border-white/5 flex items-center justify-center text-white/15 flex-shrink-0">
-                            <Download size={15} />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-4 bg-white/2 border border-white/6 px-5 py-4">
-                  <div className="flex items-start gap-2">
-                    <Shield size={13} className="text-white/30 mt-0.5 flex-shrink-0" />
-                    <p className="text-white/35 text-xs font-sans leading-relaxed">
-                      All documents are strictly confidential. Downloading or sharing without authorization violates your NDA agreement.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Right: price card + CTA */}
-            <div className="space-y-5">
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="bg-white/3 border border-white/8 p-7 sticky top-28"
-              >
-                <h3 className="font-display text-sm text-white/40 tracking-widest uppercase mb-5">Deal Summary</h3>
-
-                {deal.market_price && (
-                  <div className="mb-3">
-                    <p className="text-white/35 text-[10px] font-sans tracking-widest uppercase mb-0.5">Market Value</p>
-                    <p className="text-white/40 text-base font-sans line-through">{deal.market_price}</p>
-                  </div>
-                )}
-
-                {deal.deal_price && (
-                  <div className="mb-2">
-                    <p className="text-white/35 text-[10px] font-sans tracking-widest uppercase mb-0.5">Deal Price</p>
-                    <p className="font-display text-3xl text-primary">{deal.deal_price}</p>
-                  </div>
-                )}
-
-                {discount && (
-                  <div className="bg-primary/10 border border-primary/20 px-4 py-2 mb-5 flex items-center gap-2">
-                    <TrendingDown size={13} className="text-primary" />
-                    <p className="text-primary text-[10px] font-bold uppercase tracking-widest">
-                      {discount} below market value
-                    </p>
-                  </div>
-                )}
-
-                {deal.location && (
-                  <div className="border-t border-white/8 pt-4 mb-5">
-                    <div className="flex items-center gap-2 text-white/50 text-sm">
-                      <MapPin size={13} className="text-primary" />
-                      {deal.location}
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setContactOpen(true)}
-                  className="w-full bg-primary text-background font-bold uppercase tracking-widest py-4 text-xs hover:bg-primary/85 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Mail size={14} /> Request Deal Access
-                </button>
-                <Link href="/dealroom">
-                  <div className="w-full text-center text-white/35 hover:text-white text-xs font-sans tracking-wider uppercase mt-3 transition-colors cursor-pointer">
-                    ← All Deals
-                  </div>
-                </Link>
-              </motion.div>
-
-              {/* Contact info */}
-              <div className="bg-white/2 border border-white/6 p-5">
-                <p className="text-white/30 text-[10px] uppercase tracking-widest mb-3">Direct Contact</p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-white/50 text-sm">
-                    <Mail size={13} className="text-primary/60" />
-                    <span className="font-sans">deals@pdye.com</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-white/50 text-sm">
-                    <Phone size={13} className="text-primary/60" />
-                    <span className="font-sans">+1 (555) 000-0000</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
+      <div className="bg-[#0f1d33] border border-orange-500/20 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Shield size={16} className="text-orange-400" />
+          <h3 className="font-display text-lg text-white">Terms of Access & Non-Circumvention</h3>
         </div>
-      </section>
-    </Layout>
+        <div className="bg-black/30 border border-white/5 p-4 max-h-48 overflow-y-auto mb-4">
+          <pre className="text-white/60 text-xs font-sans whitespace-pre-wrap leading-relaxed">{TERMS_TEXT}</pre>
+        </div>
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input type="checkbox" checked={termsCheck} onChange={e => onTermsChange(e.target.checked)} className="mt-1 accent-primary" />
+          <span className="text-white/70 text-sm font-sans group-hover:text-white transition-colors">
+            I have read and agree to the Terms of Access and Non-Circumvention Agreement
+          </span>
+        </label>
+      </div>
+
+      <button
+        onClick={onAccept}
+        disabled={!ndaCheck || !termsCheck || accepting}
+        className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+      >
+        {accepting ? (
+          <><RefreshCw size={14} className="animate-spin" /> Processing...</>
+        ) : (
+          <><CheckCircle size={14} /> Accept & Continue</>
+        )}
+      </button>
+    </div>
   );
 }

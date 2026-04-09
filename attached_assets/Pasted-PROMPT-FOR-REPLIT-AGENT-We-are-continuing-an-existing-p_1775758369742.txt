@@ -1,0 +1,96 @@
+PROMPT FOR REPLIT AGENT
+
+We are continuing an existing project called PDYE (Private Distressed Yacht Exchange).
+
+This is a private B2B off-market yacht platform, not a public marketplace.
+The platform already has:
+
+Supabase
+auth
+user roles
+admin
+yacht database
+access requests
+introductions
+partial deal room
+
+Your task is to finish and harden the Deal Flow and Deal Room system, using the existing app structure, without rebuilding the whole project from scratch.
+
+CORE BUSINESS LOGIC
+
+This platform does not sell yachts directly.
+Its main value is:
+
+controlling access to off-market yacht opportunities
+controlling introductions between buyer and broker
+protecting commission / introduction flow
+giving full information only after approval
+
+The correct flow must be:
+
+Register
+→ Pending approval
+→ Approved account
+→ View limited yacht catalog
+→ Request Details
+→ Deal auto-created
+→ Admin reviews request
+→ NDA / Terms acceptance required
+→ Intro locked and recorded
+→ Deal Room access granted
+→ Activity tracked
+→ Deal progresses by statuses
+IMPORTANT RULES
+Public catalog must show only:
+builder
+model if already used in project
+length
+year
+1 photo
+Public catalog must NOT show:
+direct contacts
+seller contact
+broker contact
+documents
+full descriptions
+sensitive deal data
+pricing unless already intentionally allowed by admin
+No direct contact sharing anywhere before admin approval + NDA acceptance.
+All sensitive data must be protected with Supabase RLS.
+No anonymous access to private deal data.
+ROLES
+
+We use these roles:
+
+buyer
+broker
+owner
+admin
+
+Do not rename them.
+
+WHAT TO BUILD
+
+You must implement a complete Deal Room workflow with:
+
+deal creation
+deal statuses
+NDA / Terms acceptance layer
+intro lock
+controlled Deal Room access
+document access inside deal room
+activity tracking
+admin management tools
+
+Use the current stack and existing project structure as much as possible.
+
+DATABASE CHANGES REQUIRED
+
+Create or update the following tables in Supabase if missing.
+Do not duplicate tables if equivalent ones already exist — instead extend them safely.
+
+1) deals
+
+Purpose: one central record per request/opportunity flow
+
+Suggested fields:

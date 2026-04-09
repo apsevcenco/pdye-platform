@@ -2,95 +2,106 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Private B2B off-market yacht platform. pnpm workspace monorepo using TypeScript. Supabase for auth + database.
 
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Tailwind CSS + Wouter (hash routing)
+- **Backend**: Express 5 API server
+- **Database**: Supabase (PostgreSQL) — `zpvisupiqrtjllavblim.supabase.co`
+- **Auth**: Supabase Auth
+- **Styling**: Tailwind CSS, self-hosted fonts, dark navy (#0a1426) + gold (#c8a46b)
+
+## Supabase Tables
+
+- **users**: id, email, role (buyer/broker/owner/admin), approved, created_at
+- **yachts**: Full yacht data with images, specs, pricing
+- **access_requests**: yacht_id, requester_id, role, status (pending/approved/rejected)
+- **deals**: Workflow pipeline — yacht_id, buyer_id, broker_id, owner_id, status (created → pending_admin_review → approved → nda_pending → nda_signed → intro_sent → active → closed/cancelled), NDA/terms acceptance, intro lock, deal_room_enabled
+- **deal_documents**: Files visible inside deal room with role-based visibility
+- **deal_messages**: Internal communication inside deal room
+- **deal_activity_logs**: Audit trail for all deal actions
+- **deal_participants**: Explicit access control per deal
+- **nda_acceptance_logs**: Legal confirmation records
+- **leads**: Public form submissions
+- **introductions**: Formal introduction records
+
+## Key Environment Variables
+
+- `VITE_SUPABASE_URL` — Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` — Supabase anon/publishable key
+- `VITE_SUPABASE_SERVICE_ROLE_KEY` — Actually the anon key (frontend safe)
+- `SUPABASE_SERVICE_ROLE_KEY` — Real service role key (API server only)
+
+## Architecture
+
+### Frontend (artifacts/pdye)
+
+React + Vite app with hash routing (`/#/path`).
+
+**Public pages**: Home, Boat Owners, Brokers, Private Buyers, Access, Valuation
+**Protected pages**: Yachts, Dashboard, DealRoom, DealDetails, AddYacht
+**Admin pages**: Admin (sidebar nav with sub-views), AdminUsers, AdminRequests
+
+### API Server (artifacts/api-server)
+
+Express on port 8080. Routes:
+- `/api/health` — health check
+- `/api/upload-photo` — yacht photo upload to Supabase Storage
+- `/api/estimate` — AI yacht valuation
+
+### Deal Flow (Core Business Logic)
+
+1. Buyer browses limited yacht catalog (builder, length, year, 1 photo only)
+2. Clicks "Request Details" → creates access_request + deal (pending_admin_review)
+3. Admin reviews → approves (→ nda_pending) or rejects
+4. Buyer signs NDA + Terms → nda_signed
+5. Admin sends intro (intro_locked) → intro_sent
+6. Admin enables deal room → active
+7. Full deal room access: documents, messages, deal details
+
+### User Roles
+
+- `buyer` (displayed as "Private Buyer" in UI)
+- `broker`
+- `owner`
+- `admin`
+
+### Key Files
+
+- `src/App.tsx` — Router, providers, font loader
+- `src/context/AuthContext.tsx` — Auth state with race-condition protection
+- `src/pages/Admin.tsx` — Admin panel with all sub-views (2400+ lines)
+- `src/pages/DealRoom.tsx` — User's deal list with status cards
+- `src/pages/DealDetails.tsx` — Full deal room (timeline, NDA, docs, messages)
+- `src/pages/Dashboard.tsx` — Role-specific dashboards
+- `src/pages/Yachts.tsx` — Yacht catalog with request flow
+- `src/lib/dealTypes.ts` — Deal flow types and status config
+- `src/lib/legalText.ts` — Centralized NDA, Terms, disclaimer text
+- `src/lib/supabase.ts` — Supabase anon client
+- `src/lib/supabaseAdmin.ts` — Supabase admin client (uses anon key on frontend)
+
+### Important Notes
+
+- **users table has NO `full_name` column** — only id, email, role, approved, created_at
+- **Internal role value `investor`** is displayed as "Private Buyer" in UI
+- **Hash routing** — all routes use `/#/path` format
+- **Currency switching** — €/$/£ with useCurrency hook
+- **RLS disabled** on access_requests and users tables (supabaseAdmin uses anon key)
+- **SQL migration** at `migrations/001_deal_flow.sql` must be run in Supabase SQL Editor
 
 ## Structure
 
 ```text
-artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+artifacts/
+├── pdye/                  # Main frontend app
+│   ├── src/
+│   │   ├── components/    # UI components (layout, ui)
+│   │   ├── context/       # AuthContext
+│   │   ├── lib/           # Supabase clients, types, legal text, data
+│   │   └── pages/         # All page components
+│   └── migrations/        # SQL migrations for Supabase
+├── api-server/            # Express API server
+└── mockup-sandbox/        # Component preview server
 ```
-
-## TypeScript & Composite Projects
-
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
-
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
-
-## Root Scripts
-
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
-
-## Packages
-
-### `artifacts/api-server` (`@workspace/api-server`)
-
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
-
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
-
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

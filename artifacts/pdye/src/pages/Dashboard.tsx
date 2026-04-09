@@ -2,7 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, Redirect } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { Layout } from "@/components/layout/Layout";
+import { type DealFlow, DEAL_STATUS_CONFIG } from "@/lib/dealTypes";
 import {
   User, Clock, CheckCircle, XCircle, Ship, Plus, TrendingUp,
   LayoutDashboard, ArrowRight, FileText, Lock, ShieldCheck,
@@ -152,19 +154,83 @@ function BuyerDashboard({ userId }: { userId: string }) {
         )}
       </Block>
 
-      {/* Deal Room CTA */}
-      {approved.length > 0 && (
-        <div className="bg-primary/5 border border-primary/20 p-6 flex items-center justify-between">
+      <MyDealsSection userId={userId} />
+
+      <Link href="/dealroom">
+        <div className="bg-primary/5 border border-primary/20 p-6 flex items-center justify-between cursor-pointer hover:bg-primary/8 transition-colors">
           <div>
-            <p className="text-white font-display text-lg mb-1">Deal Room Access</p>
-            <p className="text-white/50 text-sm font-sans">{approved.length} vessel{approved.length > 1 ? "s" : ""} unlocked.</p>
+            <p className="text-white font-display text-lg mb-1">Deal Room</p>
+            <p className="text-white/50 text-sm font-sans">View all your deals and access deal rooms.</p>
           </div>
-          <Link href="/dealroom" className="flex items-center gap-2 bg-primary text-background px-5 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors">
+          <div className="flex items-center gap-2 bg-primary text-background px-5 py-3 font-bold text-xs uppercase tracking-widest">
             Enter Deal Room <ArrowRight size={13} />
-          </Link>
+          </div>
         </div>
-      )}
+      </Link>
     </div>
+  );
+}
+
+function MyDealsSection({ userId }: { userId: string }) {
+  const [deals, setDeals] = useState<(DealFlow & { yacht_name?: string })[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDeals() {
+      const { data } = await supabaseAdmin
+        .from("deals")
+        .select("*")
+        .eq("buyer_id", userId)
+        .not("status", "in", '("cancelled","rejected")')
+        .order("created_at", { ascending: false });
+
+      const flowDeals = ((data || []) as DealFlow[]).filter(d => d.buyer_id != null);
+
+      if (flowDeals.length > 0) {
+        const yachtIds = [...new Set(flowDeals.map(d => d.yacht_id))];
+        const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
+        const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
+        setDeals(flowDeals.map(d => ({ ...d, yacht_name: yachtMap[d.yacht_id] || "Unknown" })));
+      }
+      setLoading(false);
+    }
+    loadDeals();
+  }, [userId]);
+
+  if (loading || deals.length === 0) return null;
+
+  return (
+    <Block title="My Deals">
+      <div className="divide-y divide-white/5">
+        {deals.map(deal => {
+          const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
+          const needsAction = deal.status === "nda_pending";
+          return (
+            <div key={deal.id} className="flex items-center justify-between px-6 py-4">
+              <div>
+                <p className="text-white text-sm font-medium">{deal.yacht_name}</p>
+                <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(deal.created_at).toLocaleDateString("en-GB")}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color} border-current/20`}>
+                  {cfg.label}
+                </span>
+                {needsAction && (
+                  <Link href={`/dealroom/${deal.id}`} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
+                    Sign NDA <ChevronRight size={11} />
+                  </Link>
+                )}
+                {deal.deal_room_enabled && (
+                  <Link href={`/dealroom/${deal.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                    Open Room <ChevronRight size={11} />
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Block>
   );
 }
 
@@ -306,14 +372,65 @@ function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
         )}
       </Block>
 
-      {/* Submit to Deal Room tip */}
-      <div className="border border-white/5 bg-white/2 px-6 py-4 flex items-start gap-3">
-        <Send size={14} className="text-primary/50 mt-0.5 flex-shrink-0" />
-        <p className="text-white/30 text-xs font-sans leading-relaxed">
-          Hover over a listing and click the send icon to submit it for Deal Room review. An admin will approve or reject the submission.
-        </p>
-      </div>
+      {role === "broker" && <BrokerDealsSection userId={userId} />}
     </div>
+  );
+}
+
+function BrokerDealsSection({ userId }: { userId: string }) {
+  const [deals, setDeals] = useState<(DealFlow & { yacht_name?: string })[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabaseAdmin
+        .from("deals")
+        .select("*")
+        .eq("broker_id", userId)
+        .not("status", "in", '("cancelled","rejected")')
+        .order("created_at", { ascending: false });
+
+      const flowDeals = ((data || []) as DealFlow[]).filter(d => d.buyer_id != null);
+
+      if (flowDeals.length > 0) {
+        const yachtIds = [...new Set(flowDeals.map(d => d.yacht_id))];
+        const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
+        const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
+        setDeals(flowDeals.map(d => ({ ...d, yacht_name: yachtMap[d.yacht_id] || "Unknown" })));
+      }
+      setLoading(false);
+    }
+    load();
+  }, [userId]);
+
+  if (loading || deals.length === 0) return null;
+
+  return (
+    <Block title="Assigned Deals">
+      <div className="divide-y divide-white/5">
+        {deals.map(deal => {
+          const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
+          return (
+            <div key={deal.id} className="flex items-center justify-between px-6 py-4">
+              <div>
+                <p className="text-white text-sm font-medium">{deal.yacht_name}</p>
+                <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(deal.created_at).toLocaleDateString("en-GB")}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color} border-current/20`}>
+                  {cfg.label}
+                </span>
+                {deal.deal_room_enabled && (
+                  <Link href={`/dealroom/${deal.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                    Open <ChevronRight size={11} />
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Block>
   );
 }
 

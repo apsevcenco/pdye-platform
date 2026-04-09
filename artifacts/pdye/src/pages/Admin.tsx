@@ -1370,177 +1370,296 @@ function YachtsView() {
   );
 }
 
-type Deal = {
-  id: string;
-  title: string;
-  description: string | null;
-  market_price: string | null;
-  deal_price: string | null;
-  location: string | null;
-  status: string;
-  image_url: string | null;
-  created_at: string;
-};
+import { type DealFlow, DEAL_STATUS_CONFIG, DEAL_STATUSES, type DealActivityLog } from "@/lib/dealTypes";
 
-const DEAL_STATUS_OPTIONS = ["active", "under_offer", "closed"];
-const DEAL_STATUS_LABELS: Record<string, string> = { active: "Active", under_offer: "Under Offer", closed: "Closed" };
-const DEAL_STATUS_STYLE: Record<string, string> = {
-  active: "text-green-400 bg-green-500/10 border-green-500/20",
-  under_offer: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-  closed: "text-white/30 bg-white/5 border-white/10",
-};
-
-const DEAL_EMPTY: Omit<Deal, "id" | "created_at"> = {
-  title: "", description: "", market_price: "", deal_price: "", location: "", status: "active", image_url: "",
+type DealWithDetails = DealFlow & {
+  yacht_name?: string;
+  buyer_email?: string;
+  broker_email?: string;
 };
 
 function DealsManageView() {
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [deals, setDeals] = useState<DealWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState<typeof DEAL_EMPTY>(DEAL_EMPTY);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
+  const [selectedDeal, setSelectedDeal] = useState<DealWithDetails | null>(null);
+  const [activity, setActivity] = useState<DealActivityLog[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const load = () => {
-    supabaseAdmin.from("deals").select("*").order("created_at", { ascending: false })
-      .then(({ data }) => { setDeals((data as Deal[]) || []); setLoading(false); });
-  };
+  async function load() {
+    setLoading(true);
+    const { data } = await supabaseAdmin.from("deals").select("*").order("created_at", { ascending: false });
+    const flowDeals = ((data || []) as DealFlow[]).filter(d => d.buyer_id != null);
+
+    if (flowDeals.length > 0) {
+      const userIds = [...new Set([...flowDeals.map(d => d.buyer_id), ...flowDeals.map(d => d.broker_id)].filter(Boolean))];
+      const { data: users } = await supabaseAdmin.from("users").select("id, email").in("id", userIds as string[]);
+      const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, u.email]));
+
+      const yachtIds = [...new Set(flowDeals.map(d => d.yacht_id).filter(Boolean))];
+      const { data: yachts } = yachtIds.length > 0
+        ? await supabase.from("yachts").select("id, name").in("id", yachtIds)
+        : { data: [] };
+      const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
+
+      setDeals(flowDeals.map(d => ({
+        ...d,
+        yacht_name: yachtMap[d.yacht_id] || "Unknown",
+        buyer_email: userMap[d.buyer_id] || "—",
+        broker_email: d.broker_id ? userMap[d.broker_id] || "—" : "—",
+      })));
+    } else {
+      setDeals([]);
+    }
+    setLoading(false);
+  }
 
   useEffect(() => { load(); }, []);
 
-  function openNew() { setForm(DEAL_EMPTY); setEditingId(null); setShowForm(true); setErr(""); }
-  function openEdit(d: Deal) {
-    setForm({ title: d.title, description: d.description || "", market_price: d.market_price || "", deal_price: d.deal_price || "", location: d.location || "", status: d.status, image_url: d.image_url || "" });
-    setEditingId(d.id); setShowForm(true); setErr("");
+  async function openDeal(deal: DealWithDetails) {
+    setSelectedDeal(deal);
+    const { data: logs } = await supabaseAdmin
+      .from("deal_activity_logs")
+      .select("*")
+      .eq("deal_id", deal.id)
+      .order("created_at", { ascending: false });
+    setActivity((logs as DealActivityLog[]) || []);
   }
 
-  async function save() {
-    if (!form.title.trim()) { setErr("Title is required"); return; }
-    setSaving(true); setErr("");
-    const payload = { ...form, title: form.title.trim(), description: form.description || null, market_price: form.market_price || null, deal_price: form.deal_price || null, location: form.location || null, image_url: form.image_url || null };
-    if (editingId) {
-      const { error } = await supabaseAdmin.from("deals").update(payload).eq("id", editingId);
-      if (error) { setErr(error.message); setSaving(false); return; }
-    } else {
-      const { error } = await supabaseAdmin.from("deals").insert([payload]);
-      if (error) { setErr(error.message); setSaving(false); return; }
+  async function updateDealStatus(dealId: string, newStatus: string, extraFields?: Record<string, any>) {
+    setActionLoading(true);
+    const now = new Date().toISOString();
+    await supabaseAdmin.from("deals").update({
+      status: newStatus,
+      updated_at: now,
+      ...extraFields,
+    }).eq("id", dealId);
+    await supabaseAdmin.from("deal_activity_logs").insert([{
+      deal_id: dealId,
+      action: "status_changed",
+      meta: { new_status: newStatus },
+    }]);
+    if (newStatus === "intro_sent" && selectedDeal) {
+      await supabaseAdmin.from("deal_activity_logs").insert([{
+        deal_id: dealId,
+        action: "intro_sent",
+        meta: {},
+      }]);
+      await supabaseAdmin.from("deal_messages").insert([{
+        deal_id: dealId,
+        sender_id: selectedDeal.buyer_id,
+        message: "Introduction has been formally recorded. Deal room access will be granted shortly.",
+        is_system: true,
+      }]);
     }
-    setSaving(false); setShowForm(false); load();
-  }
-
-  async function remove(id: string) {
-    if (!confirm("Delete this deal?")) return;
-    await supabaseAdmin.from("deals").delete().eq("id", id);
+    setActionLoading(false);
+    setSelectedDeal(null);
     load();
   }
 
+  async function approveDeal(deal: DealWithDetails) {
+    await updateDealStatus(deal.id, "nda_pending");
+    await supabaseAdmin.from("access_requests").update({ status: "approved" }).eq("id", deal.request_id);
+  }
+
+  async function rejectDeal(deal: DealWithDetails) {
+    await updateDealStatus(deal.id, "rejected");
+    await supabaseAdmin.from("access_requests").update({ status: "rejected" }).eq("id", deal.request_id);
+  }
+
+  async function sendIntro(deal: DealWithDetails) {
+    await updateDealStatus(deal.id, "intro_sent", {
+      intro_locked: true,
+      intro_sent_at: new Date().toISOString(),
+    });
+  }
+
+  async function enableRoom(deal: DealWithDetails) {
+    await updateDealStatus(deal.id, "active", {
+      deal_room_enabled: true,
+    });
+  }
+
+  async function closeDeal(deal: DealWithDetails) {
+    await updateDealStatus(deal.id, "closed", {
+      closed_at: new Date().toISOString(),
+    });
+  }
+
+  async function cancelDeal(deal: DealWithDetails) {
+    await updateDealStatus(deal.id, "cancelled", {
+      cancelled_at: new Date().toISOString(),
+    });
+  }
+
+  const filtered = statusFilter === "all"
+    ? deals
+    : deals.filter(d => d.status === statusFilter);
+
+  const statusCounts = deals.reduce((acc, d) => {
+    acc[d.status] = (acc[d.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   const inp = "w-full bg-white/5 border border-white/10 text-white text-sm px-4 py-2.5 font-sans focus:outline-none focus:border-primary/40 placeholder:text-white/20";
-  const lbl = "block text-white/40 text-[10px] uppercase tracking-widest mb-1.5 font-sans";
+
+  if (selectedDeal) {
+    const cfg = DEAL_STATUS_CONFIG[selectedDeal.status] || DEAL_STATUS_CONFIG.created;
+    return (
+      <div>
+        <button onClick={() => setSelectedDeal(null)} className="text-white/40 hover:text-primary text-sm mb-4 flex items-center gap-1 transition-colors">
+          ← Back to Deals
+        </button>
+
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="font-display text-2xl text-white">{selectedDeal.yacht_name}</h1>
+            <p className="text-white/40 text-sm font-sans mt-1">Buyer: {selectedDeal.buyer_email} · Broker: {selectedDeal.broker_email}</p>
+          </div>
+          <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border ${cfg.color} border-current/20`}>
+            {cfg.label}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {[
+            { label: "NDA", value: selectedDeal.nda_accepted ? "Accepted" : "Pending", ok: selectedDeal.nda_accepted },
+            { label: "Terms", value: selectedDeal.terms_accepted ? "Accepted" : "Pending", ok: selectedDeal.terms_accepted },
+            { label: "Intro", value: selectedDeal.intro_locked ? "Locked" : "Pending", ok: selectedDeal.intro_locked },
+            { label: "Room", value: selectedDeal.deal_room_enabled ? "Enabled" : "Disabled", ok: selectedDeal.deal_room_enabled },
+          ].map(s => (
+            <div key={s.label} className="bg-[#0f1d33] border border-white/5 p-3 text-center">
+              <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">{s.label}</p>
+              <p className={`text-sm font-bold ${s.ok ? "text-green-400" : "text-yellow-400"}`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+          <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Actions</h3>
+          <div className="flex flex-wrap gap-3">
+            {selectedDeal.status === "pending_admin_review" && (
+              <>
+                <button disabled={actionLoading} onClick={() => approveDeal(selectedDeal)} className="bg-green-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  Approve & Require NDA
+                </button>
+                <button disabled={actionLoading} onClick={() => rejectDeal(selectedDeal)} className="bg-red-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-red-700 disabled:opacity-50 transition-colors">
+                  Reject
+                </button>
+              </>
+            )}
+            {selectedDeal.status === "nda_signed" && !selectedDeal.intro_locked && (
+              <button disabled={actionLoading} onClick={() => sendIntro(selectedDeal)} className="bg-cyan-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-cyan-700 disabled:opacity-50 transition-colors">
+                Send Introduction & Lock Intro
+              </button>
+            )}
+            {selectedDeal.intro_locked && !selectedDeal.deal_room_enabled && (
+              <button disabled={actionLoading} onClick={() => enableRoom(selectedDeal)} className="bg-primary text-background px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/80 disabled:opacity-50 transition-colors">
+                Enable Deal Room
+              </button>
+            )}
+            {selectedDeal.status !== "closed" && selectedDeal.status !== "cancelled" && selectedDeal.status !== "rejected" && (
+              <>
+                <button disabled={actionLoading} onClick={() => closeDeal(selectedDeal)} className="border border-white/10 text-white/50 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/30 disabled:opacity-50 transition-colors">
+                  Close Deal
+                </button>
+                <button disabled={actionLoading} onClick={() => cancelDeal(selectedDeal)} className="border border-red-500/30 text-red-400/60 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-red-500/50 disabled:opacity-50 transition-colors">
+                  Cancel Deal
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {selectedDeal.notes && (
+          <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+            <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2">Notes</h3>
+            <p className="text-white/60 text-sm font-sans">{selectedDeal.notes}</p>
+          </div>
+        )}
+
+        {activity.length > 0 && (
+          <div className="bg-[#0f1d33] border border-white/8 p-5">
+            <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Activity Log</h3>
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {activity.map(log => (
+                <div key={log.id} className="flex items-start gap-3 text-xs font-sans">
+                  <span className="text-white/20 flex-shrink-0 w-32">
+                    {new Date(log.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span className="text-primary/60">{log.action.replace(/_/g, " ")}</span>
+                  {Object.keys(log.meta).length > 0 && (
+                    <span className="text-white/20">{JSON.stringify(log.meta)}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-display text-3xl text-white font-bold">Deal Room</h1>
-          <p className="text-white/50 text-sm font-sans mt-1">{deals.length} deals</p>
+          <h1 className="font-display text-3xl text-white font-bold">Deal Pipeline</h1>
+          <p className="text-white/50 text-sm font-sans mt-1">{deals.length} deal{deals.length !== 1 ? "s" : ""} total</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 bg-primary text-background px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">
-          <Plus size={14} /> New Deal
-        </button>
       </div>
 
-      {showForm && (
-        <div className="bg-[#0f1d33] border border-white/8 p-6 mb-6">
-          <h2 className="font-display text-xl text-white mb-5">{editingId ? "Edit Deal" : "New Deal"}</h2>
-          {err && <p className="text-red-400 text-sm mb-4">{err}</p>}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="md:col-span-2">
-              <label className={lbl}>Title *</label>
-              <input className={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Project Neptune — 42m Feadship" />
-            </div>
-            <div>
-              <label className={lbl}>Market Price</label>
-              <input className={inp} value={form.market_price || ""} onChange={e => setForm(f => ({ ...f, market_price: e.target.value }))} placeholder="€ 18,500,000" />
-            </div>
-            <div>
-              <label className={lbl}>Deal Price</label>
-              <input className={inp} value={form.deal_price || ""} onChange={e => setForm(f => ({ ...f, deal_price: e.target.value }))} placeholder="€ 12,000,000" />
-            </div>
-            <div>
-              <label className={lbl}>Location</label>
-              <input className={inp} value={form.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Monaco, France" />
-            </div>
-            <div>
-              <label className={lbl}>Status</label>
-              <select className={inp + " cursor-pointer"} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                {DEAL_STATUS_OPTIONS.map(s => <option key={s} value={s}>{DEAL_STATUS_LABELS[s]}</option>)}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className={lbl}>Image URL</label>
-              <input className={inp} value={form.image_url || ""} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
-            </div>
-            <div className="md:col-span-2">
-              <label className={lbl}>Description</label>
-              <textarea className={inp + " resize-none"} rows={3} value={form.description || ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief description of this opportunity..." />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={save} disabled={saving} className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50">
-              {saving ? "Saving…" : editingId ? "Update Deal" : "Create Deal"}
-            </button>
-            <button onClick={() => setShowForm(false)} className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button onClick={() => setStatusFilter("all")} className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border transition-colors ${statusFilter === "all" ? "border-primary text-primary" : "border-white/10 text-white/30 hover:border-white/20"}`}>
+          All ({deals.length})
+        </button>
+        {DEAL_STATUSES.filter(s => statusCounts[s]).map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)} className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border transition-colors ${statusFilter === s ? "border-primary text-primary" : "border-white/10 text-white/30 hover:border-white/20"}`}>
+            {DEAL_STATUS_CONFIG[s].label} ({statusCounts[s]})
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>
-      ) : deals.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-white/30">
           <TrendingUp size={36} className="mb-3 opacity-20" />
-          <p className="text-sm">No deals yet. Create one above.</p>
+          <p className="text-sm">No deals {statusFilter !== "all" ? "with this status" : "yet"}.</p>
         </div>
       ) : (
         <div className="bg-[#0f1d33] border border-white/5">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">
-                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Title</th>
-                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Location</th>
-                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Deal Price</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Yacht</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Buyer</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Broker</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Status</th>
-                <th className="px-5 py-3"></th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Created</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {deals.map(deal => (
-                <tr key={deal.id} className="hover:bg-white/2 transition-colors group">
-                  <td className="px-5 py-3.5">
-                    <p className="text-white font-medium text-sm">{deal.title}</p>
-                    {deal.market_price && <p className="text-white/30 text-xs line-through mt-0.5">{deal.market_price}</p>}
-                  </td>
-                  <td className="px-5 py-3.5 text-white/50 text-sm hidden md:table-cell">{deal.location || "—"}</td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-primary font-medium font-sans text-sm">{deal.deal_price || "—"}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${DEAL_STATUS_STYLE[deal.status] || ""}`}>
-                      {DEAL_STATUS_LABELS[deal.status] || deal.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(deal)} className="text-white/30 hover:text-primary transition-colors p-1"><PenLine size={14} /></button>
-                      <button onClick={() => remove(deal.id)} className="text-white/30 hover:text-red-400 transition-colors p-1"><Trash2 size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map(deal => {
+                const cfg = DEAL_STATUS_CONFIG[deal.status] || DEAL_STATUS_CONFIG.created;
+                return (
+                  <tr key={deal.id} onClick={() => openDeal(deal)} className="hover:bg-white/2 transition-colors cursor-pointer group">
+                    <td className="px-5 py-3.5">
+                      <p className="text-white font-medium text-sm">{deal.yacht_name}</p>
+                    </td>
+                    <td className="px-5 py-3.5 text-white/50 text-sm hidden md:table-cell">{deal.buyer_email}</td>
+                    <td className="px-5 py-3.5 text-white/50 text-sm hidden md:table-cell">{deal.broker_email}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${cfg.color} border-current/20`}>
+                        {cfg.label}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-white/30 text-xs hidden md:table-cell">
+                      {new Date(deal.created_at).toLocaleDateString("en-GB")}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
