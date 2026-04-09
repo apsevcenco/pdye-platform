@@ -1,11 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { useParams, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, FileText, Shield, Lock, Anchor, CheckCircle, Clock,
   Send, Download, AlertTriangle, RefreshCw, ShieldAlert, MessageSquare,
-  Activity, ChevronDown, ChevronUp, Ship, Eye, Users,
+  Activity, ChevronDown, ChevronUp, Ship, Eye, Users, User, Loader2,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
@@ -34,7 +34,11 @@ export default function DealDetails() {
   const [termsCheck, setTermsCheck] = useState(false);
   const [acceptingNda, setAcceptingNda] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  const [participantMap, setParticipantMap] = useState<Record<string, { email: string; role: string }>>({});
+  const [chatPolling, setChatPolling] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   const isAdmin = userProfile?.role === "admin";
   const isBuyer = room?.buyer_user_id === user?.id;
@@ -54,6 +58,14 @@ export default function DealDetails() {
 
     const { data: y } = await supabase.from("yachts").select("id, name, builder, length, year, main_image, image").eq("id", data.yacht_id).single();
     if (y) setYacht(y as Yacht);
+
+    const participantIds = [data.buyer_user_id, data.seller_user_id, data.created_by_admin_id].filter(Boolean) as string[];
+    if (participantIds.length > 0) {
+      const { data: pUsers } = await supabaseAdmin.from("users").select("id, email, role").in("id", participantIds);
+      const pMap: Record<string, { email: string; role: string }> = {};
+      (pUsers || []).forEach((u: any) => { pMap[u.id] = { email: u.email, role: u.role }; });
+      setParticipantMap(pMap);
+    }
 
     if (data.status === "active" || isAdmin) {
       const { data: msgs } = await supabaseAdmin
@@ -178,13 +190,59 @@ export default function DealDetails() {
     loadRoom();
   }
 
+  const refreshMessages = useCallback(async () => {
+    if (!roomId) return;
+    const { data: msgs } = await supabaseAdmin
+      .from("deal_room_messages")
+      .select("*")
+      .eq("deal_room_id", roomId)
+      .order("created_at", { ascending: true });
+    const newMsgs = (msgs as DealRoomMessage[]) || [];
+    setMessages(prev => {
+      if (newMsgs.length !== prev.length) {
+        if (isAtBottom) {
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+        }
+        return newMsgs;
+      }
+      return prev;
+    });
+  }, [roomId, isAtBottom]);
+
+  useEffect(() => {
+    if (!room || (room.status !== "active" && !isAdmin) || !chatPolling) return;
+    const interval = setInterval(refreshMessages, 5000);
+    return () => clearInterval(interval);
+  }, [room, isAdmin, chatPolling, refreshMessages]);
+
+  function handleChatScroll() {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const atBot = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    setIsAtBottom(atBot);
+  }
+
   async function sendMessage() {
     if (!msgText.trim() || !room || !user) return;
     setSending(true);
+    const text = msgText.trim();
+    setMsgText("");
+
+    const tempMsg: DealRoomMessage = {
+      id: "temp-" + Date.now(),
+      deal_room_id: room.id,
+      sender_id: user.id,
+      message: text,
+      is_system: false,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, tempMsg]);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+
     await supabaseAdmin.from("deal_room_messages").insert([{
       deal_room_id: room.id,
       sender_id: user.id,
-      message: msgText.trim(),
+      message: text,
       is_system: false,
     }]);
     await supabaseAdmin.from("audit_logs").insert([{
@@ -194,15 +252,8 @@ export default function DealDetails() {
       action: "message_sent",
       meta: {},
     }]);
-    setMsgText("");
     setSending(false);
-    const { data: msgs } = await supabaseAdmin
-      .from("deal_room_messages")
-      .select("*")
-      .eq("deal_room_id", room.id)
-      .order("created_at", { ascending: true });
-    setMessages((msgs as DealRoomMessage[]) || []);
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    await refreshMessages();
   }
 
   if (!user) {
@@ -388,48 +439,183 @@ export default function DealDetails() {
               </div>
 
               <div className="bg-[#0f1d33] border border-white/8">
-                <div className="px-6 py-4 border-b border-white/5">
+                <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
                   <p className="text-white/70 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                     <MessageSquare size={13} /> Messages
+                    {messages.filter(m => !m.is_system).length > 0 && (
+                      <span className="bg-primary/20 text-primary text-[10px] px-2 py-0.5 font-bold">
+                        {messages.filter(m => !m.is_system).length}
+                      </span>
+                    )}
                   </p>
+                  <div className="flex items-center gap-3">
+                    {Object.entries(participantMap).map(([uid, info]) => (
+                      <div key={uid} className="flex items-center gap-1.5" title={info.email}>
+                        <div className={`w-2 h-2 rounded-full ${uid === user?.id ? "bg-green-400" : "bg-white/20"}`} />
+                        <span className="text-white/30 text-[10px] font-sans">
+                          {uid === user?.id ? "You" : info.email.split("@")[0]}
+                        </span>
+                        <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 font-bold ${
+                          info.role === "admin" ? "text-purple-400 bg-purple-400/10" :
+                          info.role === "investor" ? "text-cyan-400 bg-cyan-400/10" :
+                          info.role === "owner" ? "text-amber-400 bg-amber-400/10" :
+                          "text-emerald-400 bg-emerald-400/10"
+                        }`}>
+                          {info.role === "investor" ? "buyer" : info.role === "admin" ? "admin" : info.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="max-h-80 overflow-y-auto p-6 space-y-4">
+
+                <div
+                  ref={chatContainerRef}
+                  onScroll={handleChatScroll}
+                  className="h-[420px] overflow-y-auto p-6 space-y-3 scroll-smooth"
+                  style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(200,164,107,0.15) transparent" }}
+                >
                   {messages.length === 0 ? (
-                    <p className="text-white/30 text-sm font-sans text-center py-4">No messages yet.</p>
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <MessageSquare size={32} className="text-white/10 mb-3" />
+                      <p className="text-white/30 text-sm font-sans">No messages yet.</p>
+                      <p className="text-white/15 text-xs font-sans mt-1">Start the conversation below.</p>
+                    </div>
                   ) : (
-                    messages.map(msg => {
-                      const isOwn = msg.sender_id === user?.id;
-                      return (
-                        <div key={msg.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[70%] px-4 py-3 ${msg.is_system ? "bg-primary/10 border border-primary/20 text-primary/80" : isOwn ? "bg-primary/15 border border-primary/25" : "bg-white/5 border border-white/8"}`}>
-                            {msg.is_system && <p className="text-[10px] uppercase tracking-widest mb-1 opacity-60">System</p>}
-                            <p className="text-sm font-sans text-white/80">{msg.message}</p>
-                            <p className="text-[10px] text-white/20 mt-1 font-sans">
-                              {new Date(msg.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })
+                    <>
+                      {messages.map((msg, idx) => {
+                        const isOwn = msg.sender_id === user?.id;
+                        const senderInfo = participantMap[msg.sender_id];
+                        const senderName = senderInfo ? senderInfo.email.split("@")[0] : "Unknown";
+                        const senderRole = senderInfo?.role || "";
+                        const showSenderHeader = !isOwn && !msg.is_system && (idx === 0 || messages[idx - 1]?.sender_id !== msg.sender_id || messages[idx - 1]?.is_system);
+
+                        const prevMsg = messages[idx - 1];
+                        const showDateSep = idx === 0 || (prevMsg && new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString());
+
+                        return (
+                          <Fragment key={msg.id}>
+                            {showDateSep && (
+                              <div className="flex items-center gap-4 py-2">
+                                <div className="flex-1 h-px bg-white/5" />
+                                <span className="text-white/15 text-[10px] uppercase tracking-widest font-sans">
+                                  {new Date(msg.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                                </span>
+                                <div className="flex-1 h-px bg-white/5" />
+                              </div>
+                            )}
+
+                            {msg.is_system ? (
+                              <div className="flex justify-center">
+                                <div className="bg-primary/5 border border-primary/10 px-4 py-2 max-w-[85%]">
+                                  <p className="text-primary/50 text-[10px] uppercase tracking-widest mb-0.5 font-bold">System</p>
+                                  <p className="text-primary/70 text-xs font-sans">{msg.message}</p>
+                                  <p className="text-white/10 text-[10px] mt-1 font-sans text-right">
+                                    {new Date(msg.created_at).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                              >
+                                <div className={`max-w-[70%] ${isOwn ? "" : "pl-1"}`}>
+                                  {showSenderHeader && (
+                                    <div className="flex items-center gap-2 mb-1 ml-1">
+                                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                                        senderRole === "investor" ? "bg-cyan-500/20 text-cyan-400" :
+                                        senderRole === "owner" ? "bg-amber-500/20 text-amber-400" :
+                                        senderRole === "broker" ? "bg-emerald-500/20 text-emerald-400" :
+                                        "bg-purple-500/20 text-purple-400"
+                                      }`}>
+                                        {senderName[0]?.toUpperCase()}
+                                      </div>
+                                      <span className="text-white/40 text-[11px] font-sans font-medium">{senderName}</span>
+                                      <span className={`text-[9px] uppercase tracking-wider font-bold ${
+                                        senderRole === "investor" ? "text-cyan-400/60" :
+                                        senderRole === "owner" ? "text-amber-400/60" :
+                                        senderRole === "broker" ? "text-emerald-400/60" :
+                                        "text-purple-400/60"
+                                      }`}>
+                                        {senderRole === "investor" ? "buyer" : senderRole}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className={`px-4 py-3 ${
+                                    isOwn
+                                      ? "bg-primary/15 border border-primary/20"
+                                      : "bg-white/[0.04] border border-white/[0.06]"
+                                  }`}>
+                                    <p className="text-sm font-sans text-white/85 whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>
+                                    <div className={`flex items-center gap-2 mt-1.5 ${isOwn ? "justify-end" : "justify-start"}`}>
+                                      <p className="text-[10px] text-white/15 font-sans">
+                                        {new Date(msg.created_at).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                                      </p>
+                                      {isOwn && msg.id.startsWith("temp-") && (
+                                        <Loader2 size={9} className="text-white/20 animate-spin" />
+                                      )}
+                                      {isOwn && !msg.id.startsWith("temp-") && (
+                                        <CheckCircle size={9} className="text-white/15" />
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </>
                   )}
-                  <div ref={messagesEndRef} />
                 </div>
-                {room.status === "active" && (
-                  <div className="border-t border-white/5 p-4 flex gap-3">
-                    <input
-                      value={msgText}
-                      onChange={e => setMsgText(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                      placeholder="Type a message..."
-                      className="flex-1 bg-white/5 border border-white/10 px-4 py-2.5 text-white text-sm font-sans focus:outline-none focus:border-primary/40"
-                    />
+
+                {!isAtBottom && messages.length > 5 && (
+                  <div className="relative">
                     <button
-                      onClick={sendMessage}
-                      disabled={sending || !msgText.trim()}
-                      className="bg-primary text-background px-5 py-2.5 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 transition-colors flex items-center gap-2"
+                      onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+                      className="absolute right-6 -top-10 bg-primary/20 border border-primary/30 text-primary text-[10px] uppercase tracking-widest px-3 py-1.5 hover:bg-primary/30 transition-colors font-bold z-10"
                     >
-                      <Send size={12} /> Send
+                      ↓ New messages
                     </button>
+                  </div>
+                )}
+
+                {(room.status === "active" || isAdmin) && (
+                  <div className="border-t border-white/5 p-4">
+                    <div className="flex gap-3">
+                      <div className="flex-1 relative">
+                        <textarea
+                          value={msgText}
+                          onChange={e => setMsgText(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              sendMessage();
+                            }
+                          }}
+                          placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+                          rows={1}
+                          className="w-full bg-white/[0.03] border border-white/10 px-4 py-3 text-white text-sm font-sans focus:outline-none focus:border-primary/30 resize-none min-h-[44px] max-h-[120px] placeholder:text-white/15 transition-colors"
+                          style={{ scrollbarWidth: "none" }}
+                          onInput={e => {
+                            const t = e.currentTarget;
+                            t.style.height = "auto";
+                            t.style.height = Math.min(t.scrollHeight, 120) + "px";
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={sendMessage}
+                        disabled={sending || !msgText.trim()}
+                        className="self-end bg-primary text-background px-5 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-20 transition-all flex items-center gap-2 h-[44px]"
+                      >
+                        {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                        Send
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
