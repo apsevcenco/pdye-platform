@@ -1774,6 +1774,19 @@ function DealsManageView() {
                 Close Room
               </button>
             )}
+            {isTerminal && (
+              <button disabled={actionLoading} onClick={async () => {
+                setActionLoading(true);
+                await dealRoomApi.update(selectedRoom.id, { status: "active" });
+                await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: selectedRoom.id, user_id: user?.id || "", action: "deal_room_reopened", meta: {} });
+                await dealRoomApi.sendMessage(selectedRoom.id, { sender_id: user?.id || "", message: "Deal room has been reopened by admin.", is_system: true });
+                setActionLoading(false);
+                setSelectedRoom(null);
+                load();
+              }} className="border border-green-500/30 text-green-400 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-green-500/10 disabled:opacity-50 transition-colors">
+                Reopen Room
+              </button>
+            )}
             <button disabled={actionLoading} onClick={async () => {
               setActionLoading(true);
               const newArchived = !selectedRoom.archived;
