@@ -137,7 +137,14 @@ router.patch("/deal-rooms/:id", async (req, res) => {
 
 router.delete("/deal-rooms/:id", async (req, res) => {
   try {
-    await db().query("DELETE FROM deal_rooms WHERE id = $1", [req.params.id]);
+    const id = req.params.id;
+    await db().query("DELETE FROM deal_room_blocks WHERE deal_room_id = $1", [id]);
+    await db().query("DELETE FROM deal_room_messages WHERE deal_room_id = $1", [id]);
+    await db().query("DELETE FROM deal_room_documents WHERE deal_room_id = $1", [id]);
+    await db().query("DELETE FROM deal_room_participants WHERE deal_room_id = $1", [id]);
+    await db().query("DELETE FROM nda_envelopes WHERE deal_room_id = $1", [id]);
+    await db().query("DELETE FROM audit_logs WHERE entity_type = 'deal_room' AND entity_id = $1", [id]);
+    await db().query("DELETE FROM deal_rooms WHERE id = $1", [id]);
     res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

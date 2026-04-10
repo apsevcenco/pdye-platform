@@ -1695,12 +1695,25 @@ function DealsManageView() {
     return acc;
   }, {} as Record<string, number>);
 
+  async function deleteRoom(room: RoomWithDetails) {
+    if (!confirm("Permanently delete this deal room and all its data? This cannot be undone.")) return;
+    setActionLoading(true);
+    try {
+      await dealRoomApi.remove(room.id);
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_deleted", meta: { yacht: room.yacht_name } });
+    } catch (e) {}
+    setActionLoading(false);
+    setSelectedRoom(null);
+    load();
+  }
+
   if (selectedRoom) {
     const cfg = DEAL_ROOM_STATUS_CONFIG[selectedRoom.status] || DEAL_ROOM_STATUS_CONFIG.draft;
     const canSendNda = selectedRoom.status === "draft" && (selectedRoom.buyer_nda_status === "not_sent" || (selectedRoom.seller_user_id && selectedRoom.seller_nda_status === "not_sent"));
+    const isTerminal = selectedRoom.status === "closed" || selectedRoom.status === "cancelled";
     return (
       <div>
-        <button onClick={() => setSelectedRoom(null)} className="text-white/40 hover:text-primary text-sm mb-4 flex items-center gap-1 transition-colors">
+        <button onClick={() => { setSelectedRoom(null); setNotesDirty(false); }} className="text-white/40 hover:text-primary text-sm mb-4 flex items-center gap-1 transition-colors">
           ← Back to Deal Rooms
         </button>
 
@@ -1731,7 +1744,7 @@ function DealsManageView() {
         </div>
 
         <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
-          <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Actions</h3>
+          <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Deal Room Actions</h3>
           <div className="flex flex-wrap gap-3">
             {canSendNda && (
               <div className="flex flex-col gap-2">
@@ -1756,15 +1769,10 @@ function DealsManageView() {
                 Send Commission Agreement
               </button>
             )}
-            {selectedRoom.status !== "closed" && selectedRoom.status !== "cancelled" && (
-              <>
-                <button disabled={actionLoading} onClick={() => closeRoom(selectedRoom)} className="border border-white/10 text-white/50 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/30 disabled:opacity-50 transition-colors">
-                  Close Room
-                </button>
-                <button disabled={actionLoading} onClick={() => cancelRoom(selectedRoom)} className="border border-red-500/30 text-red-400/60 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-red-500/50 disabled:opacity-50 transition-colors">
-                  Cancel Room
-                </button>
-              </>
+            {!isTerminal && (
+              <button disabled={actionLoading} onClick={() => closeRoom(selectedRoom)} className="border border-white/10 text-white/50 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/30 disabled:opacity-50 transition-colors">
+                Close Room
+              </button>
             )}
             <button disabled={actionLoading} onClick={async () => {
               setActionLoading(true);
@@ -1792,10 +1800,11 @@ function DealsManageView() {
             className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans resize-none mb-3"
             placeholder="Internal notes about this deal..."
           />
+          {notesDirty && <p className="text-orange-400 text-[10px] font-bold uppercase tracking-widest mb-3">Unsaved changes</p>}
+        </div>
+
+        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {notesDirty && <span className="text-orange-400 text-[10px] font-bold uppercase tracking-widest">Unsaved changes</span>}
-            </div>
             <button
               disabled={!notesDirty || savingNotes}
               onClick={async () => {
@@ -1806,9 +1815,16 @@ function DealsManageView() {
                 setSavingNotes(false);
                 setSelectedRoom({ ...selectedRoom, notes: editNotes.trim() || null });
               }}
-              className="flex items-center gap-2 bg-primary text-background px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-30"
+              className="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-green-700 transition-colors disabled:opacity-30"
             >
-              {savingNotes ? <><RefreshCw size={11} className="animate-spin" /> Saving...</> : "Save"}
+              {savingNotes ? <><RefreshCw size={11} className="animate-spin" /> Saving...</> : <><CheckCircle size={13} /> Save Deal Room Changes</>}
+            </button>
+            <button
+              disabled={actionLoading}
+              onClick={() => deleteRoom(selectedRoom)}
+              className="flex items-center gap-2 bg-red-600/80 text-white px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              <Trash2 size={13} /> Delete Deal Room
             </button>
           </div>
         </div>
