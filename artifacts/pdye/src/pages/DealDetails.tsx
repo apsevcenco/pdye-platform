@@ -972,6 +972,12 @@ function NdaSigningForm({ ndaCheck, termsCheck, onNdaChange, onTermsChange, onAc
           <span className="text-white/70 text-sm font-sans group-hover:text-white transition-colors">I have read and agree to the Terms of Access and Non-Circumvention Agreement</span>
         </label>
       </div>
+      <div className="bg-yellow-500/5 border border-yellow-500/20 p-3 flex items-center gap-3">
+        <AlertTriangle size={14} className="text-yellow-400/60 flex-shrink-0" />
+        <p className="text-yellow-400/60 text-[10px] font-sans">
+          <span className="font-bold uppercase tracking-widest">Simulation Mode</span> — This is an internal NDA signing. In production, this will be handled via DocuSign.
+        </p>
+      </div>
       <button onClick={onAccept} disabled={!ndaCheck || !termsCheck || accepting}
         className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
         {accepting ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><CheckCircle size={14} /> Sign NDA & Accept Terms</>}
@@ -1216,6 +1222,8 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
 
+  const [ndaSent, setNdaSent] = useState(false);
+
   async function sendNda() {
     setSending(true);
     const now = new Date().toISOString();
@@ -1226,9 +1234,11 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
     await dealRoomApi.update(room.id, updates);
     if (room.buyer_user_id && room.buyer_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now });
     if (room.seller_user_id && room.seller_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now });
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "nda_sent", meta: {} });
-    await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "NDA documents sent to both parties for review and signature.", is_system: true });
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "nda_sent", meta: { mode: "simulation" } });
+    await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.", is_system: true });
     setSending(false);
+    setNdaSent(true);
+    setTimeout(() => setNdaSent(false), 8000);
     onReload();
   }
 
@@ -1270,10 +1280,22 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Settings size={11} /> Admin Controls</p>
       <div className="space-y-2">
         {canSendNda && (
-          <button onClick={sendNda} disabled={sending}
-            className="w-full flex items-center justify-center gap-2 bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 px-3 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-40">
-            {sending ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />} Send NDA
-          </button>
+          <>
+            <div className="bg-yellow-500/5 border border-yellow-500/20 p-2.5 text-center">
+              <p className="text-yellow-400/70 text-[9px] font-bold uppercase tracking-widest">Simulation Mode — No DocuSign</p>
+              <p className="text-white/30 text-[10px] font-sans mt-0.5">NDA will be available for signing inside each participant's Deal Room</p>
+            </div>
+            <button onClick={sendNda} disabled={sending}
+              className="w-full flex items-center justify-center gap-2 bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 px-3 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-40">
+              {sending ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />} Send NDA
+            </button>
+          </>
+        )}
+        {ndaSent && (
+          <div className="bg-green-500/10 border border-green-500/30 p-3 text-center animate-pulse">
+            <p className="text-green-400 text-xs font-bold">NDA Sent Successfully</p>
+            <p className="text-white/40 text-[10px] font-sans mt-0.5">Participants will see the NDA in their Legal tab</p>
+          </div>
         )}
         {canSendCommission && (
           <button onClick={sendCommission} disabled={sending}

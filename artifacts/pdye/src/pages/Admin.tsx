@@ -1493,6 +1493,9 @@ function DealsManageView() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [editNotes, setEditNotes] = useState("");
+  const [notesDirty, setNotesDirty] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
@@ -1601,6 +1604,8 @@ function DealsManageView() {
 
   async function openRoom(room: RoomWithDetails) {
     setSelectedRoom(room);
+    setEditNotes(room.notes || "");
+    setNotesDirty(false);
     const { data: logs } = await supabaseAdmin
       .from("audit_logs")
       .select("*")
@@ -1642,7 +1647,7 @@ function DealsManageView() {
     });
     await dealRoomApi.sendMessage(room.id, {
       sender_id: room.created_by_admin_id || "",
-      message: "NDA documents sent to both parties for review and signature.",
+      message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.",
       is_system: true,
     });
     setActionLoading(false);
@@ -1720,9 +1725,15 @@ function DealsManageView() {
           <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Actions</h3>
           <div className="flex flex-wrap gap-3">
             {canSendNda && (
-              <button disabled={actionLoading} onClick={() => sendNda(selectedRoom)} className="bg-orange-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-orange-700 disabled:opacity-50 transition-colors">
-                Send NDA to Both Parties
-              </button>
+              <div className="flex flex-col gap-2">
+                <div className="bg-yellow-500/5 border border-yellow-500/20 px-3 py-2">
+                  <p className="text-yellow-400/70 text-[9px] font-bold uppercase tracking-widest">Simulation — No DocuSign</p>
+                  <p className="text-white/30 text-[10px] font-sans">NDA will appear in each participant's Deal Room for internal signing</p>
+                </div>
+                <button disabled={actionLoading} onClick={() => sendNda(selectedRoom)} className="bg-orange-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-orange-700 disabled:opacity-50 transition-colors">
+                  Send NDA (Simulation)
+                </button>
+              </div>
             )}
             {selectedRoom.status === "active" && selectedRoom.commission_status === "not_started" && (
               <button disabled={actionLoading} onClick={async () => {
@@ -1763,12 +1774,35 @@ function DealsManageView() {
           </div>
         </div>
 
-        {selectedRoom.notes && (
-          <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
-            <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2">Notes</h3>
-            <p className="text-white/60 text-sm font-sans">{selectedRoom.notes}</p>
+        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+          <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-3">Notes</h3>
+          <textarea
+            value={editNotes}
+            onChange={e => { setEditNotes(e.target.value); setNotesDirty(true); }}
+            rows={3}
+            className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans resize-none mb-3"
+            placeholder="Internal notes about this deal..."
+          />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {notesDirty && <span className="text-orange-400 text-[10px] font-bold uppercase tracking-widest">Unsaved changes</span>}
+            </div>
+            <button
+              disabled={!notesDirty || savingNotes}
+              onClick={async () => {
+                setSavingNotes(true);
+                await dealRoomApi.update(selectedRoom.id, { notes: editNotes.trim() || null });
+                await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: selectedRoom.id, user_id: user?.id || "", action: "notes_updated", meta: {} });
+                setNotesDirty(false);
+                setSavingNotes(false);
+                setSelectedRoom({ ...selectedRoom, notes: editNotes.trim() || null });
+              }}
+              className="flex items-center gap-2 bg-primary text-background px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-30"
+            >
+              {savingNotes ? <><RefreshCw size={11} className="animate-spin" /> Saving...</> : "Save"}
+            </button>
           </div>
-        )}
+        </div>
 
         {activity.length > 0 && (
           <div className="bg-[#0f1d33] border border-white/8 p-5">
