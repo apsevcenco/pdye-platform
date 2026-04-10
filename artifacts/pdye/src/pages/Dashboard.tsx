@@ -665,6 +665,8 @@ function OwnerDashboard({ userId }: { userId: string }) {
           </div>
         </div>
 
+        <MyDealRoomsSection userId={userId} />
+
         {/* Valuation CTA */}
         <div className="flex items-center justify-between border border-white/5 bg-white/2 px-6 py-4">
           <div className="flex items-center gap-3">
@@ -777,6 +779,8 @@ function OwnerDashboard({ userId }: { userId: string }) {
           </div>
         </div>
       )}
+
+      <MyDealRoomsSection userId={userId} />
 
       {/* Pipeline tracker */}
       <div className="bg-[#0f1d33] border border-white/5 p-6">

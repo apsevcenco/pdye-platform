@@ -38,6 +38,7 @@ import {
   Building2,
   Calendar,
   Star,
+  RefreshCw,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -1501,12 +1502,20 @@ function DealsManageView() {
   const [createForm, setCreateForm] = useState({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
-  const [yachtOptions, setYachtOptions] = useState<{ id: string; name: string }[]>([]);
+  const [yachtOptions, setYachtOptions] = useState<{ id: string; name: string; owner_id: string | null; owner_email?: string }[]>([]);
 
   useEffect(() => {
-    supabase.from("yachts").select("id, name").order("name").then(({ data }) => {
-      setYachtOptions((data || []) as { id: string; name: string }[]);
-    });
+    (async () => {
+      const { data: yachts } = await supabase.from("yachts").select("id, name, owner_id").order("name");
+      const list = (yachts || []) as { id: string; name: string; owner_id: string | null }[];
+      const ownerIds = [...new Set(list.map(y => y.owner_id).filter(Boolean))] as string[];
+      let ownerMap: Record<string, string> = {};
+      if (ownerIds.length > 0) {
+        const { data: owners } = await supabaseAdmin.from("users").select("id, email").in("id", ownerIds);
+        ownerMap = Object.fromEntries((owners || []).map((u: any) => [u.id, u.email]));
+      }
+      setYachtOptions(list.map(y => ({ ...y, owner_email: y.owner_id ? ownerMap[y.owner_id] || "" : "" })));
+    })();
   }, []);
 
   async function createDealRoom() {
@@ -1845,9 +1854,13 @@ function DealsManageView() {
             <div className="px-6 py-5 space-y-4">
               <div>
                 <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Yacht *</label>
-                <select value={createForm.yachtId} onChange={e => setCreateForm(f => ({ ...f, yachtId: e.target.value }))} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors font-sans">
+                <select value={createForm.yachtId} onChange={e => {
+                  const yId = e.target.value;
+                  const yacht = yachtOptions.find(y => y.id === yId);
+                  setCreateForm(f => ({ ...f, yachtId: yId, sellerEmail: yacht?.owner_email || "" }));
+                }} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors font-sans">
                   <option value="">Select yacht...</option>
-                  {yachtOptions.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                  {yachtOptions.map(y => <option key={y.id} value={y.id}>{y.name}{y.owner_email ? ` — ${y.owner_email}` : ""}</option>)}
                 </select>
               </div>
               <div>
@@ -1858,7 +1871,11 @@ function DealsManageView() {
               <div>
                 <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Seller Email</label>
                 <input type="email" value={createForm.sellerEmail} onChange={e => setCreateForm(f => ({ ...f, sellerEmail: e.target.value }))} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans" placeholder="seller@example.com" />
-                <p className="text-white/20 text-[10px] mt-1 font-sans">Must be a registered user (optional — can be added later)</p>
+                <p className="text-white/20 text-[10px] mt-1 font-sans">
+                  {createForm.yachtId && yachtOptions.find(y => y.id === createForm.yachtId)?.owner_email
+                    ? "Auto-filled from yacht owner"
+                    : "Must be a registered user (optional — can be added later)"}
+                </p>
               </div>
               <div>
                 <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Notes (optional)</label>
