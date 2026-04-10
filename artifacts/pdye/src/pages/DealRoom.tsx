@@ -4,17 +4,18 @@ import { Layout } from "@/components/layout/Layout";
 import { motion } from "framer-motion";
 import {
   Lock, ArrowRight, ShieldAlert, Anchor, RefreshCw, Ship, Clock,
-  CheckCircle, FileText, AlertTriangle, Eye, Shield,
+  CheckCircle, FileText, AlertTriangle, Eye, Shield, ChevronRight,
 } from "lucide-react";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { dealRoomApi } from "@/lib/dealRoomApi";
 import { type DealRoom, DEAL_ROOM_STATUS_CONFIG } from "@/lib/dealTypes";
 
 type RoomWithYacht = DealRoom & {
   yacht_name?: string;
   yacht_builder?: string;
   yacht_image?: string;
+  my_side?: string;
 };
 
 type ApprovedSpec = {
@@ -42,18 +43,15 @@ export default function DealRoomPage() {
   async function loadData() {
     setLoading(true);
 
-    let roomQuery = supabaseAdmin
-      .from("deal_rooms")
-      .select("*")
-      .not("status", "in", '("cancelled")')
-      .order("created_at", { ascending: false });
-
-    if (!isAdmin) {
-      roomQuery = roomQuery.or(`buyer_user_id.eq.${user!.id},seller_user_id.eq.${user!.id}`);
-    }
-
-    const { data: roomData } = await roomQuery;
-    const dealRooms = (roomData || []) as DealRoom[];
+    let dealRooms: DealRoom[] = [];
+    try {
+      if (isAdmin) {
+        dealRooms = (await dealRoomApi.list({})) as DealRoom[];
+      } else {
+        dealRooms = (await dealRoomApi.byUser(user!.id)) as DealRoom[];
+      }
+      dealRooms = dealRooms.filter(r => r.status !== "cancelled");
+    } catch (e) {}
 
     const { data: specData } = await supabase
       .from("access_requests")
@@ -84,6 +82,7 @@ export default function DealRoomPage() {
       yacht_name: yachtMap[r.yacht_id]?.name || "Vessel",
       yacht_builder: yachtMap[r.yacht_id]?.builder || "",
       yacht_image: yachtMap[r.yacht_id]?.main_image || yachtMap[r.yacht_id]?.image || "",
+      my_side: r.buyer_user_id === user!.id ? "Buyer" : r.seller_user_id === user!.id ? "Seller" : isAdmin ? "Admin" : "—",
     })));
 
     setApprovedSpecs((specData || []).map((s: any) => ({
@@ -124,6 +123,13 @@ export default function DealRoomPage() {
   const ndaPendingRooms = rooms.filter(r => r.status === "nda_pending" || r.status === "partially_signed" || r.status === "draft");
   const closedRooms = rooms.filter(r => r.status === "closed");
 
+  const needsAction = rooms.filter(r => r.status !== "closed" && r.status !== "cancelled" && (
+    (r.buyer_user_id === user?.id && (r.buyer_nda_status === "sent" || r.buyer_commission_status === "sent")) ||
+    (r.seller_user_id === user?.id && (r.seller_nda_status === "sent" || r.seller_commission_status === "sent"))
+  ));
+
+  const roomLabel = (r: DealRoom) => r.room_number ? `DR-${String(r.room_number).padStart(6, "0")}` : "";
+
   return (
     <Layout>
       <div className="min-h-screen bg-background pt-28 pb-20">
@@ -142,6 +148,37 @@ export default function DealRoomPage() {
               You are accessing a secure environment. All activity is logged. Information is subject to NDA.
             </p>
           </div>
+
+          {needsAction.length > 0 && (
+            <div className="bg-orange-500/5 border border-orange-500/20 p-5 mb-8">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 bg-orange-500/15 flex items-center justify-center"><AlertTriangle size={16} className="text-orange-400" /></div>
+                <div>
+                  <p className="text-orange-400 text-sm font-bold">Action Required</p>
+                  <p className="text-white/40 text-xs font-sans">You have documents waiting for your signature</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {needsAction.map(room => {
+                  const isNda = (room.buyer_user_id === user?.id && room.buyer_nda_status === "sent") || (room.seller_user_id === user?.id && room.seller_nda_status === "sent");
+                  const label = roomLabel(room);
+                  return (
+                    <Link key={room.id} href={`/dealroom/${room.id}`}>
+                      <div className="flex items-center justify-between px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 transition-colors group cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium">{room.yacht_name}</span>
+                          {label && <span className="text-primary/40 text-[10px] font-mono">{label}</span>}
+                        </div>
+                        <span className="text-orange-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 group-hover:underline">
+                          {isNda ? "Sign NDA" : "Sign Commission"} <ChevronRight size={11} />
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-24">
@@ -200,7 +237,7 @@ export default function DealRoomPage() {
                     <CheckCircle size={16} className="text-green-400" /> Active Deal Rooms
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {activeRooms.map(room => <RoomCard key={room.id} room={room} />)}
+                    {activeRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} />)}
                   </div>
                 </div>
               )}
@@ -214,7 +251,7 @@ export default function DealRoomPage() {
                     Deal rooms awaiting NDA signature from one or both parties.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {ndaPendingRooms.map(room => <RoomCard key={room.id} room={room} />)}
+                    {ndaPendingRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} />)}
                   </div>
                 </div>
               )}
@@ -225,7 +262,7 @@ export default function DealRoomPage() {
                     <Shield size={16} className="text-white/30" /> Closed
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-60">
-                    {closedRooms.map(room => <RoomCard key={room.id} room={room} />)}
+                    {closedRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} />)}
                   </div>
                 </div>
               )}
@@ -237,9 +274,10 @@ export default function DealRoomPage() {
   );
 }
 
-function RoomCard({ room }: { room: RoomWithYacht }) {
+function RoomCard({ room, userId }: { room: RoomWithYacht; userId?: string }) {
   const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
   const isNdaPending = room.status === "nda_pending" || room.status === "partially_signed";
+  const label = room.room_number ? `DR-${String(room.room_number).padStart(6, "0")}` : "";
 
   return (
     <Link href={`/dealroom/${room.id}`}>
@@ -257,10 +295,15 @@ function RoomCard({ room }: { room: RoomWithYacht }) {
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#070f1a] via-[#070f1a]/30 to-transparent" />
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-3 flex items-center gap-2">
             <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 border bg-black/50 ${cfg.color} border-current/20`}>
               {cfg.label}
             </span>
+            {room.my_side && (
+              <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 bg-black/50 text-white/50 border border-white/10">
+                {room.my_side}
+              </span>
+            )}
           </div>
           {isNdaPending && (
             <div className="absolute top-3 right-3 bg-orange-500/90 text-white text-[10px] font-bold px-2 py-1 flex items-center gap-1">
@@ -270,7 +313,10 @@ function RoomCard({ room }: { room: RoomWithYacht }) {
         </div>
 
         <div className="p-5">
-          <h3 className="font-display text-lg text-white mb-1 group-hover:text-primary transition-colors">{room.yacht_name}</h3>
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-display text-lg text-white group-hover:text-primary transition-colors">{room.yacht_name}</h3>
+            {label && <span className="text-primary/40 text-[10px] font-mono">{label}</span>}
+          </div>
           {room.yacht_builder && (
             <p className="text-white/40 text-xs font-sans mb-3">{room.yacht_builder}</p>
           )}
@@ -286,9 +332,9 @@ function RoomCard({ room }: { room: RoomWithYacht }) {
                   <FileText size={8} /> Seller NDA
                 </span>
               )}
-              {room.status === "active" && (
-                <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-0.5 flex items-center gap-1">
-                  <CheckCircle size={8} /> Active
+              {room.identities_revealed && (
+                <span className="text-[9px] text-emerald-400 border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 flex items-center gap-1">
+                  <CheckCircle size={8} /> Unlocked
                 </span>
               )}
             </div>
