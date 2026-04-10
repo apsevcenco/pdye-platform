@@ -39,6 +39,7 @@ import {
   Calendar,
   Star,
   RefreshCw,
+  Menu,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -3154,6 +3155,7 @@ const views: Record<string, JSX.Element> = {
 export default function Admin() {
   const [activeView, setActiveView] = useState("dashboard");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [, setLocation] = useLocation();
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
@@ -3177,10 +3179,48 @@ export default function Admin() {
       .then(({ count }) => { if (count !== null) setUnreadMsgCount(Math.min(count, 9)); });
   }, []);
 
+  const sidebarContent = (
+    <nav className="flex-1 px-3 py-4 overflow-y-auto">
+      {navItems.map((item) => {
+        const active = activeView === item.id;
+        const hasHref = "href" in item && item.href;
+        return (
+          <button
+            key={item.id}
+            onClick={() => { hasHref ? setLocation(item.href as string) : setActiveView(item.id); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 mb-1 text-sm font-medium transition-all duration-200 text-left group ${
+              active && !hasHref
+                ? "bg-primary/10 text-primary border-l-2 border-primary pl-[10px]"
+                : "text-white/50 hover:text-white hover:bg-white/5 border-l-2 border-transparent"
+            }`}
+          >
+            <item.icon size={16} className={active && !hasHref ? "text-primary" : "text-white/40 group-hover:text-white/70"} />
+            {item.label}
+            {item.id === "messages" && unreadMsgCount > 0 && (
+              <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {unreadMsgCount}
+              </span>
+            )}
+            {item.id === "requests-link" && pendingRequestsCount > 0 && (
+              <span className="ml-auto bg-amber-500 text-black text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                {pendingRequestsCount}
+              </span>
+            )}
+            {item.id === "users-link" && pendingUsersCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                {pendingUsersCount}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
+
   return (
     <div className="flex h-screen bg-[#070f1a] font-sans overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-[#050c16] border-r border-white/5 flex flex-col">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-64 flex-shrink-0 bg-[#050c16] border-r border-white/5 flex-col">
         <div className="px-6 py-6 border-b border-white/5">
           <Link href="/">
             <div className="flex items-center gap-2 group cursor-pointer">
@@ -3192,43 +3232,7 @@ export default function Admin() {
           </Link>
           <p className="text-white/30 text-[10px] uppercase tracking-widest mt-1 font-sans">Admin Console</p>
         </div>
-
-        <nav className="flex-1 px-3 py-4 overflow-y-auto">
-          {navItems.map((item) => {
-            const active = activeView === item.id;
-            const hasHref = "href" in item && item.href;
-            return (
-              <button
-                key={item.id}
-                onClick={() => hasHref ? setLocation(item.href as string) : setActiveView(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 mb-1 text-sm font-medium transition-all duration-200 text-left group ${
-                  active && !hasHref
-                    ? "bg-primary/10 text-primary border-l-2 border-primary pl-[10px]"
-                    : "text-white/50 hover:text-white hover:bg-white/5 border-l-2 border-transparent"
-                }`}
-              >
-                <item.icon size={16} className={active && !hasHref ? "text-primary" : "text-white/40 group-hover:text-white/70"} />
-                {item.label}
-                {item.id === "messages" && unreadMsgCount > 0 && (
-                  <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {unreadMsgCount}
-                  </span>
-                )}
-                {item.id === "requests-link" && pendingRequestsCount > 0 && (
-                  <span className="ml-auto bg-amber-500 text-black text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                    {pendingRequestsCount}
-                  </span>
-                )}
-                {item.id === "users-link" && pendingUsersCount > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                    {pendingUsersCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
+        {sidebarContent}
         <div className="px-3 py-4 border-t border-white/5">
           <Link href="/">
             <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-white/40 hover:text-white/70 transition-colors">
@@ -3239,14 +3243,42 @@ export default function Admin() {
         </div>
       </aside>
 
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#050c16] border-r border-white/5 flex flex-col z-10">
+            <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Anchor size={20} className="text-primary" strokeWidth={2} />
+                <span className="font-display text-xl tracking-widest text-white">PDYE</span>
+              </div>
+              <button onClick={() => setSidebarOpen(false)} className="text-white/40 hover:text-white p-1"><X size={20} /></button>
+            </div>
+            {sidebarContent}
+            <div className="px-3 py-4 border-t border-white/5">
+              <Link href="/">
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-white/40 hover:text-white/70 transition-colors">
+                  <LogOut size={16} />
+                  Back to Site
+                </button>
+              </Link>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-14 border-b border-white/5 bg-[#070f1a] flex items-center justify-between px-6 flex-shrink-0">
-          <div className="flex items-center gap-2">
+        <header className="h-14 border-b border-white/5 bg-[#070f1a] flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-white/40 hover:text-white p-1">
+              <Menu size={20} />
+            </button>
             <span className="text-white/30 text-sm font-sans capitalize">{activeView}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
               className="text-white/30 hover:text-white transition-colors p-1"
@@ -3257,17 +3289,17 @@ export default function Admin() {
               <Bell size={16} />
               <span className="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full"></span>
             </button>
-            <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-white/10">
               <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
                 <span className="text-primary text-xs font-bold">AD</span>
               </div>
-              <span className="text-white/60 text-sm hidden sm:block">Administrator</span>
+              <span className="text-white/60 text-sm">Administrator</span>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 md:p-8">
           {pendingUsersCount > 0 && activeView === "dashboard" && (
             <div className="mb-4 flex items-center justify-between gap-4 bg-red-500/10 border border-red-500/30 px-5 py-3">
               <div className="flex items-center gap-3">

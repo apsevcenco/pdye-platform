@@ -133,7 +133,7 @@ export default function DealRoomPage() {
   return (
     <Layout>
       <div className="min-h-screen bg-background pt-28 pb-20">
-        <div className="max-w-6xl mx-auto px-6 md:px-10">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-12">
             <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Secure Platform</span>
             <h1 className="font-display text-4xl md:text-5xl text-white mb-4">My Opportunities</h1>

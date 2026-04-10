@@ -257,12 +257,12 @@ export default function DealDetails() {
                   }
                 </p>
               </div>
-              <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs font-sans">
+              <div className="flex flex-col items-start lg:items-end gap-2 flex-shrink-0 w-full lg:w-auto">
+                <div className="grid grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-1 text-xs font-sans">
                   <span className="text-white/25">Buyer</span>
-                  <span className="text-white/60 text-right">{canSeeIdentities ? (participantMap[room.buyer_user_id || ""]?.email?.split("@")[0] || "—") : "Confidential"}</span>
+                  <span className="text-white/60 text-right truncate">{canSeeIdentities ? (participantMap[room.buyer_user_id || ""]?.email?.split("@")[0] || "—") : "Confidential"}</span>
                   <span className="text-white/25">Seller</span>
-                  <span className="text-white/60 text-right">{canSeeIdentities ? (participantMap[room.seller_user_id || ""]?.email?.split("@")[0] || "—") : "Confidential"}</span>
+                  <span className="text-white/60 text-right truncate">{canSeeIdentities ? (participantMap[room.seller_user_id || ""]?.email?.split("@")[0] || "—") : "Confidential"}</span>
                   <span className="text-white/25">Created</span>
                   <span className="text-white/60 text-right">{fmtDate(room.created_at)}</span>
                   <span className="text-white/25">Last Update</span>
@@ -352,7 +352,7 @@ export default function DealDetails() {
             </div>
 
             {/* ══════ RIGHT SIDEBAR ══════ */}
-            <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4">
+            <div className="w-full lg:w-[280px] flex-shrink-0 space-y-4">
               <SidebarStatus room={room} cfg={cfg} roomLabel={roomLabel} />
               <SidebarParticipants room={room} participantMap={participantMap} canSeeIdentities={canSeeIdentities} />
               <SidebarNda room={room} />

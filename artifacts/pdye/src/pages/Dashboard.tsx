@@ -119,14 +119,14 @@ function BuyerDashboard({ userId }: { userId: string }) {
       )}
 
       {/* Quick stats */}
-      <div className="grid grid-cols-4 gap-px bg-white/5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/5">
         {[
           { label: "Total Requests", value: requests.length, icon: <Ship size={16} /> },
           { label: "Under Review",   value: requests.filter(r => r.status === "pending").length, icon: <Clock size={16} /> },
           { label: "Spec Access",    value: specAccess.length, icon: <Eye size={16} /> },
           { label: "In Deal Room",   value: inDealRoom.length, icon: <CheckCircle size={16} /> },
         ].map(s => (
-          <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-6 text-center">
+          <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-4 sm:py-6 text-center">
             <span className="text-primary/60">{s.icon}</span>
             <span className="font-display text-3xl text-white">{s.value}</span>
             <span className="text-white/30 text-[10px] uppercase tracking-widest font-sans">{s.label}</span>
@@ -158,7 +158,7 @@ function BuyerDashboard({ userId }: { userId: string }) {
             {requests.map(req => {
               const cfg = REQ_STATUS[req.status] || REQ_STATUS.pending;
               return (
-                <div key={req.id} className="flex items-center justify-between px-6 py-4">
+                <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4">
                   <div>
                     <p className="text-white text-sm font-medium">{req.yacht_name}</p>
                     <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(req.created_at).toLocaleDateString("en-GB")}</p>
@@ -267,16 +267,16 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
             const needsCommission = room.buyer_commission_status === "sent" || room.seller_commission_status === "sent";
             const label = roomLabel(room);
             return (
-              <div key={room.id} className="flex items-center justify-between px-6 py-4">
+              <div key={room.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-white text-sm font-medium">{room.yacht_name}</p>
                     {label && <span className="text-primary/50 text-[10px] font-mono">{label}</span>}
                     {room.archived && <span className="text-[9px] text-white/20 bg-white/5 px-1.5 py-0.5">ARCHIVED</span>}
                   </div>
                   <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color}`}>
                     {cfg.label}
                   </span>
@@ -345,7 +345,7 @@ function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-px bg-white/5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/5">
         {[
           { label: "Total Listings", value: yachts.length },
           { label: "In Deal Room",   value: yachts.filter(y => y.deal_status === "approved").length },
@@ -533,9 +533,9 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
             {visibleRooms.map(room => {
               const isActive = room.status === "active";
               return (
-                <div key={room.id} className="flex items-center justify-between px-6 py-4">
+                <div key={room.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-white text-sm font-medium">{room.yacht_name}</p>
                       {roomLabel(room) && <span className="text-primary/40 text-[10px] font-mono">{roomLabel(room)}</span>}
                       <span className="text-[9px] text-white/20 bg-white/5 px-1.5 py-0.5">{room.my_side}</span>
@@ -543,7 +543,7 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
                     </div>
                     <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${isActive ? "text-green-400 border-green-500/20" : room.identities_revealed ? "text-emerald-400 border-emerald-500/20" : "text-white/40 border-white/10"}`}>
                       {room.identities_revealed ? "Fully Unlocked" : room.status.replace(/_/g, " ")}
                     </span>
@@ -906,7 +906,7 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="min-h-screen bg-background pt-28 pb-16">
-        <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6">
 
           {/* Header */}
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
