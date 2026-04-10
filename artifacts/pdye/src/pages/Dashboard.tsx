@@ -97,6 +97,27 @@ function BuyerDashboard({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-6">
+      {specAccess.length > 0 && (
+        <div className="bg-blue-500/5 border border-blue-500/20 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 bg-blue-500/15 flex items-center justify-center"><Eye size={16} className="text-blue-400" /></div>
+            <div>
+              <p className="text-blue-400 text-sm font-bold">Spec Access Granted</p>
+              <p className="text-white/40 text-xs font-sans">You have access to confidential specifications</p>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {specAccess.map(req => (
+              <Link key={req.id} href={`/yacht/${req.yacht_id}`}
+                className="flex items-center justify-between px-3 py-2 bg-blue-500/5 hover:bg-blue-500/10 transition-colors group">
+                <span className="text-white text-sm font-medium">{req.yacht_name}</span>
+                <span className="text-blue-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 group-hover:underline">View Specs <ChevronRight size={11} /></span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Quick stats */}
       <div className="grid grid-cols-4 gap-px bg-white/5">
         {[
@@ -428,25 +449,26 @@ function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
 }
 
 function BrokerDealRoomsSection({ userId }: { userId: string }) {
-  const [rooms, setRooms] = useState<{ id: string; yacht_id: string; status: string; created_at: string; yacht_name?: string }[]>([]);
+  const [rooms, setRooms] = useState<(DealRoom & { yacht_name?: string; my_side?: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabaseAdmin
-        .from("deal_rooms")
-        .select("id, yacht_id, status, created_at")
-        .eq("seller_user_id", userId)
-        .not("status", "in", '("cancelled")')
-        .order("created_at", { ascending: false });
-
-      const allRooms = data || [];
-      if (allRooms.length > 0) {
-        const yachtIds = [...new Set(allRooms.map((r: any) => r.yacht_id))];
-        const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
-        const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
-        setRooms(allRooms.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
-      }
+      try {
+        const allRooms = await dealRoomApi.byUser(userId);
+        const filtered = (allRooms || []).filter((r: any) => r.status !== "cancelled");
+        if (filtered.length > 0) {
+          const yachtIds = [...new Set(filtered.map((r: any) => r.yacht_id))];
+          const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
+          const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
+          setRooms(filtered.map((r: any) => ({
+            ...r,
+            yacht_name: yachtMap[r.yacht_id] || "Vessel",
+            my_side: r.buyer_user_id === userId ? "Buyer" : r.seller_user_id === userId ? "Seller" : "—",
+          })));
+        }
+      } catch (e) {}
       setLoading(false);
     }
     load();
@@ -454,27 +476,88 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
 
   if (loading || rooms.length === 0) return null;
 
+  const visibleRooms = rooms.filter(r => showArchived ? r.archived : !r.archived);
+  const archivedCount = rooms.filter(r => r.archived).length;
+  const needsAction = rooms.filter(r => !r.archived && (
+    (r.buyer_user_id === userId && (r.buyer_nda_status === "sent" || r.buyer_commission_status === "sent")) ||
+    (r.seller_user_id === userId && (r.seller_nda_status === "sent" || r.seller_commission_status === "sent"))
+  ));
+
+  const roomLabel = (r: DealRoom) => r.room_number ? `DR-${String(r.room_number).padStart(6, "0")}` : "";
+
   return (
-    <Block title="Deal Rooms (as Seller)">
-      <div className="divide-y divide-white/5">
-        {rooms.map(room => (
-          <div key={room.id} className="flex items-center justify-between px-6 py-4">
+    <>
+      {needsAction.length > 0 && (
+        <div className="bg-orange-500/5 border border-orange-500/20 p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 bg-orange-500/15 flex items-center justify-center"><AlertTriangle size={16} className="text-orange-400" /></div>
             <div>
-              <p className="text-white text-sm font-medium">{room.yacht_name}</p>
-              <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${room.status === "active" ? "text-green-400 border-green-500/20" : "text-white/40 border-white/10"}`}>
-                {room.status.replace(/_/g, " ")}
-              </span>
-              <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
-                Open <ChevronRight size={11} />
-              </Link>
+              <p className="text-orange-400 text-sm font-bold">Action Required</p>
+              <p className="text-white/40 text-xs font-sans">You have documents waiting for your signature</p>
             </div>
           </div>
-        ))}
-      </div>
-    </Block>
+          <div className="space-y-1.5">
+            {needsAction.map(room => {
+              const isNda = (room.buyer_user_id === userId && room.buyer_nda_status === "sent") || (room.seller_user_id === userId && room.seller_nda_status === "sent");
+              return (
+                <Link key={room.id} href={`/dealroom/${room.id}`}
+                  className="flex items-center justify-between px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 transition-colors group">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white text-sm font-medium">{room.yacht_name}</span>
+                    {roomLabel(room) && <span className="text-primary/40 text-[10px] font-mono">{roomLabel(room)}</span>}
+                  </div>
+                  <span className="text-orange-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 group-hover:underline">
+                    {isNda ? "Sign NDA" : "Sign Commission"} <ChevronRight size={11} />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <Block
+        title="My Deal Rooms"
+        action={archivedCount > 0 ? (
+          <button onClick={() => setShowArchived(!showArchived)} className="text-white/30 hover:text-primary text-[10px] font-bold uppercase tracking-widest transition-colors">
+            {showArchived ? "Hide Archived" : `Archived (${archivedCount})`}
+          </button>
+        ) : undefined}
+      >
+        {visibleRooms.length === 0 ? (
+          <div className="flex items-center justify-center py-8 text-white/20 text-sm font-sans">
+            {showArchived ? "No archived rooms" : "No active rooms"}
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {visibleRooms.map(room => {
+              const isActive = room.status === "active";
+              return (
+                <div key={room.id} className="flex items-center justify-between px-6 py-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-white text-sm font-medium">{room.yacht_name}</p>
+                      {roomLabel(room) && <span className="text-primary/40 text-[10px] font-mono">{roomLabel(room)}</span>}
+                      <span className="text-[9px] text-white/20 bg-white/5 px-1.5 py-0.5">{room.my_side}</span>
+                      {room.archived && <span className="text-[9px] text-white/20 bg-white/5 px-1.5 py-0.5">ARCHIVED</span>}
+                    </div>
+                    <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${isActive ? "text-green-400 border-green-500/20" : room.identities_revealed ? "text-emerald-400 border-emerald-500/20" : "text-white/40 border-white/10"}`}>
+                      {room.identities_revealed ? "Fully Unlocked" : room.status.replace(/_/g, " ")}
+                    </span>
+                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                      Open <ChevronRight size={11} />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Block>
+    </>
   );
 }
 

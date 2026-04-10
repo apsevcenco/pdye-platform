@@ -357,7 +357,11 @@ export default function DealDetails() {
               <SidebarParticipants room={room} participantMap={participantMap} canSeeIdentities={canSeeIdentities} />
               <SidebarNda room={room} />
               {room.commission_status && room.commission_status !== "not_started" && <SidebarCommission room={room} />}
-              {isAdmin && blocks && <SidebarBlocks blocks={blocks} roomId={room.id} onReload={loadRoom} />}
+              {blocks && (isAdmin
+                ? <SidebarBlocks blocks={blocks} roomId={room.id} onReload={loadRoom} />
+                : (isBuyer || isSeller) ? <SidebarBlocksReadOnly blocks={blocks} />
+                : null
+              )}
               {activity.length > 0 && <SidebarRecentActivity activity={activity.slice(0, 6)} participantMap={participantMap} />}
               {isAdmin && !isTerminal && <AdminControls room={room} onReload={loadRoom} />}
             </div>
@@ -1189,6 +1193,28 @@ function SidebarBlocks({ blocks, roomId, onReload }: { blocks: BlockVisibility; 
                 {isOn ? "Open" : "Locked"}
               </span>
             </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SidebarBlocksReadOnly({ blocks }: { blocks: BlockVisibility }) {
+  return (
+    <div className="bg-[#0f1d33] border border-white/8 p-5">
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Eye size={11} /> Information Access</p>
+      <div className="space-y-1.5">
+        {BLOCK_KEYS.map(key => {
+          const isOn = blocks[key]?.is_unlocked || false;
+          return (
+            <div key={key} className="flex items-center justify-between px-2 py-1.5 text-xs font-sans">
+              <span className="text-white/50">{BLOCK_LABELS[key]}</span>
+              <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest ${isOn ? "text-green-400" : "text-white/20"}`}>
+                {isOn ? <Eye size={9} /> : <Lock size={9} />}
+                {isOn ? "Available" : "Restricted"}
+              </span>
+            </div>
           );
         })}
       </div>
