@@ -15,9 +15,69 @@ function db() {
   return pool;
 }
 
-router.get("/deal-rooms", async (_req, res) => {
+let migrationDone = false;
+async function runMigration() {
+  if (migrationDone) return;
+  migrationDone = true;
+  const client = await db().connect();
   try {
-    const { rows } = await db().query("SELECT * FROM deal_rooms ORDER BY created_at DESC");
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='deal_rooms' AND column_name='room_number') THEN
+          CREATE SEQUENCE IF NOT EXISTS deal_room_number_seq START 1;
+          ALTER TABLE deal_rooms ADD COLUMN room_number integer DEFAULT nextval('deal_room_number_seq');
+        END IF;
+      END $$;
+    `);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='deal_rooms' AND column_name='archived') THEN
+          ALTER TABLE deal_rooms ADD COLUMN archived boolean DEFAULT false;
+        END IF;
+      END $$;
+    `);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='deal_rooms' AND column_name='commission_status') THEN
+          ALTER TABLE deal_rooms ADD COLUMN commission_status text DEFAULT 'not_started';
+          ALTER TABLE deal_rooms ADD COLUMN buyer_commission_status text DEFAULT 'not_sent';
+          ALTER TABLE deal_rooms ADD COLUMN seller_commission_status text DEFAULT 'not_sent';
+          ALTER TABLE deal_rooms ADD COLUMN buyer_commission_signed_at timestamptz;
+          ALTER TABLE deal_rooms ADD COLUMN seller_commission_signed_at timestamptz;
+          ALTER TABLE deal_rooms ADD COLUMN commission_fully_signed_at timestamptz;
+          ALTER TABLE deal_rooms ADD COLUMN identities_revealed boolean DEFAULT false;
+        END IF;
+      END $$;
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS deal_room_blocks (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        deal_room_id uuid NOT NULL,
+        block_key text NOT NULL,
+        is_unlocked boolean DEFAULT false,
+        unlocked_by uuid,
+        unlocked_at timestamptz,
+        created_at timestamptz DEFAULT now(),
+        UNIQUE(deal_room_id, block_key)
+      );
+    `);
+  } finally {
+    client.release();
+  }
+}
+
+const BLOCK_KEYS = ["specs", "photos", "documents", "chat", "location", "yacht_name", "identities"];
+
+router.use(async (_req, _res, next) => {
+  try { await runMigration(); } catch (e) { console.error("Migration error:", e); }
+  next();
+});
+
+router.get("/deal-rooms", async (req, res) => {
+  try {
+    const includeArchived = req.query.include_archived === "true";
+    const where = includeArchived ? "" : "WHERE (archived IS NULL OR archived = false)";
+    const { rows } = await db().query(`SELECT * FROM deal_rooms ${where} ORDER BY created_at DESC`);
     res.json(rows);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -229,6 +289,104 @@ router.get("/audit-logs/:entityType/:entityId", async (req, res) => {
       [req.params.entityType, req.params.entityId]
     );
     res.json(rows);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/deal-rooms/:id/blocks", async (req, res) => {
+  try {
+    const { rows } = await db().query("SELECT * FROM deal_room_blocks WHERE deal_room_id = $1", [req.params.id]);
+    const blockMap: Record<string, { is_unlocked: boolean; unlocked_by: string | null; unlocked_at: string | null }> = {};
+    BLOCK_KEYS.forEach(k => { blockMap[k] = { is_unlocked: false, unlocked_by: null, unlocked_at: null }; });
+    rows.forEach((r: any) => {
+      blockMap[r.block_key] = { is_unlocked: r.is_unlocked, unlocked_by: r.unlocked_by, unlocked_at: r.unlocked_at };
+    });
+    res.json(blockMap);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/deal-rooms/:id/blocks/:blockKey", async (req, res) => {
+  const { blockKey } = req.params;
+  const { is_unlocked, admin_id } = req.body;
+  if (!BLOCK_KEYS.includes(blockKey)) return res.status(400).json({ error: "Invalid block key" });
+  try {
+    const { rows } = await db().query(
+      `INSERT INTO deal_room_blocks (deal_room_id, block_key, is_unlocked, unlocked_by, unlocked_at)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (deal_room_id, block_key)
+       DO UPDATE SET is_unlocked = $3, unlocked_by = $4, unlocked_at = $5
+       RETURNING *`,
+      [req.params.id, blockKey, is_unlocked, is_unlocked ? admin_id : null, is_unlocked ? new Date().toISOString() : null]
+    );
+    res.json(rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.patch("/deal-rooms/:id/archive", async (req, res) => {
+  const { archived } = req.body;
+  try {
+    const { rows } = await db().query(
+      "UPDATE deal_rooms SET archived = $2, updated_at = now() WHERE id = $1 RETURNING *",
+      [req.params.id, archived !== false]
+    );
+    res.json(rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/deal-rooms/:id/commission/send", async (req, res) => {
+  const { admin_id } = req.body;
+  try {
+    const { rows } = await db().query(
+      `UPDATE deal_rooms SET
+        commission_status = 'pending',
+        buyer_commission_status = 'sent',
+        seller_commission_status = 'sent',
+        updated_at = now()
+       WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/deal-rooms/:id/commission/sign", async (req, res) => {
+  const { side, user_id } = req.body;
+  if (!["buyer", "seller"].includes(side)) return res.status(400).json({ error: "Invalid side" });
+  const now = new Date().toISOString();
+  try {
+    const col = side === "buyer" ? "buyer_commission_status" : "seller_commission_status";
+    const tsCol = side === "buyer" ? "buyer_commission_signed_at" : "seller_commission_signed_at";
+    await db().query(`UPDATE deal_rooms SET ${col} = 'signed', ${tsCol} = $2, updated_at = now() WHERE id = $1`, [req.params.id, now]);
+
+    const { rows } = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
+    const room = rows[0];
+    if (room && room.buyer_commission_status === "signed" && room.seller_commission_status === "signed") {
+      await db().query(
+        "UPDATE deal_rooms SET commission_status = 'completed', commission_fully_signed_at = $2, identities_revealed = true, updated_at = now() WHERE id = $1",
+        [req.params.id, now]
+      );
+      for (const bk of ["identities", "yacht_name", "location"]) {
+        await db().query(
+          `INSERT INTO deal_room_blocks (deal_room_id, block_key, is_unlocked, unlocked_by, unlocked_at)
+           VALUES ($1, $2, true, $3, now())
+           ON CONFLICT (deal_room_id, block_key) DO UPDATE SET is_unlocked = true, unlocked_by = $3, unlocked_at = now()`,
+          [req.params.id, bk, user_id]
+        );
+      }
+      const updated = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
+      return res.json(updated.rows[0]);
+    }
+    const refreshed = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
+    res.json(refreshed.rows[0]);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

@@ -16,7 +16,8 @@ import { useAuth } from "@/context/AuthContext";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
   type DealRoom, type DealRoomMessage, type DealRoomDocument, type AuditLog,
-  DEAL_ROOM_STATUS_CONFIG, DEAL_ROOM_TIMELINE, auditAction,
+  type BlockVisibility, type BlockKey,
+  DEAL_ROOM_STATUS_CONFIG, DEAL_ROOM_TIMELINE, BLOCK_KEYS, BLOCK_LABELS, auditAction,
 } from "@/lib/dealTypes";
 import { NDA_TEXT, TERMS_TEXT, DISCLAIMER_TEXT } from "@/lib/legalText";
 
@@ -68,6 +69,9 @@ export default function DealDetails() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [blocks, setBlocks] = useState<BlockVisibility | null>(null);
+  const [commissionCheck, setCommissionCheck] = useState(false);
+  const [signingCommission, setSigningCommission] = useState(false);
 
   const isAdmin = userProfile?.role === "admin";
   const isBuyer = room?.buyer_user_id === user?.id;
@@ -76,6 +80,10 @@ export default function DealDetails() {
   const isActivated = room?.status === "active";
   const isTerminal = room?.status === "closed" || room?.status === "cancelled";
   const showDealRoom = isActivated || isAdmin;
+  const identitiesRevealed = room?.identities_revealed || false;
+  const canSeeIdentities = isAdmin || identitiesRevealed;
+  const isBlockUnlocked = (key: BlockKey) => isAdmin || blocks?.[key]?.is_unlocked || false;
+  const roomLabel = room?.room_number ? `DR-${String(room.room_number).padStart(6, "0")}` : room?.id?.slice(0, 8).toUpperCase() || "";
 
   useEffect(() => {
     if (!user || !roomId) return;
@@ -111,8 +119,24 @@ export default function DealDetails() {
 
       const logs = await dealRoomApi.getAuditLogs("deal_room", roomId!);
       setActivity((logs as AuditLog[]) || []);
+
+      try {
+        const blk = await dealRoomApi.getBlocks(roomId!);
+        setBlocks(blk as BlockVisibility);
+      } catch {}
     } catch (e) {}
     setLoading(false);
+  }
+
+  async function signCommission() {
+    if (!room || !user || (mySide !== "buyer" && mySide !== "seller")) return;
+    setSigningCommission(true);
+    await dealRoomApi.signCommission(room.id, mySide, user.id);
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user.id, action: "commission_signed", meta: { side: mySide } });
+    await dealRoomApi.sendMessage(room.id, { sender_id: user.id, message: `Commission Agreement signed by ${mySide} party.`, is_system: true });
+    setSigningCommission(false);
+    setCommissionCheck(false);
+    loadRoom();
   }
 
   async function signNda() {
@@ -216,28 +240,29 @@ export default function DealDetails() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <Hash size={14} className="text-primary/40" />
-                  <span className="text-white/20 text-xs font-mono">{room.id.slice(0, 8).toUpperCase()}</span>
+                  <span className="text-primary/80 text-xs font-mono font-bold">{roomLabel}</span>
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 border ${cfg.color} border-current/20 bg-black/30`}>
                     {cfg.label}
                   </span>
                   {isTerminal && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/20">Read Only</span>}
+                  {room.archived && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-white/5 text-white/30 border border-white/10">Archived</span>}
                 </div>
                 <h1 className="font-display text-2xl md:text-3xl text-white mb-1">
-                  {isActivated || isAdmin ? yacht?.name || "Vessel" : `${yacht?.builder || "Vessel"} · ${yacht?.year || ""}`}
+                  {isBlockUnlocked("yacht_name") ? yacht?.name || "Vessel" : `${yacht?.builder || "Vessel"} · ${yacht?.year || ""}`}
                 </h1>
                 <p className="text-white/40 text-sm font-sans">
-                  {isActivated || isAdmin
+                  {isBlockUnlocked("yacht_name")
                     ? [yacht?.builder, yacht?.model, yacht?.length ? `${yacht.length}m` : null, yacht?.year].filter(Boolean).join(" · ")
-                    : "Full vessel identity disclosed after Deal Room activation"
+                    : "Full vessel identity disclosed after Commission Agreement"
                   }
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2 flex-shrink-0">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs font-sans">
                   <span className="text-white/25">Buyer</span>
-                  <span className="text-white/60 text-right">{participantMap[room.buyer_user_id || ""]?.email?.split("@")[0] || "—"}</span>
+                  <span className="text-white/60 text-right">{canSeeIdentities ? (participantMap[room.buyer_user_id || ""]?.email?.split("@")[0] || "—") : "Confidential"}</span>
                   <span className="text-white/25">Seller</span>
-                  <span className="text-white/60 text-right">{participantMap[room.seller_user_id || ""]?.email?.split("@")[0] || "—"}</span>
+                  <span className="text-white/60 text-right">{canSeeIdentities ? (participantMap[room.seller_user_id || ""]?.email?.split("@")[0] || "—") : "Confidential"}</span>
                   <span className="text-white/25">Created</span>
                   <span className="text-white/60 text-right">{fmtDate(room.created_at)}</span>
                   <span className="text-white/25">Last Update</span>
@@ -298,25 +323,28 @@ export default function DealDetails() {
           {/* ══════ MAIN CONTENT + SIDEBAR ══════ */}
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1 min-w-0">
-              {activeTab === "overview" && <OverviewTab yacht={yacht} room={room} isActivated={isActivated} isAdmin={isAdmin} />}
-              {activeTab === "specs" && <SpecificationsTab yacht={yacht} isActivated={isActivated} isAdmin={isAdmin} />}
-              {activeTab === "documents" && showDealRoom && <DocumentsTab documents={documents} isAdmin={isAdmin} isTerminal={isTerminal} />}
-              {activeTab === "media" && showDealRoom && <MediaTab yacht={yacht} isActivated={isActivated} isAdmin={isAdmin} />}
-              {activeTab === "messages" && showDealRoom && (
+              {activeTab === "overview" && <OverviewTab yacht={yacht} room={room} isBlockUnlocked={isBlockUnlocked} isAdmin={isAdmin} canSeeIdentities={canSeeIdentities} />}
+              {activeTab === "specs" && <SpecificationsTab yacht={yacht} isBlockUnlocked={isBlockUnlocked} isAdmin={isAdmin} />}
+              {activeTab === "documents" && showDealRoom && (isBlockUnlocked("documents") ? <DocumentsTab documents={documents} isAdmin={isAdmin} isTerminal={isTerminal} /> : <LockedBlockNotice block="documents" />)}
+              {activeTab === "media" && showDealRoom && (isBlockUnlocked("photos") ? <MediaTab yacht={yacht} isBlockUnlocked={isBlockUnlocked} isAdmin={isAdmin} /> : <LockedBlockNotice block="photos" />)}
+              {activeTab === "messages" && showDealRoom && (isBlockUnlocked("chat") ? (
                 <MessagesTab
                   messages={messages} participantMap={participantMap} user={user}
                   msgText={msgText} setMsgText={setMsgText} sendMessage={sendMessage}
                   sending={sending} isTerminal={isTerminal} room={room} isAdmin={isAdmin}
                   chatContainerRef={chatContainerRef} messagesEndRef={messagesEndRef}
                   handleChatScroll={handleChatScroll} isAtBottom={isAtBottom}
+                  canSeeIdentities={canSeeIdentities}
                 />
-              )}
+              ) : <LockedBlockNotice block="chat" />)}
               {activeTab === "legal" && (
                 <LegalTab room={room} mySide={mySide} myNdaStatus={myNdaStatus}
                   showNdaForm={showNdaForm} ndaCheck={ndaCheck} termsCheck={termsCheck}
                   setNdaCheck={setNdaCheck} setTermsCheck={setTermsCheck}
                   signNda={signNda} acceptingNda={acceptingNda}
-                  participantMap={participantMap}
+                  participantMap={participantMap} canSeeIdentities={canSeeIdentities}
+                  commissionCheck={commissionCheck} setCommissionCheck={setCommissionCheck}
+                  signCommission={signCommission} signingCommission={signingCommission}
                 />
               )}
               {activeTab === "offers" && showDealRoom && <OffersTab isTerminal={isTerminal} />}
@@ -325,9 +353,11 @@ export default function DealDetails() {
 
             {/* ══════ RIGHT SIDEBAR ══════ */}
             <div className="w-full lg:w-[300px] flex-shrink-0 space-y-4">
-              <SidebarStatus room={room} cfg={cfg} />
-              <SidebarParticipants room={room} participantMap={participantMap} />
+              <SidebarStatus room={room} cfg={cfg} roomLabel={roomLabel} />
+              <SidebarParticipants room={room} participantMap={participantMap} canSeeIdentities={canSeeIdentities} />
               <SidebarNda room={room} />
+              {room.commission_status && room.commission_status !== "not_started" && <SidebarCommission room={room} />}
+              {isAdmin && blocks && <SidebarBlocks blocks={blocks} roomId={room.id} onReload={loadRoom} />}
               {activity.length > 0 && <SidebarRecentActivity activity={activity.slice(0, 6)} participantMap={participantMap} />}
               {isAdmin && !isTerminal && <AdminControls room={room} onReload={loadRoom} />}
             </div>
@@ -372,11 +402,12 @@ function getNextAction(room: DealRoom, mySide: string, isAdmin: boolean, myNdaSt
 const FULL_TIMELINE = [
   { key: "created", label: "Room Created", icon: Briefcase },
   { key: "nda_sent", label: "NDA Sent", icon: Send },
-  { key: "buyer_signed", label: "Buyer Signed", icon: CheckCircle },
-  { key: "seller_signed", label: "Seller Signed", icon: CheckCircle },
-  { key: "activated", label: "Room Activated", icon: Lock },
-  { key: "docs_shared", label: "Documents Shared", icon: FileText },
-  { key: "negotiation", label: "Negotiation", icon: Gavel },
+  { key: "buyer_signed", label: "Buyer NDA", icon: CheckCircle },
+  { key: "seller_signed", label: "Seller NDA", icon: CheckCircle },
+  { key: "activated", label: "Room Active", icon: Lock },
+  { key: "negotiation", label: "Discussion", icon: MessageSquare },
+  { key: "commission", label: "Commission", icon: Scale },
+  { key: "revealed", label: "ID Revealed", icon: Eye },
   { key: "closed", label: "Completed", icon: CheckCircle },
 ];
 
@@ -387,8 +418,9 @@ function TransactionTimeline({ room }: { room: DealRoom }) {
     buyer_signed: room.buyer_nda_status === "signed",
     seller_signed: room.seller_nda_status === "signed",
     activated: room.status === "active" || room.status === "closed",
-    docs_shared: room.status === "active" || room.status === "closed",
-    negotiation: false,
+    negotiation: room.status === "active" || room.status === "closed",
+    commission: room.commission_status === "completed" || room.commission_status === "pending",
+    revealed: room.identities_revealed === true,
     closed: room.status === "closed",
   };
   const isCancelled = room.status === "cancelled";
@@ -432,9 +464,11 @@ function TransactionTimeline({ room }: { room: DealRoom }) {
 /* ═══════════════════════════════════════════════════
    4. OVERVIEW TAB
    ═══════════════════════════════════════════════════ */
-function OverviewTab({ yacht, room, isActivated, isAdmin }: { yacht: YachtFull | null; room: DealRoom; isActivated: boolean; isAdmin: boolean }) {
+function OverviewTab({ yacht, room, isBlockUnlocked, isAdmin, canSeeIdentities }: { yacht: YachtFull | null; room: DealRoom; isBlockUnlocked: (k: BlockKey) => boolean; isAdmin: boolean; canSeeIdentities: boolean }) {
   if (!yacht) return <EmptyState icon={Ship} text="Yacht information not available" />;
-  const showFull = isActivated || isAdmin;
+  const showName = isBlockUnlocked("yacht_name");
+  const showLocation = isBlockUnlocked("location");
+  const showFull = showName;
   return (
     <div className="space-y-6">
       {yacht.main_image && (
@@ -450,7 +484,7 @@ function OverviewTab({ yacht, room, isActivated, isAdmin }: { yacht: YachtFull |
             { label: "Builder", value: yacht.builder, icon: Wrench },
             { label: "Year", value: yacht.year, icon: Calendar },
             { label: "Length", value: yacht.length ? `${yacht.length}m` : null, icon: Compass },
-            { label: "Flag", value: showFull ? yacht.flag : "—", icon: Navigation },
+            { label: "Flag", value: showLocation ? yacht.flag : "—", icon: Navigation },
           ].map(item => (
             <div key={item.label} className="bg-white/[0.02] border border-white/5 p-3">
               <div className="flex items-center gap-2 mb-1">
@@ -467,10 +501,16 @@ function OverviewTab({ yacht, room, isActivated, isAdmin }: { yacht: YachtFull |
             <p className="text-primary text-xl font-display">{yacht.currency === "USD" ? "$" : yacht.currency === "GBP" ? "£" : "€"}{Number(yacht.price).toLocaleString()}</p>
           </div>
         )}
-        {showFull && yacht.location && (
+        {showLocation && yacht.location && (
           <div className="flex items-center gap-2 text-white/40 text-sm font-sans mb-4">
             <MapPin size={13} className="text-primary/40" />
             {yacht.location}
+          </div>
+        )}
+        {!showLocation && (
+          <div className="flex items-center gap-2 text-white/20 text-sm font-sans mb-4 italic">
+            <Lock size={13} className="text-white/10" />
+            Location disclosed after Commission Agreement
           </div>
         )}
         {yacht.description && (
@@ -487,9 +527,10 @@ function OverviewTab({ yacht, room, isActivated, isAdmin }: { yacht: YachtFull |
 /* ═══════════════════════════════════════════════════
    5. SPECIFICATIONS TAB
    ═══════════════════════════════════════════════════ */
-function SpecificationsTab({ yacht, isActivated, isAdmin }: { yacht: YachtFull | null; isActivated: boolean; isAdmin: boolean }) {
+function SpecificationsTab({ yacht, isBlockUnlocked, isAdmin }: { yacht: YachtFull | null; isBlockUnlocked: (k: BlockKey) => boolean; isAdmin: boolean }) {
   if (!yacht) return <EmptyState icon={Compass} text="Specifications not available" />;
-  const showFull = isActivated || isAdmin;
+  if (!isBlockUnlocked("specs") && !isAdmin) return <LockedBlockNotice block="specs" />;
+  const showFull = isBlockUnlocked("location");
   const sections = [
     { title: "General", icon: Ship, rows: [
       ["Builder", yacht.builder], ["Model", yacht.model], ["Year", yacht.year],
@@ -574,8 +615,8 @@ function DocumentsTab({ documents, isAdmin, isTerminal }: { documents: DealRoomD
 /* ═══════════════════════════════════════════════════
    7. MEDIA TAB
    ═══════════════════════════════════════════════════ */
-function MediaTab({ yacht, isActivated, isAdmin }: { yacht: YachtFull | null; isActivated: boolean; isAdmin: boolean }) {
-  const showFull = isActivated || isAdmin;
+function MediaTab({ yacht, isBlockUnlocked, isAdmin }: { yacht: YachtFull | null; isBlockUnlocked: (k: BlockKey) => boolean; isAdmin: boolean }) {
+  const showFull = isBlockUnlocked("photos");
   const images: string[] = [];
   if (yacht?.main_image) images.push(yacht.main_image);
   if (yacht?.image) images.push(yacht.image);
@@ -628,9 +669,9 @@ type MessagesTabProps = {
   sendMessage: () => void; sending: boolean; isTerminal: boolean; room: DealRoom;
   isAdmin: boolean; chatContainerRef: React.RefObject<HTMLDivElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  handleChatScroll: () => void; isAtBottom: boolean;
+  handleChatScroll: () => void; isAtBottom: boolean; canSeeIdentities: boolean;
 };
-function MessagesTab({ messages, participantMap, user, msgText, setMsgText, sendMessage, sending, isTerminal, room, isAdmin, chatContainerRef, messagesEndRef, handleChatScroll, isAtBottom }: MessagesTabProps) {
+function MessagesTab({ messages, participantMap, user, msgText, setMsgText, sendMessage, sending, isTerminal, room, isAdmin, chatContainerRef, messagesEndRef, handleChatScroll, isAtBottom, canSeeIdentities }: MessagesTabProps) {
   return (
     <div className="bg-[#0f1d33] border border-white/8">
       <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
@@ -639,10 +680,10 @@ function MessagesTab({ messages, participantMap, user, msgText, setMsgText, send
         </p>
         <div className="flex items-center gap-3">
           {Object.entries(participantMap).map(([uid, info]) => (
-            <div key={uid} className="flex items-center gap-1.5" title={info.email}>
+            <div key={uid} className="flex items-center gap-1.5" title={canSeeIdentities ? info.email : "Anonymous"}>
               <div className={`w-2 h-2 rounded-full ${uid === user?.id ? "bg-green-400" : "bg-white/15"}`} />
-              <span className="text-white/30 text-[10px] font-sans">{uid === user?.id ? "You" : info.email?.split("@")[0]}</span>
-              <RoleBadge role={info.role} />
+              <span className="text-white/30 text-[10px] font-sans">{uid === user?.id ? "You" : canSeeIdentities ? info.email?.split("@")[0] : "Anonymous"}</span>
+              {canSeeIdentities && <RoleBadge role={info.role} />}
             </div>
           ))}
         </div>
@@ -663,8 +704,8 @@ function MessagesTab({ messages, participantMap, user, msgText, setMsgText, send
             {messages.map((msg: DealRoomMessage, idx: number) => {
               const isOwn = msg.sender_id === user?.id;
               const senderInfo = participantMap[msg.sender_id];
-              const senderName = senderInfo ? senderInfo.email.split("@")[0] : "Unknown";
-              const senderRole = senderInfo?.role || "";
+              const senderName = isOwn ? (senderInfo ? senderInfo.email.split("@")[0] : "You") : canSeeIdentities ? (senderInfo ? senderInfo.email.split("@")[0] : "Unknown") : "Anonymous";
+              const senderRole = canSeeIdentities ? (senderInfo?.role || "") : "";
               const showSenderHeader = !isOwn && !msg.is_system && (idx === 0 || messages[idx - 1]?.sender_id !== msg.sender_id || messages[idx - 1]?.is_system);
               const prevMsg = messages[idx - 1];
               const showDateSep = idx === 0 || (prevMsg && new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString());
@@ -756,15 +797,20 @@ type LegalTabProps = {
   ndaCheck: boolean; termsCheck: boolean; setNdaCheck: (v: boolean) => void;
   setTermsCheck: (v: boolean) => void; signNda: () => void; acceptingNda: boolean;
   participantMap: Record<string, { email: string; role: string }>;
+  canSeeIdentities: boolean;
+  commissionCheck: boolean; setCommissionCheck: (v: boolean) => void;
+  signCommission: () => void; signingCommission: boolean;
 };
-function LegalTab({ room, mySide, myNdaStatus, showNdaForm, ndaCheck, termsCheck, setNdaCheck, setTermsCheck, signNda, acceptingNda, participantMap }: LegalTabProps) {
+function LegalTab({ room, mySide, myNdaStatus, showNdaForm, ndaCheck, termsCheck, setNdaCheck, setTermsCheck, signNda, acceptingNda, participantMap, canSeeIdentities, commissionCheck, setCommissionCheck, signCommission, signingCommission }: LegalTabProps) {
+  const myCommissionStatus = mySide === "buyer" ? room.buyer_commission_status : mySide === "seller" ? room.seller_commission_status : "n/a";
+  const showCommissionForm = room.commission_status === "pending" && myCommissionStatus === "sent" && mySide !== "admin";
   return (
     <div className="space-y-6">
       <div className="bg-[#0f1d33] border border-white/8 p-6">
-        <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-5 flex items-center gap-2"><Shield size={13} /> NDA Compliance Status</p>
+        <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-5 flex items-center gap-2"><Shield size={13} /> 1. NDA Compliance (Entry Gate)</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NdaPartyCard side="Buyer" status={room.buyer_nda_status} sentAt={room.buyer_nda_sent_at} signedAt={room.buyer_nda_signed_at} email={participantMap[room.buyer_user_id]?.email} />
-          <NdaPartyCard side="Seller" status={room.seller_nda_status} sentAt={room.seller_nda_sent_at} signedAt={room.seller_nda_signed_at} email={participantMap[room.seller_user_id]?.email} />
+          <NdaPartyCard side="Buyer" status={room.buyer_nda_status} sentAt={room.buyer_nda_sent_at} signedAt={room.buyer_nda_signed_at} email={canSeeIdentities ? participantMap[room.buyer_user_id || ""]?.email : undefined} />
+          <NdaPartyCard side="Seller" status={room.seller_nda_status} sentAt={room.seller_nda_sent_at} signedAt={room.seller_nda_signed_at} email={canSeeIdentities ? participantMap[room.seller_user_id || ""]?.email : undefined} />
         </div>
       </div>
 
@@ -787,6 +833,77 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, ndaCheck, termsCheck
           <Shield size={24} className="text-cyan-400 mx-auto mb-3" />
           <h3 className="font-display text-lg text-white mb-1">NDA Signed — Awaiting Counterparty</h3>
           <p className="text-white/50 text-sm font-sans">Your NDA has been signed. The deal room will activate once the other party also signs.</p>
+        </div>
+      )}
+
+      {room.status === "active" && (
+        <div className="bg-[#0f1d33] border border-white/8 p-6">
+          <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-5 flex items-center gap-2"><Scale size={13} /> 2. Commission Agreement (Identity Reveal Gate)</p>
+          <p className="text-white/40 text-sm font-sans mb-4">
+            Before participant identities, yacht name, and location are disclosed, both parties must sign the Commission Agreement.
+            {room.commission_status === "not_started" && " The admin will initiate this process when the discussion phase concludes."}
+          </p>
+          {room.commission_status === "not_started" && (
+            <div className="bg-white/[0.02] border border-white/5 p-4 text-center">
+              <Clock size={20} className="text-white/15 mx-auto mb-2" />
+              <p className="text-white/30 text-xs font-sans">Awaiting admin to initiate Commission Agreement</p>
+            </div>
+          )}
+          {(room.commission_status === "pending" || room.commission_status === "completed") && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <NdaPartyCard side="Buyer" status={room.buyer_commission_status} sentAt={null} signedAt={room.buyer_commission_signed_at} email={canSeeIdentities ? participantMap[room.buyer_user_id || ""]?.email : undefined} />
+              <NdaPartyCard side="Seller" status={room.seller_commission_status} sentAt={null} signedAt={room.seller_commission_signed_at} email={canSeeIdentities ? participantMap[room.seller_user_id || ""]?.email : undefined} />
+            </div>
+          )}
+          {showCommissionForm && (
+            <div className="bg-[#0f1d33] border border-orange-500/20 p-6 mt-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Scale size={16} className="text-orange-400" />
+                <h3 className="font-display text-lg text-white">Commission Agreement</h3>
+              </div>
+              <div className="bg-black/30 border border-white/5 p-4 max-h-48 overflow-y-auto mb-4" style={{ scrollbarWidth: "thin" }}>
+                <pre className="text-white/60 text-xs font-sans whitespace-pre-wrap leading-relaxed">
+{`COMMISSION AGREEMENT
+
+This Commission Agreement ("Agreement") governs the brokerage commission structure for the transaction facilitated through the Private Distressed Yacht Exchange (PDYE).
+
+By signing below, both parties acknowledge and agree:
+
+1. PDYE acts as an intermediary facilitating this transaction.
+2. Commission rates as discussed and agreed upon apply.
+3. Upon signing, the identities of all parties will be revealed.
+4. The yacht name, location, and full vessel details will be disclosed.
+5. All parties agree to the non-circumvention terms previously accepted.
+
+This agreement is binding upon electronic signature.`}
+                </pre>
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer group mb-4">
+                <input type="checkbox" checked={commissionCheck} onChange={e => setCommissionCheck(e.target.checked)} className="mt-1 accent-primary" />
+                <span className="text-white/70 text-sm font-sans group-hover:text-white transition-colors">I have read and agree to the Commission Agreement terms</span>
+              </label>
+              <button onClick={signCommission} disabled={!commissionCheck || signingCommission}
+                className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
+                {signingCommission ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><Scale size={14} /> Sign Commission Agreement</>}
+              </button>
+            </div>
+          )}
+          {myCommissionStatus === "signed" && room.commission_status !== "completed" && mySide !== "admin" && (
+            <div className="bg-cyan-500/5 border border-cyan-500/20 p-4 mt-4 text-center">
+              <Scale size={20} className="text-cyan-400 mx-auto mb-2" />
+              <p className="text-white text-sm font-bold">Commission Agreement Signed</p>
+              <p className="text-white/40 text-xs font-sans mt-1">Waiting for counterparty to sign. Identities will be revealed once both sign.</p>
+            </div>
+          )}
+          {room.commission_status === "completed" && (
+            <div className="bg-green-500/5 border border-green-500/20 p-4 mt-4 flex items-center gap-4">
+              <Eye size={20} className="text-green-400 flex-shrink-0" />
+              <div>
+                <p className="text-green-400 text-sm font-bold">Identities Revealed</p>
+                <p className="text-white/40 text-xs font-sans mt-0.5">Both parties signed. Full identities, yacht name, and location are now visible.</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -913,10 +1030,24 @@ function ActivityTab({ activity, participantMap, isAdmin }: { activity: AuditLog
 /* ═══════════════════════════════════════════════════
    SIDEBAR COMPONENTS
    ═══════════════════════════════════════════════════ */
-function SidebarStatus({ room, cfg }: { room: DealRoom; cfg: { label: string; color: string } }) {
+function LockedBlockNotice({ block }: { block: string }) {
+  const label = BLOCK_LABELS[block as BlockKey] || block;
+  return (
+    <div className="bg-[#0f1d33] border border-white/8 p-12 text-center">
+      <Lock size={32} className="text-white/10 mx-auto mb-4" />
+      <h3 className="font-display text-lg text-white mb-2">{label} — Locked</h3>
+      <p className="text-white/30 text-sm font-sans">This section is currently locked by admin. It will become available when the admin unlocks it.</p>
+    </div>
+  );
+}
+
+function SidebarStatus({ room, cfg, roomLabel }: { room: DealRoom; cfg: { label: string; color: string }; roomLabel: string }) {
   return (
     <div className="bg-[#0f1d33] border border-white/8 p-5">
-      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3">Current Status</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Current Status</p>
+        <span className="text-primary/80 text-xs font-mono font-bold">{roomLabel}</span>
+      </div>
       <div className="flex items-center gap-2 mb-3">
         <div className={`w-3 h-3 rounded-full ${
           room.status === "active" ? "bg-green-400" :
@@ -925,17 +1056,19 @@ function SidebarStatus({ room, cfg }: { room: DealRoom; cfg: { label: string; co
           "bg-orange-400 animate-pulse"
         }`} />
         <span className={`text-sm font-bold ${cfg.color}`}>{cfg.label}</span>
+        {room.archived && <span className="text-[9px] text-white/25 bg-white/5 px-1.5 py-0.5">ARCHIVED</span>}
       </div>
       <div className="space-y-1.5 text-xs font-sans">
         <div className="flex justify-between"><span className="text-white/25">Created</span><span className="text-white/50">{fmtDate(room.created_at)}</span></div>
         <div className="flex justify-between"><span className="text-white/25">Updated</span><span className="text-white/50">{fmtDate(room.updated_at)}</span></div>
         {room.fully_activated_at && <div className="flex justify-between"><span className="text-white/25">Activated</span><span className="text-green-400/80">{fmtDate(room.fully_activated_at)}</span></div>}
+        {room.commission_fully_signed_at && <div className="flex justify-between"><span className="text-white/25">ID Revealed</span><span className="text-green-400/80">{fmtDate(room.commission_fully_signed_at)}</span></div>}
       </div>
     </div>
   );
 }
 
-function SidebarParticipants({ room, participantMap }: { room: DealRoom; participantMap: Record<string, { email: string; role: string }> }) {
+function SidebarParticipants({ room, participantMap, canSeeIdentities }: { room: DealRoom; participantMap: Record<string, { email: string; role: string }>; canSeeIdentities: boolean }) {
   const parts = [
     { id: room.buyer_user_id, side: "Buyer", ndaStatus: room.buyer_nda_status },
     { id: room.seller_user_id, side: "Seller", ndaStatus: room.seller_nda_status },
@@ -950,13 +1083,13 @@ function SidebarParticipants({ room, participantMap }: { room: DealRoom; partici
           const info = participantMap[p.id!];
           return (
             <div key={p.id} className="flex items-center gap-3">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${roleAvatarColor(info?.role || "")}`}>
-                {info?.email?.[0]?.toUpperCase() || "?"}
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${roleAvatarColor(canSeeIdentities ? (info?.role || "") : "")}`}>
+                {canSeeIdentities || p.side === "Admin" ? (info?.email?.[0]?.toUpperCase() || "?") : "?"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white/60 text-xs font-sans truncate">{info?.email || "Unknown"}</p>
+                <p className="text-white/60 text-xs font-sans truncate">{canSeeIdentities || p.side === "Admin" ? (info?.email || "Unknown") : "Anonymous"}</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <RoleBadge role={info?.role || ""} />
+                  {(canSeeIdentities || p.side === "Admin") && <RoleBadge role={info?.role || ""} />}
                   <span className="text-[9px] text-white/20">{p.side}</span>
                   {p.ndaStatus === "signed" && <CheckCircle size={9} className="text-green-400" />}
                   {p.ndaStatus === "sent" && <Clock size={9} className="text-orange-400" />}
@@ -988,6 +1121,70 @@ function SidebarNda({ room }: { room: DealRoom }) {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SidebarCommission({ room }: { room: DealRoom }) {
+  return (
+    <div className="bg-[#0f1d33] border border-white/8 p-5">
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Scale size={11} /> Commission</p>
+      <div className="space-y-2">
+        {[
+          { label: "Buyer", status: room.buyer_commission_status },
+          { label: "Seller", status: room.seller_commission_status },
+        ].map(n => (
+          <div key={n.label} className="flex items-center justify-between">
+            <span className="text-white/40 text-xs font-sans">{n.label}</span>
+            <span className={`text-[10px] font-bold uppercase tracking-widest ${
+              n.status === "signed" ? "text-green-400" : n.status === "sent" ? "text-orange-400" : "text-white/20"
+            }`}>
+              {n.status === "signed" ? "Signed" : n.status === "sent" ? "Pending" : "Not Sent"}
+            </span>
+          </div>
+        ))}
+      </div>
+      {room.identities_revealed && (
+        <div className="mt-3 flex items-center gap-2 text-green-400/70 text-xs font-sans">
+          <Eye size={10} /> Identities revealed
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SidebarBlocks({ blocks, roomId, onReload }: { blocks: BlockVisibility; roomId: string; onReload: () => void }) {
+  const { user } = useAuth();
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  async function toggleBlock(key: BlockKey) {
+    if (!user) return;
+    setToggling(key);
+    await dealRoomApi.setBlock(roomId, key, { is_unlocked: !blocks[key].is_unlocked, admin_id: user.id });
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: roomId, user_id: user.id, action: blocks[key].is_unlocked ? "block_locked" : "block_unlocked", meta: { block: key } });
+    setToggling(null);
+    onReload();
+  }
+
+  return (
+    <div className="bg-[#0f1d33] border border-white/8 p-5">
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Settings size={11} /> Block Visibility</p>
+      <div className="space-y-1.5">
+        {BLOCK_KEYS.map(key => {
+          const isOn = blocks[key]?.is_unlocked || false;
+          const isLoading = toggling === key;
+          return (
+            <button key={key} onClick={() => toggleBlock(key)} disabled={isLoading}
+              className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-sans hover:bg-white/[0.03] transition-colors disabled:opacity-40">
+              <span className="text-white/50">{BLOCK_LABELS[key]}</span>
+              <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest ${isOn ? "text-green-400" : "text-red-400/50"}`}>
+                {isLoading ? <RefreshCw size={9} className="animate-spin" /> : isOn ? <Eye size={9} /> : <Lock size={9} />}
+                {isOn ? "Open" : "Locked"}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1050,6 +1247,23 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
   }
 
   const canSendNda = room.status === "draft" && (room.buyer_nda_status === "not_sent" || (room.seller_user_id && room.seller_nda_status === "not_sent"));
+  const canSendCommission = room.status === "active" && room.commission_status === "not_started";
+
+  async function sendCommission() {
+    setSending(true);
+    await dealRoomApi.sendCommission(room.id, user?.id || "");
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "commission_sent", meta: {} });
+    await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "Commission Agreement sent to both parties for review and signature.", is_system: true });
+    setSending(false);
+    onReload();
+  }
+
+  async function toggleArchive() {
+    const newArchived = !room.archived;
+    await dealRoomApi.archive(room.id, newArchived);
+    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: newArchived ? "deal_room_archived" : "deal_room_unarchived", meta: {} });
+    onReload();
+  }
 
   return (
     <div className="bg-[#0f1d33] border border-white/8 p-5">
@@ -1059,6 +1273,12 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
           <button onClick={sendNda} disabled={sending}
             className="w-full flex items-center justify-center gap-2 bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 px-3 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-40">
             {sending ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />} Send NDA
+          </button>
+        )}
+        {canSendCommission && (
+          <button onClick={sendCommission} disabled={sending}
+            className="w-full flex items-center justify-center gap-2 bg-purple-500/15 border border-purple-500/30 text-purple-400 hover:bg-purple-500/25 px-3 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-40">
+            {sending ? <RefreshCw size={11} className="animate-spin" /> : <Scale size={11} />} Send Commission
           </button>
         )}
         {room.status !== "closed" && room.status !== "cancelled" && (
@@ -1073,6 +1293,10 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
             </button>
           </>
         )}
+        <button onClick={toggleArchive}
+          className="w-full flex items-center justify-center gap-2 border border-white/5 text-white/25 hover:text-white/50 hover:border-white/15 px-3 py-2 text-xs font-bold uppercase tracking-widest transition-colors">
+          {room.archived ? "Unarchive" : "Archive"} Room
+        </button>
       </div>
     </div>
   );

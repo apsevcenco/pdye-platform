@@ -23,10 +23,11 @@ Private B2B off-market yacht platform. pnpm workspace monorepo using TypeScript.
 - **introductions**: Formal introduction records
 
 ### Replit PG Tables (via API server at /api/deal-rooms/*)
-- **deal_rooms**: yacht_id, buyer_user_id, seller_user_id, status (draft → nda_pending → partially_signed → active → closed/cancelled), dual NDA tracking
+- **deal_rooms**: yacht_id, buyer_user_id, seller_user_id, status (draft → nda_pending → partially_signed → active → closed/cancelled), dual NDA tracking, room_number (serial DR-XXXXXX), archived flag, commission fields (buyer/seller_commission_status, commission_status, commission_fully_signed_at, identities_revealed)
 - **deal_room_participants**: deal_room_id, user_id, role, can_view, can_message, can_download
 - **deal_room_documents**: deal_room_id, uploaded_by, file_name, file_url, visible_to_roles
 - **deal_room_messages**: deal_room_id, sender_id, message, is_system
+- **deal_room_blocks**: deal_room_id, block_key (specs/photos/documents/chat/location/yacht_name/identities), is_unlocked, unlocked_by, unlocked_at — per-block admin visibility controls
 - **nda_envelopes**: deal_room_id, user_id, side (buyer/seller), provider, status, envelope_id, sent_at, signed_at
 - **audit_logs**: entity_type, entity_id, user_id, action, meta
 
@@ -63,6 +64,10 @@ Express on port 8080. Routes:
 - `/api/deal-rooms/:id/documents` — document list
 - `/api/deal-room-documents` — all documents list + delete
 - `/api/deal-room-messages-all` — recent messages list + delete
+- `/api/deal-rooms/:id/blocks` — GET/PUT block visibility per key
+- `/api/deal-rooms/:id/archive` — PATCH archive/unarchive
+- `/api/deal-rooms/:id/commission/send` — POST send commission agreement
+- `/api/deal-rooms/:id/commission/sign` — POST sign commission (auto-reveals identities when both signed)
 - `/api/nda-envelopes` — create NDA envelope
 - `/api/audit-logs` — create + list by entity
 
@@ -74,12 +79,15 @@ Express on port 8080. Routes:
 3. Admin reviews → approves to spec access (status: approved_spec) or rejects
 4. Buyer gets anonymized spec view: full tech specs but name/location/gallery/seller hidden
 
-**Stage 2: Deal Room**
+**Stage 2: Deal Room (Dual-Gate)**
 5. Admin manually creates deal_room from approved request (status: escalated on request)
-6. Deal room created (status: draft), participants assigned
-7. Admin sends NDA to both parties → status: nda_pending
+6. Deal room created (status: draft), participants assigned, DR-XXXXXX ID assigned
+7. Admin sends NDA to both parties → status: nda_pending (Gate 1)
 8. Each party signs NDA independently → partially_signed → active (auto-activates when both signed)
-9. Full deal room access: documents, messages, full yacht details, seller identity revealed
+9. Deal room access with block-level visibility (admin controls which sections are visible)
+10. Admin sends Commission Agreement → commission_status: pending (Gate 2)
+11. Each party signs Commission → when both signed: identities_revealed=true, identity blocks auto-unlocked
+12. Full identity reveal: yacht name, location, participant emails visible
 
 ### User Roles
 

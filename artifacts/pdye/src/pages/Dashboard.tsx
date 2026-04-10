@@ -182,19 +182,20 @@ function BuyerDashboard({ userId }: { userId: string }) {
 }
 
 function MyDealRoomsSection({ userId }: { userId: string }) {
-  const [rooms, setRooms] = useState<{ id: string; yacht_id: string; status: string; buyer_nda_status: string; seller_nda_status: string; created_at: string; yacht_name?: string }[]>([]);
+  const [rooms, setRooms] = useState<(DealRoom & { yacht_name?: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     async function loadRooms() {
       try {
         const allRooms = await dealRoomApi.byUser(userId);
-        const activeRooms = (allRooms || []).filter((r: any) => r.status !== "cancelled");
-        if (activeRooms.length > 0) {
-          const yachtIds = [...new Set(activeRooms.map((r: any) => r.yacht_id))];
+        const filtered = (allRooms || []).filter((r: any) => r.status !== "cancelled");
+        if (filtered.length > 0) {
+          const yachtIds = [...new Set(filtered.map((r: any) => r.yacht_id))];
           const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
           const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
-          setRooms(activeRooms.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
+          setRooms(filtered.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
         }
       } catch (e) {}
       setLoading(false);
@@ -212,37 +213,73 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
     closed:           { label: "Closed",           color: "text-white/30 border-white/10" },
   };
 
+  const visibleRooms = rooms.filter(r => showArchived ? r.archived : !r.archived);
+  const archivedCount = rooms.filter(r => r.archived).length;
+
+  function getRoomStatusLabel(room: DealRoom & { yacht_name?: string }) {
+    if (room.identities_revealed) return { label: "Fully Unlocked", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/8" };
+    if (room.commission_status === "pending" || room.buyer_commission_status === "sent" || room.seller_commission_status === "sent")
+      return { label: "Commission Pending", color: "text-purple-400 border-purple-500/20 bg-purple-500/8" };
+    return ROOM_STYLE[room.status] || ROOM_STYLE.draft;
+  }
+
+  const roomLabel = (r: DealRoom) => r.room_number ? `DR-${String(r.room_number).padStart(6, "0")}` : "";
+
   return (
-    <Block title="My Deal Rooms">
-      <div className="divide-y divide-white/5">
-        {rooms.map(room => {
-          const cfg = ROOM_STYLE[room.status] || ROOM_STYLE.draft;
-          const needsNda = room.status === "nda_pending" || room.status === "partially_signed";
-          return (
-            <div key={room.id} className="flex items-center justify-between px-6 py-4">
-              <div>
-                <p className="text-white text-sm font-medium">{room.yacht_name}</p>
-                <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
+    <Block
+      title="My Deal Rooms"
+      action={archivedCount > 0 ? (
+        <button onClick={() => setShowArchived(!showArchived)} className="text-white/30 hover:text-primary text-[10px] font-bold uppercase tracking-widest transition-colors">
+          {showArchived ? "Hide Archived" : `Archived (${archivedCount})`}
+        </button>
+      ) : undefined}
+    >
+      {visibleRooms.length === 0 ? (
+        <div className="flex items-center justify-center py-8 text-white/20 text-sm font-sans">
+          {showArchived ? "No archived rooms" : "No active rooms"}
+        </div>
+      ) : (
+        <div className="divide-y divide-white/5">
+          {visibleRooms.map(room => {
+            const cfg = getRoomStatusLabel(room);
+            const needsNda = room.status === "nda_pending" || room.status === "partially_signed";
+            const needsCommission = room.buyer_commission_status === "sent" || room.seller_commission_status === "sent";
+            const label = roomLabel(room);
+            return (
+              <div key={room.id} className="flex items-center justify-between px-6 py-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white text-sm font-medium">{room.yacht_name}</p>
+                    {label && <span className="text-primary/50 text-[10px] font-mono">{label}</span>}
+                    {room.archived && <span className="text-[9px] text-white/20 bg-white/5 px-1.5 py-0.5">ARCHIVED</span>}
+                  </div>
+                  <p className="text-white/30 text-xs font-sans mt-0.5">{new Date(room.created_at).toLocaleDateString("en-GB")}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color}`}>
+                    {cfg.label}
+                  </span>
+                  {needsNda && (
+                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
+                      Sign NDA <ChevronRight size={11} />
+                    </Link>
+                  )}
+                  {needsCommission && (
+                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 bg-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-purple-500/30 transition-colors">
+                      Sign Commission <ChevronRight size={11} />
+                    </Link>
+                  )}
+                  {room.status === "active" && !needsCommission && (
+                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                      Open Room <ChevronRight size={11} />
+                    </Link>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.color}`}>
-                  {cfg.label}
-                </span>
-                {needsNda && (
-                  <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
-                    Sign NDA <ChevronRight size={11} />
-                  </Link>
-                )}
-                {room.status === "active" && (
-                  <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
-                    Open Room <ChevronRight size={11} />
-                  </Link>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </Block>
   );
 }

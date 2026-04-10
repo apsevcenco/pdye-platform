@@ -16,7 +16,7 @@ async function request(path: string, options?: RequestInit) {
 }
 
 export const dealRoomApi = {
-  list: () => request("/deal-rooms"),
+  list: (opts?: { includeArchived?: boolean }) => request(`/deal-rooms${opts?.includeArchived ? "?include_archived=true" : ""}`),
   get: (id: string) => request(`/deal-rooms/${id}`),
   create: (data: Record<string, any>) => request("/deal-rooms", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: Record<string, any>) => request(`/deal-rooms/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
@@ -45,4 +45,16 @@ export const dealRoomApi = {
   createAuditLog: (data: { entity_type: string; entity_id: string; user_id: string; action: string; meta?: any }) =>
     request("/audit-logs", { method: "POST", body: JSON.stringify(data) }),
   getAuditLogs: (entityType: string, entityId: string) => request(`/audit-logs/${entityType}/${entityId}`),
+
+  getBlocks: (roomId: string) => request(`/deal-rooms/${roomId}/blocks`),
+  setBlock: (roomId: string, blockKey: string, data: { is_unlocked: boolean; admin_id: string }) =>
+    request(`/deal-rooms/${roomId}/blocks/${blockKey}`, { method: "PUT", body: JSON.stringify(data) }),
+
+  archive: (roomId: string, archived: boolean) =>
+    request(`/deal-rooms/${roomId}/archive`, { method: "PATCH", body: JSON.stringify({ archived }) }),
+
+  sendCommission: (roomId: string, adminId: string) =>
+    request(`/deal-rooms/${roomId}/commission/send`, { method: "POST", body: JSON.stringify({ admin_id: adminId }) }),
+  signCommission: (roomId: string, side: string, userId: string) =>
+    request(`/deal-rooms/${roomId}/commission/sign`, { method: "POST", body: JSON.stringify({ side, user_id: userId }) }),
 };

@@ -1491,6 +1491,7 @@ function DealsManageView() {
   const [selectedRoom, setSelectedRoom] = useState<RoomWithDetails | null>(null);
   const [activity, setActivity] = useState<AuditLog[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showArchived, setShowArchived] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -1571,7 +1572,7 @@ function DealsManageView() {
 
   async function load() {
     setLoading(true);
-    const allRooms = (await dealRoomApi.list()) as DealRoom[];
+    const allRooms = (await dealRoomApi.list({ includeArchived: true })) as DealRoom[];
 
     if (allRooms.length > 0) {
       const userIds = [...new Set([...allRooms.map(r => r.buyer_user_id), ...allRooms.map(r => r.seller_user_id)].filter(Boolean))];
@@ -1668,11 +1669,14 @@ function DealsManageView() {
     load();
   }
 
+  const baseRooms = rooms.filter(r => showArchived ? r.archived : !r.archived);
   const filtered = statusFilter === "all"
-    ? rooms
-    : rooms.filter(r => r.status === statusFilter);
+    ? baseRooms
+    : baseRooms.filter(r => r.status === statusFilter);
 
-  const statusCounts = rooms.reduce((acc, r) => {
+  const archivedCount = rooms.filter(r => r.archived).length;
+
+  const statusCounts = baseRooms.reduce((acc, r) => {
     acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -1696,12 +1700,14 @@ function DealsManageView() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
           {[
             { label: "Buyer NDA", value: selectedRoom.buyer_nda_status === "signed" ? "Signed" : selectedRoom.buyer_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.buyer_nda_status === "signed" },
             { label: "Seller NDA", value: selectedRoom.seller_nda_status === "signed" ? "Signed" : selectedRoom.seller_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.seller_nda_status === "signed" },
             { label: "Room Status", value: cfg.label, ok: selectedRoom.status === "active" },
+            { label: "Commission", value: selectedRoom.identities_revealed ? "Fully Signed" : selectedRoom.commission_status === "pending" ? "Pending" : "Not Started", ok: !!selectedRoom.identities_revealed },
             { label: "Activated", value: selectedRoom.fully_activated_at ? new Date(selectedRoom.fully_activated_at).toLocaleDateString("en-GB") : "Pending", ok: !!selectedRoom.fully_activated_at },
+            { label: "Identities", value: selectedRoom.identities_revealed ? "Revealed" : "Hidden", ok: !!selectedRoom.identities_revealed },
           ].map(s => (
             <div key={s.label} className="bg-[#0f1d33] border border-white/5 p-3 text-center">
               <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">{s.label}</p>
@@ -1718,6 +1724,18 @@ function DealsManageView() {
                 Send NDA to Both Parties
               </button>
             )}
+            {selectedRoom.status === "active" && selectedRoom.commission_status === "not_started" && (
+              <button disabled={actionLoading} onClick={async () => {
+                setActionLoading(true);
+                await dealRoomApi.sendCommission(selectedRoom.id, user?.id || "");
+                await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: selectedRoom.id, user_id: user?.id || "", action: "commission_sent", meta: {} });
+                setActionLoading(false);
+                setSelectedRoom(null);
+                load();
+              }} className="bg-purple-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-purple-700 disabled:opacity-50 transition-colors">
+                Send Commission Agreement
+              </button>
+            )}
             {selectedRoom.status !== "closed" && selectedRoom.status !== "cancelled" && (
               <>
                 <button disabled={actionLoading} onClick={() => closeRoom(selectedRoom)} className="border border-white/10 text-white/50 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/30 disabled:opacity-50 transition-colors">
@@ -1728,6 +1746,17 @@ function DealsManageView() {
                 </button>
               </>
             )}
+            <button disabled={actionLoading} onClick={async () => {
+              setActionLoading(true);
+              const newArchived = !selectedRoom.archived;
+              await dealRoomApi.archive(selectedRoom.id, newArchived);
+              await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: selectedRoom.id, user_id: user?.id || "", action: newArchived ? "deal_room_archived" : "deal_room_unarchived", meta: {} });
+              setActionLoading(false);
+              setSelectedRoom(null);
+              load();
+            }} className="border border-white/5 text-white/30 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/20 disabled:opacity-50 transition-colors">
+              {selectedRoom.archived ? "Unarchive" : "Archive"}
+            </button>
             <Link href={`/dealroom/${selectedRoom.id}`} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
               Open Full View →
             </Link>
@@ -1817,15 +1846,20 @@ function DealsManageView() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <button onClick={() => setStatusFilter("all")} className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border transition-colors ${statusFilter === "all" ? "border-primary text-primary" : "border-white/10 text-white/30 hover:border-white/20"}`}>
-          All ({rooms.length})
+          All ({baseRooms.length})
         </button>
         {DEAL_ROOM_STATUSES.filter(s => statusCounts[s]).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)} className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border transition-colors ${statusFilter === s ? "border-primary text-primary" : "border-white/10 text-white/30 hover:border-white/20"}`}>
             {DEAL_ROOM_STATUS_CONFIG[s].label} ({statusCounts[s]})
           </button>
         ))}
+        <div className="ml-auto">
+          <button onClick={() => setShowArchived(!showArchived)} className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 border transition-colors ${showArchived ? "border-primary text-primary" : "border-white/10 text-white/30 hover:border-white/20"}`}>
+            {showArchived ? "Show Active" : `Archived (${archivedCount})`}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -1857,7 +1891,11 @@ function DealsManageView() {
                 return (
                   <tr key={room.id} onClick={() => openRoom(room)} className="hover:bg-white/2 transition-colors cursor-pointer group">
                     <td className="px-5 py-3.5">
-                      <p className="text-white font-medium text-sm">{room.yacht_name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-medium text-sm">{room.yacht_name}</p>
+                        {room.room_number && <span className="text-primary/40 text-[10px] font-mono">DR-{String(room.room_number).padStart(6, "0")}</span>}
+                        {room.archived && <span className="text-[9px] text-white/20 bg-white/5 px-1 py-0.5">ARC</span>}
+                      </div>
                     </td>
                     <td className="px-5 py-3.5 text-white/50 text-sm hidden md:table-cell">{room.buyer_email}</td>
                     <td className="px-5 py-3.5 text-white/50 text-sm hidden md:table-cell">{room.seller_email}</td>

@@ -168,6 +168,7 @@ export type DealRoomStatus = (typeof DEAL_ROOM_STATUSES)[number];
 
 export type DealRoom = {
   id: string;
+  room_number: number | null;
   yacht_id: string;
   access_request_id: string | null;
   created_by_admin_id: string;
@@ -183,6 +184,14 @@ export type DealRoom = {
   buyer_nda_signed_at: string | null;
   seller_nda_signed_at: string | null;
   fully_activated_at: string | null;
+  archived: boolean;
+  commission_status: string;
+  buyer_commission_status: string;
+  seller_commission_status: string;
+  buyer_commission_signed_at: string | null;
+  seller_commission_signed_at: string | null;
+  commission_fully_signed_at: string | null;
+  identities_revealed: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -191,6 +200,25 @@ export type DealRoom = {
   yacht_image?: string;
   buyer_email?: string;
   seller_email?: string;
+};
+
+export const BLOCK_KEYS = ["specs", "photos", "documents", "chat", "location", "yacht_name", "identities"] as const;
+export type BlockKey = (typeof BLOCK_KEYS)[number];
+
+export type BlockVisibility = Record<BlockKey, {
+  is_unlocked: boolean;
+  unlocked_by: string | null;
+  unlocked_at: string | null;
+}>;
+
+export const BLOCK_LABELS: Record<BlockKey, string> = {
+  specs: "Specifications",
+  photos: "Photos & Gallery",
+  documents: "Documents",
+  chat: "Chat / Messaging",
+  location: "Location",
+  yacht_name: "Yacht Name",
+  identities: "Participant Identities",
 };
 
 export const DEAL_ROOM_STATUS_CONFIG: Record<DealRoomStatus, { label: string; color: string; step: number }> = {
