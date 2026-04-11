@@ -1611,7 +1611,20 @@ function DealsManageView() {
     setLoading(false);
   }
 
+  const [restoreRoomId] = useState<string | null>(() => {
+    const id = sessionStorage.getItem("pdye_admin_room_id");
+    if (id) sessionStorage.removeItem("pdye_admin_room_id");
+    return id;
+  });
+
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!loading && restoreRoomId && rooms.length > 0 && !selectedRoom) {
+      const found = rooms.find(r => r.id === restoreRoomId);
+      if (found) openRoom(found);
+    }
+  }, [loading, rooms]);
 
   async function openRoom(room: RoomWithDetails) {
     setSelectedRoom(room);
@@ -1800,7 +1813,7 @@ function DealsManageView() {
             }} className="border border-white/5 text-white/30 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/20 disabled:opacity-50 transition-colors">
               {selectedRoom.archived ? "Unarchive" : "Archive"}
             </button>
-            <button onClick={() => { sessionStorage.setItem("pdye_origin", "admin"); setLocation(`/dealroom/${selectedRoom.id}`); }} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
+            <button onClick={() => { sessionStorage.setItem("pdye_origin", "admin"); sessionStorage.setItem("pdye_admin_room_id", selectedRoom.id); setLocation(`/dealroom/${selectedRoom.id}`); }} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
               Open Full View →
             </button>
           </div>
@@ -3159,6 +3172,11 @@ export default function Admin() {
     if (origin === "admin") {
       sessionStorage.removeItem("pdye_origin");
       return "dealroom";
+    }
+    const adminView = sessionStorage.getItem("pdye_admin_view");
+    if (adminView) {
+      sessionStorage.removeItem("pdye_admin_view");
+      return adminView;
     }
     return "dashboard";
   });

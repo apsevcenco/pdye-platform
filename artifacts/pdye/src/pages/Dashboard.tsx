@@ -864,26 +864,42 @@ function OwnerDashboard({ userId }: { userId: string }) {
 
 /* ─── ADMIN VIEW ─── */
 function AdminDashboard() {
+  const [, setLocation] = useLocation();
+  const items = [
+    { href: "/admin", icon: <LayoutDashboard size={18} />, label: "Admin Panel", desc: "Full dashboard with all management tools" },
+    { href: "/admin-requests", icon: <CheckCircle size={18} />, label: "Access Requests", desc: "Approve or reject buyer access requests" },
+    { href: "/admin-users", icon: <User size={18} />, label: "User Management", desc: "Manage roles and account approval" },
+    { id: "dealroom", icon: <TrendingUp size={18} />, label: "Deal Room", desc: "View all active deal room listings" },
+  ];
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[
-          { href: "/admin", icon: <LayoutDashboard size={18} />, label: "Admin Panel", desc: "Full dashboard with all management tools" },
-          { href: "/admin-requests", icon: <CheckCircle size={18} />, label: "Access Requests", desc: "Approve or reject buyer access requests" },
-          { href: "/admin-users", icon: <User size={18} />, label: "User Management", desc: "Manage roles and account approval" },
-          { href: "/dealroom", icon: <TrendingUp size={18} />, label: "Deal Room", desc: "View all active deal room listings" },
-        ].map(item => (
-          <Link key={item.href} href={item.href} className="flex items-center gap-4 bg-[#0f1d33] border border-white/5 hover:border-primary/30 p-5 transition-all group">
-            <div className="w-10 h-10 border border-white/10 flex items-center justify-center text-primary/60 group-hover:border-primary/30 group-hover:text-primary transition-all flex-shrink-0">
-              {item.icon}
+        {items.map(item => {
+          const isDealRoom = "id" in item && item.id === "dealroom";
+          return (
+            <div
+              key={isDealRoom ? "dealroom" : item.href}
+              onClick={() => {
+                if (isDealRoom) {
+                  sessionStorage.setItem("pdye_admin_view", "dealroom");
+                  setLocation("/admin");
+                } else {
+                  setLocation(item.href!);
+                }
+              }}
+              className="flex items-center gap-4 bg-[#0f1d33] border border-white/5 hover:border-primary/30 p-5 transition-all group cursor-pointer"
+            >
+              <div className="w-10 h-10 border border-white/10 flex items-center justify-center text-primary/60 group-hover:border-primary/30 group-hover:text-primary transition-all flex-shrink-0">
+                {item.icon}
+              </div>
+              <div>
+                <p className="text-white text-sm font-medium">{item.label}</p>
+                <p className="text-white/30 text-xs font-sans mt-0.5">{item.desc}</p>
+              </div>
+              <ChevronRight size={14} className="ml-auto text-white/20 group-hover:text-primary transition-colors" />
             </div>
-            <div>
-              <p className="text-white text-sm font-medium">{item.label}</p>
-              <p className="text-white/30 text-xs font-sans mt-0.5">{item.desc}</p>
-            </div>
-            <ChevronRight size={14} className="ml-auto text-white/20 group-hover:text-primary transition-colors" />
-          </Link>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
