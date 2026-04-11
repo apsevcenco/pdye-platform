@@ -232,14 +232,13 @@ export default function DealDetails() {
           <button
             onClick={() => {
               const backTo = sessionStorage.getItem("pdye_back_to");
-              sessionStorage.removeItem("pdye_back_to");
               if (backTo === "admin") { setLocation("/admin"); }
               else if (window.history.length > 1) { window.history.back(); }
               else { setLocation("/dealroom"); }
             }}
             className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 cursor-pointer text-sm font-sans"
           >
-            <ArrowLeft size={14} /> {sessionStorage.getItem("pdye_back_to") === "admin" ? "Back to Admin" : "Back"}
+            <ArrowLeft size={14} /> Back
           </button>
 
           {/* ══════ 1. TOP HEADER / SUMMARY BAR ══════ */}
