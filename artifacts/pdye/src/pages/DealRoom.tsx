@@ -32,7 +32,6 @@ export default function DealRoomPage() {
   const [rooms, setRooms] = useState<RoomWithYacht[]>([]);
   const [approvedSpecs, setApprovedSpecs] = useState<ApprovedSpec[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRoom, setSelectedRoom] = useState<RoomWithYacht | null>(null);
   const [, setLocation] = useLocation();
 
   const isApproved = userProfile?.approved || userProfile?.role === "admin";
@@ -42,19 +41,6 @@ export default function DealRoomPage() {
     if (!user) { setLoading(false); return; }
     loadData();
   }, [user]);
-
-  useEffect(() => {
-    if (!loading) {
-      const restoreId = sessionStorage.getItem("pdye_room_id");
-      if (restoreId) {
-        sessionStorage.removeItem("pdye_room_id");
-        if (rooms.length > 0) {
-          const found = rooms.find(r => r.id === restoreId);
-          if (found) setSelectedRoom(found);
-        }
-      }
-    }
-  }, [loading, rooms]);
 
   async function loadData() {
     setLoading(true);
@@ -146,37 +132,8 @@ export default function DealRoomPage() {
 
   const roomLabel = (r: DealRoom) => r.room_number ? `DR-${String(r.room_number).padStart(6, "0")}` : "";
 
-  function handleShortFormBack() {
-    const origin = sessionStorage.getItem("pdye_origin");
-    if (origin) {
-      sessionStorage.removeItem("pdye_origin");
-      if (origin === "dashboard") { setLocation("/dashboard"); return; }
-      if (origin === "admin") { setLocation("/admin"); return; }
-    }
-    setSelectedRoom(null);
-  }
-
-  if (selectedRoom) {
-    const origin = sessionStorage.getItem("pdye_origin");
-    const backLabel = origin === "dashboard" ? "Back to Dashboard" : origin === "admin" ? "Back to Admin" : "Back to Opportunities";
-    return (
-      <Layout>
-        <div className="min-h-screen bg-background pt-28 pb-20">
-          <div className="max-w-4xl mx-auto px-3 sm:px-6 md:px-10">
-            <RoomShortForm
-              room={selectedRoom}
-              userId={user?.id}
-              backLabel={backLabel}
-              onBack={handleShortFormBack}
-              onOpenFull={() => {
-                sessionStorage.setItem("pdye_room_id", selectedRoom.id);
-                setLocation(`/dealroom/${selectedRoom.id}`);
-              }}
-            />
-          </div>
-        </div>
-      </Layout>
-    );
+  function goToFullView(roomId: string) {
+    setLocation(`/dealroom/${roomId}`);
   }
 
   return (
@@ -212,7 +169,7 @@ export default function DealRoomPage() {
                   const isNda = (room.buyer_user_id === user?.id && room.buyer_nda_status === "sent") || (room.seller_user_id === user?.id && room.seller_nda_status === "sent");
                   const label = roomLabel(room);
                   return (
-                    <div key={room.id} onClick={() => setSelectedRoom(room)} className="flex items-center justify-between px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 transition-colors group cursor-pointer">
+                    <div key={room.id} onClick={() => goToFullView(room.id)} className="flex items-center justify-between px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 transition-colors group cursor-pointer">
                       <div className="flex items-center gap-2">
                         <span className="text-white text-sm font-medium">{room.yacht_name}</span>
                         {label && <span className="text-primary/40 text-[10px] font-mono">{label}</span>}
@@ -284,7 +241,7 @@ export default function DealRoomPage() {
                     <CheckCircle size={16} className="text-green-400" /> Active Deal Rooms
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {activeRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => setSelectedRoom(room)} />)}
+                    {activeRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => goToFullView(room.id)} />)}
                   </div>
                 </div>
               )}
@@ -298,7 +255,7 @@ export default function DealRoomPage() {
                     Deal rooms awaiting NDA signature from one or both parties.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {ndaPendingRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => setSelectedRoom(room)} />)}
+                    {ndaPendingRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => goToFullView(room.id)} />)}
                   </div>
                 </div>
               )}
@@ -309,7 +266,7 @@ export default function DealRoomPage() {
                     <Shield size={16} className="text-white/30" /> Closed
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-60">
-                    {closedRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => setSelectedRoom(room)} />)}
+                    {closedRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => goToFullView(room.id)} />)}
                   </div>
                 </div>
               )}
@@ -318,95 +275,6 @@ export default function DealRoomPage() {
         </div>
       </div>
     </Layout>
-  );
-}
-
-function RoomShortForm({ room, userId, backLabel, onBack, onOpenFull }: {
-  room: RoomWithYacht; userId?: string; backLabel?: string; onBack: () => void; onOpenFull: () => void;
-}) {
-  const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
-  const label = room.room_number ? `DR-${String(room.room_number).padStart(6, "0")}` : "";
-  const isNdaPending = room.status === "nda_pending" || room.status === "partially_signed";
-  const isBuyer = room.buyer_user_id === userId;
-  const isSeller = room.seller_user_id === userId;
-  const myNdaStatus = isBuyer ? room.buyer_nda_status : isSeller ? room.seller_nda_status : null;
-  const myCommissionStatus = isBuyer ? room.buyer_commission_status : isSeller ? room.seller_commission_status : null;
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-      <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 text-sm font-sans">
-        <ArrowLeft size={14} /> {backLabel || "Back to Opportunities"}
-      </button>
-
-      <div className="bg-[#0f1d33] border border-white/8 overflow-hidden">
-        {room.yacht_image && (
-          <div className="relative h-48 sm:h-56 overflow-hidden">
-            <img src={room.yacht_image} alt={room.yacht_name} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0f1d33] via-[#0f1d33]/40 to-transparent" />
-          </div>
-        )}
-
-        <div className="p-5 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                {label && (
-                  <span className="text-primary/60 text-xs font-mono flex items-center gap-1">
-                    <Hash size={11} /> {label}
-                  </span>
-                )}
-                <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 border ${cfg.color} border-current/20`}>
-                  {cfg.label}
-                </span>
-                {room.my_side && (
-                  <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 text-white/40 border border-white/10">
-                    {room.my_side}
-                  </span>
-                )}
-              </div>
-              <h2 className="font-display text-2xl text-white">{room.yacht_name}</h2>
-              {room.yacht_builder && <p className="text-white/40 text-sm font-sans mt-0.5">{room.yacht_builder}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            {[
-              { label: "Buyer NDA", value: room.buyer_nda_status === "signed" ? "Signed" : room.buyer_nda_status === "sent" ? "Pending" : "—", ok: room.buyer_nda_status === "signed" },
-              { label: "Seller NDA", value: room.seller_nda_status === "signed" ? "Signed" : room.seller_nda_status === "sent" ? "Pending" : "—", ok: room.seller_nda_status === "signed" },
-              { label: "Commission", value: room.identities_revealed ? "Signed" : room.commission_status === "pending" ? "Pending" : "—", ok: !!room.identities_revealed },
-              { label: "Created", value: new Date(room.created_at).toLocaleDateString("en-GB"), ok: true },
-            ].map(s => (
-              <div key={s.label} className="bg-background/50 border border-white/5 p-3 text-center">
-                <p className="text-white/25 text-[9px] uppercase tracking-widest mb-1">{s.label}</p>
-                <p className={`text-xs font-bold ${s.ok ? "text-green-400" : "text-white/40"}`}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {(myNdaStatus === "sent" || myCommissionStatus === "sent") && (
-            <div className="bg-orange-500/5 border border-orange-500/20 p-4 mb-5 flex items-start gap-3">
-              <AlertTriangle size={16} className="text-orange-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-orange-400 text-sm font-bold">Action Required</p>
-                <p className="text-white/40 text-xs font-sans mt-1">
-                  {myNdaStatus === "sent" ? "You have an NDA waiting for your signature. Open the full view to sign." : ""}
-                  {myCommissionStatus === "sent" ? "Commission Agreement is waiting for your signature." : ""}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={onOpenFull}
-              className="flex-1 flex items-center justify-center gap-2 bg-primary text-background px-6 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors"
-            >
-              <ExternalLink size={13} /> Open Full View
-            </button>
-          </div>
-        </div>
-      </div>
-    </motion.div>
   );
 }
 

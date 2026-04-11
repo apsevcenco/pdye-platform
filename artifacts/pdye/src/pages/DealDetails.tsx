@@ -231,8 +231,10 @@ export default function DealDetails() {
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
           <button
             onClick={() => {
-              if (roomId) sessionStorage.setItem("pdye_room_id", roomId);
-              setLocation("/dealroom");
+              const origin = sessionStorage.getItem("pdye_origin");
+              if (origin === "admin") { setLocation("/admin"); }
+              else if (origin === "dashboard") { sessionStorage.removeItem("pdye_origin"); setLocation("/dashboard"); }
+              else { setLocation("/dealroom"); }
             }}
             className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 cursor-pointer text-sm font-sans"
           >

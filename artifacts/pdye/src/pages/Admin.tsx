@@ -1800,7 +1800,7 @@ function DealsManageView() {
             }} className="border border-white/5 text-white/30 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/20 disabled:opacity-50 transition-colors">
               {selectedRoom.archived ? "Unarchive" : "Archive"}
             </button>
-            <button onClick={() => { sessionStorage.setItem("pdye_origin", "admin"); sessionStorage.setItem("pdye_room_id", selectedRoom.id); setLocation("/dealroom"); }} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
+            <button onClick={() => { sessionStorage.setItem("pdye_origin", "admin"); setLocation(`/dealroom/${selectedRoom.id}`); }} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
               Open Full View →
             </button>
           </div>
@@ -3154,7 +3154,14 @@ const views: Record<string, JSX.Element> = {
 };
 
 export default function Admin() {
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() => {
+    const origin = sessionStorage.getItem("pdye_origin");
+    if (origin === "admin") {
+      sessionStorage.removeItem("pdye_origin");
+      return "dealroom";
+    }
+    return "dashboard";
+  });
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [, setLocation] = useLocation();
