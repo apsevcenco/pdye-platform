@@ -230,10 +230,16 @@ export default function DealDetails() {
       <div className="min-h-screen bg-background pt-28 pb-20">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
           <button
-            onClick={() => { if (window.history.length > 1) window.history.back(); else setLocation("/dealroom"); }}
+            onClick={() => {
+              const backTo = sessionStorage.getItem("pdye_back_to");
+              sessionStorage.removeItem("pdye_back_to");
+              if (backTo === "admin") { setLocation("/admin"); }
+              else if (window.history.length > 1) { window.history.back(); }
+              else { setLocation("/dealroom"); }
+            }}
             className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 cursor-pointer text-sm font-sans"
           >
-            <ArrowLeft size={14} /> Back
+            <ArrowLeft size={14} /> {sessionStorage.getItem("pdye_back_to") === "admin" ? "Back to Admin" : "Back"}
           </button>
 
           {/* ══════ 1. TOP HEADER / SUMMARY BAR ══════ */}

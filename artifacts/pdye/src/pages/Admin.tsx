@@ -1799,7 +1799,7 @@ function DealsManageView() {
             }} className="border border-white/5 text-white/30 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/20 disabled:opacity-50 transition-colors">
               {selectedRoom.archived ? "Unarchive" : "Archive"}
             </button>
-            <Link href={`/dealroom/${selectedRoom.id}`} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
+            <Link href={`/dealroom/${selectedRoom.id}`} onClick={() => sessionStorage.setItem("pdye_back_to", "admin")} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
               Open Full View →
             </Link>
           </div>
