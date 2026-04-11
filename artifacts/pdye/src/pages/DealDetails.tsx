@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -51,6 +51,7 @@ const TABS: { key: TabKey; label: string; icon: any; adminOnly?: boolean; active
 export default function DealDetails() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
+  const [, setLocation] = useLocation();
   const { user, userProfile } = useAuth();
   const [room, setRoom] = useState<DealRoom | null>(null);
   const [yacht, setYacht] = useState<YachtFull | null>(null);
@@ -228,11 +229,12 @@ export default function DealDetails() {
     <Layout>
       <div className="min-h-screen bg-background pt-28 pb-20">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
-          <Link href="/dealroom">
-            <div className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 cursor-pointer text-sm font-sans">
-              <ArrowLeft size={14} /> Back to Opportunities
-            </div>
-          </Link>
+          <button
+            onClick={() => { if (window.history.length > 1) window.history.back(); else setLocation("/dealroom"); }}
+            className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 cursor-pointer text-sm font-sans"
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
 
           {/* ══════ 1. TOP HEADER / SUMMARY BAR ══════ */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="bg-[#0f1d33] border border-white/8 p-6 mb-6">
