@@ -232,7 +232,9 @@ export default function DealDetails() {
           <button
             onClick={() => {
               const backTo = sessionStorage.getItem("pdye_back_to");
+              sessionStorage.removeItem("pdye_back_to");
               if (backTo === "admin") { setLocation("/admin"); }
+              else if (backTo === "dealroom") { setLocation("/dealroom"); }
               else if (window.history.length > 1) { window.history.back(); }
               else { setLocation("/dealroom"); }
             }}

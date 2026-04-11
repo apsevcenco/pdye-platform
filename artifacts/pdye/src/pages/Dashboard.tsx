@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Link, Redirect } from "wouter";
+import { Link, Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -206,6 +206,12 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
   const [rooms, setRooms] = useState<(DealRoom & { yacht_name?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [, setLocation] = useLocation();
+
+  function goToRoom(roomId: string) {
+    sessionStorage.setItem("pdye_back_room_id", roomId);
+    setLocation("/dealroom");
+  }
 
   useEffect(() => {
     async function loadRooms() {
@@ -281,19 +287,19 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
                     {cfg.label}
                   </span>
                   {needsNda && (
-                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
+                    <button onClick={() => goToRoom(room.id)} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
                       Sign NDA <ChevronRight size={11} />
-                    </Link>
+                    </button>
                   )}
                   {needsCommission && (
-                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 bg-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-purple-500/30 transition-colors">
+                    <button onClick={() => goToRoom(room.id)} className="flex items-center gap-1 bg-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-purple-500/30 transition-colors">
                       Sign Commission <ChevronRight size={11} />
-                    </Link>
+                    </button>
                   )}
                   {room.status === "active" && !needsCommission && (
-                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                    <button onClick={() => goToRoom(room.id)} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
                       Open Room <ChevronRight size={11} />
-                    </Link>
+                    </button>
                   )}
                 </div>
               </div>
@@ -452,6 +458,12 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
   const [rooms, setRooms] = useState<(DealRoom & { yacht_name?: string; my_side?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [, setLocation] = useLocation();
+
+  function goToRoom(roomId: string) {
+    sessionStorage.setItem("pdye_back_room_id", roomId);
+    setLocation("/dealroom");
+  }
 
   useEffect(() => {
     async function load() {
@@ -500,8 +512,8 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
             {needsAction.map(room => {
               const isNda = (room.buyer_user_id === userId && room.buyer_nda_status === "sent") || (room.seller_user_id === userId && room.seller_nda_status === "sent");
               return (
-                <Link key={room.id} href={`/dealroom/${room.id}`}
-                  className="flex items-center justify-between px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 transition-colors group">
+                <div key={room.id} onClick={() => goToRoom(room.id)}
+                  className="flex items-center justify-between px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 transition-colors group cursor-pointer">
                   <div className="flex items-center gap-2">
                     <span className="text-white text-sm font-medium">{room.yacht_name}</span>
                     {roomLabel(room) && <span className="text-primary/40 text-[10px] font-mono">{roomLabel(room)}</span>}
@@ -509,7 +521,7 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
                   <span className="text-orange-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 group-hover:underline">
                     {isNda ? "Sign NDA" : "Sign Commission"} <ChevronRight size={11} />
                   </span>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -547,9 +559,9 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${isActive ? "text-green-400 border-green-500/20" : room.identities_revealed ? "text-emerald-400 border-emerald-500/20" : "text-white/40 border-white/10"}`}>
                       {room.identities_revealed ? "Fully Unlocked" : room.status.replace(/_/g, " ")}
                     </span>
-                    <Link href={`/dealroom/${room.id}`} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
+                    <button onClick={() => goToRoom(room.id)} className="flex items-center gap-1 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
                       Open <ChevronRight size={11} />
-                    </Link>
+                    </button>
                   </div>
                 </div>
               );
