@@ -209,7 +209,8 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
   const [, setLocation] = useLocation();
 
   function goToRoom(roomId: string) {
-    sessionStorage.setItem("pdye_back_room_id", roomId);
+    sessionStorage.setItem("pdye_room_id", roomId);
+    sessionStorage.setItem("pdye_origin", "dashboard");
     setLocation("/dealroom");
   }
 
@@ -461,7 +462,8 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
   const [, setLocation] = useLocation();
 
   function goToRoom(roomId: string) {
-    sessionStorage.setItem("pdye_back_room_id", roomId);
+    sessionStorage.setItem("pdye_room_id", roomId);
+    sessionStorage.setItem("pdye_origin", "dashboard");
     setLocation("/dealroom");
   }
 

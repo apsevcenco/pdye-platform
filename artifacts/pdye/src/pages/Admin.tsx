@@ -1488,6 +1488,7 @@ type RoomWithDetails = DealRoom & {
 
 function DealsManageView() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [rooms, setRooms] = useState<RoomWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState<RoomWithDetails | null>(null);
@@ -1610,20 +1611,7 @@ function DealsManageView() {
     setLoading(false);
   }
 
-  const [restoreRoomId] = useState<string | null>(() => {
-    const id = sessionStorage.getItem("pdye_back_room_id");
-    if (id) sessionStorage.removeItem("pdye_back_room_id");
-    return id;
-  });
-
   useEffect(() => { load(); }, []);
-
-  useEffect(() => {
-    if (!loading && restoreRoomId && rooms.length > 0 && !selectedRoom) {
-      const found = rooms.find(r => r.id === restoreRoomId);
-      if (found) openRoom(found);
-    }
-  }, [loading, rooms]);
 
   async function openRoom(room: RoomWithDetails) {
     setSelectedRoom(room);
@@ -1812,9 +1800,9 @@ function DealsManageView() {
             }} className="border border-white/5 text-white/30 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:border-white/20 disabled:opacity-50 transition-colors">
               {selectedRoom.archived ? "Unarchive" : "Archive"}
             </button>
-            <Link href={`/dealroom/${selectedRoom.id}`} onClick={() => { sessionStorage.setItem("pdye_back_to", "admin"); sessionStorage.setItem("pdye_back_room_id", selectedRoom.id); }} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
+            <button onClick={() => { sessionStorage.setItem("pdye_origin", "admin"); sessionStorage.setItem("pdye_room_id", selectedRoom.id); setLocation("/dealroom"); }} className="border border-primary/30 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors">
               Open Full View →
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -3166,14 +3154,7 @@ const views: Record<string, JSX.Element> = {
 };
 
 export default function Admin() {
-  const [activeView, setActiveView] = useState(() => {
-    const backTo = sessionStorage.getItem("pdye_back_to");
-    if (backTo === "admin") {
-      sessionStorage.removeItem("pdye_back_to");
-      return "dealroom";
-    }
-    return "dashboard";
-  });
+  const [activeView, setActiveView] = useState("dashboard");
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [, setLocation] = useLocation();

@@ -231,12 +231,8 @@ export default function DealDetails() {
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
           <button
             onClick={() => {
-              const backTo = sessionStorage.getItem("pdye_back_to");
-              sessionStorage.removeItem("pdye_back_to");
-              if (backTo === "admin") { setLocation("/admin"); }
-              else if (backTo === "dealroom") { setLocation("/dealroom"); }
-              else if (window.history.length > 1) { window.history.back(); }
-              else { setLocation("/dealroom"); }
+              if (roomId) sessionStorage.setItem("pdye_room_id", roomId);
+              setLocation("/dealroom");
             }}
             className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 cursor-pointer text-sm font-sans"
           >

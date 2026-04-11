@@ -44,12 +44,14 @@ export default function DealRoomPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!loading && rooms.length > 0) {
-      const restoreId = sessionStorage.getItem("pdye_back_room_id");
+    if (!loading) {
+      const restoreId = sessionStorage.getItem("pdye_room_id");
       if (restoreId) {
-        sessionStorage.removeItem("pdye_back_room_id");
-        const found = rooms.find(r => r.id === restoreId);
-        if (found) setSelectedRoom(found);
+        sessionStorage.removeItem("pdye_room_id");
+        if (rooms.length > 0) {
+          const found = rooms.find(r => r.id === restoreId);
+          if (found) setSelectedRoom(found);
+        }
       }
     }
   }, [loading, rooms]);
@@ -144,7 +146,19 @@ export default function DealRoomPage() {
 
   const roomLabel = (r: DealRoom) => r.room_number ? `DR-${String(r.room_number).padStart(6, "0")}` : "";
 
+  function handleShortFormBack() {
+    const origin = sessionStorage.getItem("pdye_origin");
+    if (origin) {
+      sessionStorage.removeItem("pdye_origin");
+      if (origin === "dashboard") { setLocation("/dashboard"); return; }
+      if (origin === "admin") { setLocation("/admin"); return; }
+    }
+    setSelectedRoom(null);
+  }
+
   if (selectedRoom) {
+    const origin = sessionStorage.getItem("pdye_origin");
+    const backLabel = origin === "dashboard" ? "Back to Dashboard" : origin === "admin" ? "Back to Admin" : "Back to Opportunities";
     return (
       <Layout>
         <div className="min-h-screen bg-background pt-28 pb-20">
@@ -152,10 +166,10 @@ export default function DealRoomPage() {
             <RoomShortForm
               room={selectedRoom}
               userId={user?.id}
-              onBack={() => setSelectedRoom(null)}
+              backLabel={backLabel}
+              onBack={handleShortFormBack}
               onOpenFull={() => {
-                sessionStorage.setItem("pdye_back_to", "dealroom");
-                sessionStorage.setItem("pdye_back_room_id", selectedRoom.id);
+                sessionStorage.setItem("pdye_room_id", selectedRoom.id);
                 setLocation(`/dealroom/${selectedRoom.id}`);
               }}
             />
@@ -307,8 +321,8 @@ export default function DealRoomPage() {
   );
 }
 
-function RoomShortForm({ room, userId, onBack, onOpenFull }: {
-  room: RoomWithYacht; userId?: string; onBack: () => void; onOpenFull: () => void;
+function RoomShortForm({ room, userId, backLabel, onBack, onOpenFull }: {
+  room: RoomWithYacht; userId?: string; backLabel?: string; onBack: () => void; onOpenFull: () => void;
 }) {
   const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
   const label = room.room_number ? `DR-${String(room.room_number).padStart(6, "0")}` : "";
@@ -321,7 +335,7 @@ function RoomShortForm({ room, userId, onBack, onOpenFull }: {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
       <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-6 text-sm font-sans">
-        <ArrowLeft size={14} /> Back to Opportunities
+        <ArrowLeft size={14} /> {backLabel || "Back to Opportunities"}
       </button>
 
       <div className="bg-[#0f1d33] border border-white/8 overflow-hidden">
