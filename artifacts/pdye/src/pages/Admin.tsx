@@ -21,6 +21,7 @@ import {
   Search,
   Plus,
   Eye,
+  EyeOff,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -1499,6 +1500,8 @@ function DealsManageView() {
   const [editNotes, setEditNotes] = useState("");
   const [notesDirty, setNotesDirty] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [blocks, setBlocks] = useState<Record<string, boolean>>({});
+  const [blocksLoading, setBlocksLoading] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
@@ -1630,13 +1633,25 @@ function DealsManageView() {
     setSelectedRoom(room);
     setEditNotes(room.notes || "");
     setNotesDirty(false);
-    const { data: logs } = await supabaseAdmin
-      .from("audit_logs")
-      .select("*")
-      .eq("entity_type", "deal_room")
-      .eq("entity_id", room.id)
-      .order("created_at", { ascending: false });
-    setActivity((logs as AuditLog[]) || []);
+    setBlocksLoading(true);
+    const [logsResult, blocksData] = await Promise.all([
+      supabaseAdmin
+        .from("audit_logs")
+        .select("*")
+        .eq("entity_type", "deal_room")
+        .eq("entity_id", room.id)
+        .order("created_at", { ascending: false }),
+      dealRoomApi.getBlocks(room.id).catch(() => []),
+    ]);
+    setActivity((logsResult.data as AuditLog[]) || []);
+    const bMap: Record<string, boolean> = {};
+    if (blocksData && typeof blocksData === "object") {
+      Object.entries(blocksData).forEach(([key, val]: [string, any]) => {
+        bMap[key] = !!val?.is_unlocked;
+      });
+    }
+    setBlocks(bMap);
+    setBlocksLoading(false);
   }
 
   async function sendNda(room: RoomWithDetails) {
@@ -1817,6 +1832,56 @@ function DealsManageView() {
               Open Full View →
             </button>
           </div>
+        </div>
+
+        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+          <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Data Access Control</h3>
+          {blocksLoading ? (
+            <p className="text-white/30 text-xs font-sans">Loading blocks...</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { key: "specs", label: "Specifications" },
+                { key: "photos", label: "Photos" },
+                { key: "documents", label: "Documents" },
+                { key: "chat", label: "Chat" },
+                { key: "location", label: "Location" },
+                { key: "yacht_name", label: "Yacht Name" },
+                { key: "identities", label: "Identities" },
+              ].map(block => {
+                const unlocked = !!blocks[block.key];
+                return (
+                  <button
+                    key={block.key}
+                    disabled={blocksLoading}
+                    onClick={async () => {
+                      setBlocksLoading(true);
+                      const newVal = !unlocked;
+                      await dealRoomApi.setBlock(selectedRoom.id, block.key, { is_unlocked: newVal, admin_id: user?.id || "" });
+                      await dealRoomApi.createAuditLog({
+                        entity_type: "deal_room",
+                        entity_id: selectedRoom.id,
+                        user_id: user?.id || "",
+                        action: newVal ? "block_unlocked" : "block_locked",
+                        meta: { block: block.key },
+                      });
+                      setBlocks(prev => ({ ...prev, [block.key]: newVal }));
+                      setBlocksLoading(false);
+                    }}
+                    className={`flex items-center justify-between px-3 py-2.5 text-xs font-bold uppercase tracking-wider border transition-all ${
+                      unlocked
+                        ? "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"
+                        : "bg-red-500/5 text-red-400/60 border-red-500/10 hover:bg-red-500/10"
+                    }`}
+                  >
+                    <span>{block.label}</span>
+                    {unlocked ? <Eye size={13} /> : <EyeOff size={13} />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-white/20 text-[10px] font-sans mt-3">Toggle blocks to control what participants can see. Changes are saved immediately.</p>
         </div>
 
         <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
