@@ -364,11 +364,7 @@ export default function DealDetails() {
               <SidebarParticipants room={room} participantMap={participantMap} canSeeIdentities={canSeeIdentities} />
               <SidebarNda room={room} />
               {room.commission_status && room.commission_status !== "not_started" && <SidebarCommission room={room} />}
-              {blocks && (isAdmin
-                ? <SidebarBlocks blocks={blocks} roomId={room.id} onReload={loadRoom} />
-                : (isBuyer || isSeller) ? <SidebarBlocksReadOnly blocks={blocks} />
-                : null
-              )}
+              {blocks && isAdmin && <SidebarBlocks blocks={blocks} roomId={room.id} onReload={loadRoom} />}
               {activity.length > 0 && <SidebarRecentActivity activity={activity.slice(0, 6)} participantMap={participantMap} />}
               {isAdmin && !isTerminal && <AdminControls room={room} onReload={loadRoom} />}
             </div>
@@ -1098,15 +1094,16 @@ function SidebarParticipants({ room, participantMap, canSeeIdentities }: { room:
       <div className="space-y-3">
         {parts.map(p => {
           const info = participantMap[p.id!];
+          const showIdentity = canSeeIdentities;
           return (
             <div key={p.id} className="flex items-center gap-3">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${roleAvatarColor(canSeeIdentities ? (info?.role || "") : "")}`}>
-                {canSeeIdentities || p.side === "Admin" ? (info?.email?.[0]?.toUpperCase() || "?") : "?"}
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${roleAvatarColor(showIdentity ? (info?.role || "") : "")}`}>
+                {showIdentity ? (info?.email?.[0]?.toUpperCase() || "?") : "?"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white/60 text-xs font-sans truncate">{canSeeIdentities || p.side === "Admin" ? (info?.email || "Unknown") : "Anonymous"}</p>
+                <p className="text-white/60 text-xs font-sans truncate">{showIdentity ? (info?.email || "Unknown") : "Anonymous"}</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  {(canSeeIdentities || p.side === "Admin") && <RoleBadge role={info?.role || ""} />}
+                  {showIdentity && <RoleBadge role={info?.role || ""} />}
                   <span className="text-[9px] text-white/20">{p.side}</span>
                   {p.ndaStatus === "signed" && <CheckCircle size={9} className="text-green-400" />}
                   {p.ndaStatus === "sent" && <Clock size={9} className="text-orange-400" />}
