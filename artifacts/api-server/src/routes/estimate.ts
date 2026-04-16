@@ -1,13 +1,67 @@
 import { Router } from "express";
-import OpenAI from "openai";
 
 const router = Router();
 
-function getOpenAI() {
+async function aiChat(messages: { role: string; content: string }[], model = "gpt-5-mini"): Promise<string> {
   const baseURL = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
   const apiKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
   if (!baseURL || !apiKey) throw new Error("OpenAI AI integration env vars not set");
-  return new OpenAI({ baseURL, apiKey });
+  const urls = [
+    `${baseURL}/chat/completions`,
+    `${baseURL}/v1/chat/completions`,
+  ];
+  let lastError = "";
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({ model, messages }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        lastError = `AI API ${resp.status} at ${url}: ${txt.slice(0, 200)}`;
+        continue;
+      }
+      const data = await resp.json() as { choices?: { message?: { content?: string } }[] };
+      return data.choices?.[0]?.message?.content?.trim() || "";
+    } catch (e: any) {
+      lastError = e.message;
+    }
+  }
+  throw new Error(lastError);
+}
+
+async function aiResponses(input: string, model = "gpt-5-mini", tools?: any[]): Promise<string> {
+  const baseURL = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
+  const apiKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
+  if (!baseURL || !apiKey) throw new Error("OpenAI AI integration env vars not set");
+  const body: Record<string, any> = { model, input };
+  if (tools) body.tools = tools;
+  const urls = [
+    `${baseURL}/responses`,
+    `${baseURL}/v1/responses`,
+  ];
+  let lastError = "";
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        lastError = `AI Responses API ${resp.status} at ${url}: ${txt.slice(0, 200)}`;
+        continue;
+      }
+      const data = await resp.json() as { output_text?: string; output?: any[] };
+      return data.output_text || data.output?.find((o: any) => o.type === "message")?.content?.find((c: any) => c.type === "output_text")?.text || "";
+    } catch (e: any) {
+      lastError = e.message;
+    }
+  }
+  throw new Error(lastError);
 }
 
 function briefYacht(y: Record<string, unknown>): string {
@@ -29,22 +83,12 @@ router.post("/estimate-market-price", async (req, res) => {
       return;
     }
 
-    const openai = getOpenAI();
     const targetDesc = briefYacht(yacht);
 
-    // Build search query based on yacht specs
-    const searchTerms = [
-      yacht.builder, yacht.length, yacht.type, yacht.year, "for sale price EUR"
-    ].filter(Boolean).join(" ");
-
-    // Use OpenAI Responses API with built-in web_search_preview tool
-    // This lets OpenAI search yacht listing sites directly
     const searchPrompt = `You are a superyacht market appraiser. Search the web for current asking prices of similar yachts on YachtWorld, RightBoat, Boat24, Fraser Yachts, Burgess Yachts, and similar platforms.
 
 YACHT TO APPRAISE:
 ${targetDesc}
-
-Search for: "${searchTerms}"
 
 After searching, estimate the fair market value in EUR. Return ONLY this exact JSON (no markdown):
 {"market_price":"€ X,XXX,XXX","confidence":"high|medium|low","reasoning":"2 sentences citing actual comparable listings found online.","sources":"list the yacht sales sites you found data on"}`;
@@ -52,51 +96,23 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
     let result: { market_price: string; confidence: string; reasoning: string; sources?: string };
 
     try {
-      // Try Responses API with web_search_preview tool first
-      const webResponse = await (openai as unknown as {
-        responses: {
-          create: (params: Record<string, unknown>) => Promise<{ output_text?: string; output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> }>;
-        };
-      }).responses.create({
-        model: "gpt-5-mini",
-        tools: [{ type: "web_search_preview" }],
-        input: searchPrompt,
-      });
-
-      const rawText = webResponse.output_text ||
-        webResponse.output?.find((o) => o.type === "message")
-          ?.content?.find((c) => c.type === "output_text")
-          ?.text || "";
-
-      if (!rawText) throw new Error("Empty response from Responses API");
-
-      const jsonStr = rawText.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim();
-      const match = jsonStr.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("No JSON in response: " + rawText.slice(0, 200));
+      const rawText = await aiResponses(searchPrompt, "gpt-5-mini", [{ type: "web_search_preview" }]);
+      if (!rawText) throw new Error("Empty response");
+      const match = rawText.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("No JSON in response");
       result = JSON.parse(match[0]);
-
     } catch (responsesErr) {
-      // Fallback: chat completions without web search (uses OpenAI's training knowledge)
       console.warn("Responses API failed, using chat completions:", responsesErr instanceof Error ? responsesErr.message : responsesErr);
-
-      const fallbackResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are an expert superyacht appraiser with deep knowledge of the global yacht market. Reply ONLY with valid JSON." },
-          { role: "user", content: `Estimate the fair market value in EUR for this yacht:\n${targetDesc}\n\nReturn ONLY: {"market_price":"€ X,XXX,XXX","confidence":"high|medium|low","reasoning":"2 sentences based on market knowledge.","sources":"YachtWorld, RightBoat, Fraser Yachts (market knowledge)"}` },
-        ],
-      });
-
-      const raw = (fallbackResponse.choices[0]?.message?.content || "").trim();
+      const raw = await aiChat([
+        { role: "system", content: "You are an expert superyacht appraiser with deep knowledge of the global yacht market. Reply ONLY with valid JSON." },
+        { role: "user", content: `Estimate the fair market value in EUR for this yacht:\n${targetDesc}\n\nReturn ONLY: {"market_price":"€ X,XXX,XXX","confidence":"high|medium|low","reasoning":"2 sentences based on market knowledge.","sources":"YachtWorld, RightBoat, Fraser Yachts (market knowledge)"}` },
+      ]);
       if (!raw) throw new Error("AI returned empty response");
-
-      const jsonStr = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim();
-      const match = jsonStr.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("Could not parse JSON: " + raw.slice(0, 200));
+      const match = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Could not parse JSON");
       result = JSON.parse(match[0]);
     }
 
-    // Strip markdown links from reasoning to keep it clean
     const cleanReasoning = (result.reasoning || "")
       .replace(/\(\[([^\]]+)\]\([^)]+\)\)/g, "")
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -247,29 +263,17 @@ RULES:
 - DO NOT include vessel names, owner names, flag, or registration country
 - DO NOT invent pricing — every price must come from a real listing or confirmed sale`;
 
-    const openai = getOpenAI();
     let result: Record<string, unknown>;
 
     try {
-      const webResponse = await (openai as unknown as {
-        responses: {
-          create: (p: Record<string, unknown>) => Promise<{ output_text?: string; output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> }>;
-        };
-      }).responses.create({
-        model: "gpt-4o",
-        tools: [{ type: "web_search_preview" }],
-        input: prompt,
-      });
-
-      const rawText = webResponse.output_text ||
-        webResponse.output?.find(o => o.type === "message")
-          ?.content?.find(c => c.type === "output_text")?.text || "";
+      const rawText = await aiResponses(prompt, "gpt-5-mini", [{ type: "web_search_preview" }]);
       if (!rawText) throw new Error("Empty response");
       const match = rawText.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
       if (!match) throw new Error("No JSON");
       result = JSON.parse(match[0]);
-    } catch {
-      const fallbackPrompt = `You are an expert superyacht market appraiser with deep knowledge of the global brokerage market up to early 2025.
+    } catch (primaryErr) {
+      console.warn("Responses API failed, using chat completions:", primaryErr instanceof Error ? primaryErr.message : primaryErr);
+      const fallbackPrompt = `You are an expert superyacht market appraiser with deep knowledge of the global brokerage market.
 
 TARGET VESSEL:
 ${specs}
@@ -297,14 +301,10 @@ Return ONLY valid JSON, no markdown:
 }
 Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owner names or flag.`;
 
-      const fallback = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "You are an expert superyacht market appraiser. Reply ONLY with valid JSON, no markdown." },
-          { role: "user", content: fallbackPrompt },
-        ],
-      });
-      const raw = (fallback.choices[0]?.message?.content || "").trim();
+      const raw = await aiChat([
+        { role: "system", content: "You are an expert superyacht market appraiser. Reply ONLY with valid JSON, no markdown." },
+        { role: "user", content: fallbackPrompt },
+      ]);
       const match = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Could not parse JSON");
       result = JSON.parse(match[0]);
