@@ -10,8 +10,15 @@ function getPool() {
 }
 
 let pool: pg.Pool | null = null;
+let migrationQueued = false;
 function db() {
-  if (!pool) pool = getPool();
+  if (!pool) {
+    pool = getPool();
+    if (!migrationQueued) {
+      migrationQueued = true;
+      runMigration().catch(e => console.error("Migration error:", e));
+    }
+  }
   return pool;
 }
 
@@ -67,11 +74,6 @@ async function runMigration() {
 }
 
 const BLOCK_KEYS = ["specs", "photos", "documents", "chat", "location", "yacht_name", "identities"];
-
-router.use(async (_req, _res, next) => {
-  try { await runMigration(); } catch (e) { console.error("Migration error:", e); }
-  next();
-});
 
 router.get("/deal-rooms", async (req, res) => {
   try {

@@ -55,7 +55,8 @@ React + Vite app with hash routing (`/#/path`).
 Express on port 8080. Routes:
 - `/api/health` — health check
 - `/api/upload-photo` — yacht photo upload to Supabase Storage
-- `/api/estimate` — AI yacht valuation
+- `/api/estimate-market-price` — Algorithmic yacht market price estimation
+- `/api/valuation` — Public yacht valuation (algorithmic, no AI dependency)
 - `/api/nda/*` — NDA send/sign/status/webhook endpoints
 - `/api/deal-rooms` — CRUD for deal rooms (list, get, create, update, delete)
 - `/api/deal-rooms/by-user/:userId` — rooms by participant

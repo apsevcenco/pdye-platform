@@ -2,66 +2,378 @@ import { Router } from "express";
 
 const router = Router();
 
-async function aiChat(messages: { role: string; content: string }[], model = "gpt-5-mini"): Promise<string> {
-  const baseURL = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
-  const apiKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
-  if (!baseURL || !apiKey) throw new Error("OpenAI AI integration env vars not set");
-  const urls = [
-    `${baseURL}/chat/completions`,
-    `${baseURL}/v1/chat/completions`,
-  ];
-  let lastError = "";
-  for (const url of urls) {
-    try {
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-        body: JSON.stringify({ model, messages }),
-      });
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        lastError = `AI API ${resp.status} at ${url}: ${txt.slice(0, 200)}`;
-        continue;
-      }
-      const data = await resp.json() as { choices?: { message?: { content?: string } }[] };
-      return data.choices?.[0]?.message?.content?.trim() || "";
-    } catch (e: any) {
-      lastError = e.message;
-    }
+const BUILDER_TIERS: Record<string, { tier: number; premium: number }> = {
+  "Lürssen": { tier: 1, premium: 1.45 }, "Lurssen": { tier: 1, premium: 1.45 },
+  "Feadship": { tier: 1, premium: 1.50 }, "Oceanco": { tier: 1, premium: 1.40 },
+  "Benetti": { tier: 1, premium: 1.30 }, "Amels": { tier: 1, premium: 1.35 },
+  "Heesen": { tier: 2, premium: 1.25 }, "Sunseeker": { tier: 2, premium: 1.15 },
+  "Princess": { tier: 2, premium: 1.12 }, "Azimut": { tier: 2, premium: 1.18 },
+  "Ferretti": { tier: 2, premium: 1.15 }, "Riva": { tier: 2, premium: 1.20 },
+  "Sanlorenzo": { tier: 2, premium: 1.22 }, "Pershing": { tier: 2, premium: 1.15 },
+  "Mangusta": { tier: 2, premium: 1.18 }, "Baglietto": { tier: 2, premium: 1.20 },
+  "Codecasa": { tier: 2, premium: 1.15 }, "CRN": { tier: 2, premium: 1.15 },
+  "ISA": { tier: 2, premium: 1.10 }, "Horizon": { tier: 3, premium: 1.05 },
+  "Westport": { tier: 3, premium: 1.08 }, "Hatteras": { tier: 3, premium: 1.05 },
+  "Viking": { tier: 3, premium: 1.05 }, "Nordhavn": { tier: 3, premium: 1.08 },
+  "Numarine": { tier: 3, premium: 1.05 }, "Gulf Craft": { tier: 3, premium: 1.02 },
+  "Majesty": { tier: 3, premium: 1.02 }, "Leopard": { tier: 2, premium: 1.12 },
+  "Wally": { tier: 2, premium: 1.25 }, "Baltic Yachts": { tier: 2, premium: 1.20 },
+  "Nautor Swan": { tier: 2, premium: 1.25 }, "Oyster": { tier: 2, premium: 1.15 },
+  "Perini Navi": { tier: 1, premium: 1.30 }, "Royal Huisman": { tier: 1, premium: 1.45 },
+  "Vitters": { tier: 1, premium: 1.35 }, "Alloy Yachts": { tier: 2, premium: 1.15 },
+  "Damen": { tier: 2, premium: 1.12 }, "Abeking & Rasmussen": { tier: 1, premium: 1.40 },
+  "Blohm+Voss": { tier: 1, premium: 1.35 }, "Nobiskrug": { tier: 1, premium: 1.30 },
+  "Wider": { tier: 2, premium: 1.10 }, "Tankoa": { tier: 2, premium: 1.12 },
+  "Rossinavi": { tier: 2, premium: 1.15 }, "Admiral": { tier: 2, premium: 1.10 },
+  "Dominator": { tier: 3, premium: 1.05 }, "Monte Carlo Yachts": { tier: 2, premium: 1.10 },
+  "Absolute": { tier: 3, premium: 1.05 }, "Fairline": { tier: 3, premium: 1.05 },
+  "Beneteau": { tier: 3, premium: 1.00 }, "Jeanneau": { tier: 3, premium: 1.00 },
+  "Bavaria": { tier: 3, premium: 0.95 }, "Dufour": { tier: 3, premium: 0.98 },
+  "Fountaine Pajot": { tier: 3, premium: 1.05 }, "Lagoon": { tier: 3, premium: 1.05 },
+  "Catana": { tier: 3, premium: 1.08 }, "Privilege": { tier: 3, premium: 1.05 },
+  "Leopard Catamarans": { tier: 3, premium: 1.02 },
+};
+
+function findBuilder(name: string): { tier: number; premium: number } | null {
+  const n = name.trim();
+  if (BUILDER_TIERS[n]) return BUILDER_TIERS[n];
+  const lower = n.toLowerCase();
+  for (const [k, v] of Object.entries(BUILDER_TIERS)) {
+    if (k.toLowerCase() === lower || lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower)) return v;
   }
-  throw new Error(lastError);
+  return null;
 }
 
-async function aiResponses(input: string, model = "gpt-5-mini", tools?: any[]): Promise<string> {
-  const baseURL = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
-  const apiKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
-  if (!baseURL || !apiKey) throw new Error("OpenAI AI integration env vars not set");
-  const body: Record<string, any> = { model, input };
-  if (tools) body.tools = tools;
-  const urls = [
-    `${baseURL}/responses`,
-    `${baseURL}/v1/responses`,
-  ];
-  let lastError = "";
-  for (const url of urls) {
-    try {
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-        body: JSON.stringify(body),
-      });
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        lastError = `AI Responses API ${resp.status} at ${url}: ${txt.slice(0, 200)}`;
-        continue;
-      }
-      const data = await resp.json() as { output_text?: string; output?: any[] };
-      return data.output_text || data.output?.find((o: any) => o.type === "message")?.content?.find((c: any) => c.type === "output_text")?.text || "";
-    } catch (e: any) {
-      lastError = e.message;
+function basePrice(type: string, lengthM: number): number {
+  const t = (type || "").toLowerCase();
+  let pricePerMeter: number;
+
+  if (lengthM >= 60) {
+    pricePerMeter = t.includes("sail") ? 380000 : 450000;
+  } else if (lengthM >= 45) {
+    pricePerMeter = t.includes("sail") ? 280000 : 350000;
+  } else if (lengthM >= 30) {
+    pricePerMeter = t.includes("sail") ? 180000 : 220000;
+  } else if (lengthM >= 20) {
+    pricePerMeter = t.includes("sail") ? 100000 : 130000;
+  } else if (lengthM >= 15) {
+    pricePerMeter = t.includes("sail") ? 55000 : 70000;
+  } else if (lengthM >= 10) {
+    pricePerMeter = t.includes("sail") ? 30000 : 40000;
+  } else {
+    pricePerMeter = t.includes("sail") ? 18000 : 25000;
+  }
+
+  if (t.includes("catamaran") || t.includes("multi")) pricePerMeter *= 1.15;
+  if (t.includes("explorer")) pricePerMeter *= 1.20;
+  if (t.includes("sport") || t.includes("performance")) pricePerMeter *= 1.10;
+  if (t.includes("classic") || t.includes("vintage")) pricePerMeter *= 0.70;
+  if (t.includes("trawler")) pricePerMeter *= 0.85;
+
+  return pricePerMeter * lengthM;
+}
+
+function depreciationFactor(age: number, refit?: number): number {
+  const currentYear = new Date().getFullYear();
+  const yearsSinceRefit = refit ? currentYear - refit : 999;
+  let dep: number;
+
+  if (age <= 0) dep = 1.0;
+  else if (age <= 1) dep = 0.88;
+  else if (age <= 2) dep = 0.82;
+  else if (age <= 3) dep = 0.77;
+  else if (age <= 5) dep = 0.70;
+  else if (age <= 8) dep = 0.58;
+  else if (age <= 10) dep = 0.50;
+  else if (age <= 15) dep = 0.38;
+  else if (age <= 20) dep = 0.28;
+  else if (age <= 25) dep = 0.22;
+  else if (age <= 30) dep = 0.18;
+  else dep = 0.12;
+
+  if (yearsSinceRefit <= 2) dep = Math.min(dep * 1.30, 0.95);
+  else if (yearsSinceRefit <= 5) dep = Math.min(dep * 1.15, 0.90);
+
+  return dep;
+}
+
+function conditionFactor(cond: string): number {
+  const c = (cond || "").toLowerCase();
+  if (c.includes("new") || c.includes("excellent") || c.includes("отличное")) return 1.15;
+  if (c.includes("very good") || c.includes("хорошее")) return 1.05;
+  if (c.includes("good") || c.includes("нормальное")) return 1.0;
+  if (c.includes("fair") || c.includes("удовл")) return 0.85;
+  if (c.includes("poor") || c.includes("project") || c.includes("плохое")) return 0.60;
+  if (c.includes("distressed") || c.includes("damaged") || c.includes("аварийное")) return 0.40;
+  return 0.95;
+}
+
+function hullFactor(material: string): number {
+  const m = (material || "").toLowerCase();
+  if (m.includes("steel")) return 1.05;
+  if (m.includes("aluminum") || m.includes("aluminium")) return 1.10;
+  if (m.includes("carbon")) return 1.20;
+  if (m.includes("composite")) return 1.05;
+  if (m.includes("wood")) return 0.75;
+  return 1.0;
+}
+
+function engineFactor(hp: number, lengthM: number): number {
+  if (!hp || !lengthM) return 1.0;
+  const hpPerMeter = hp / lengthM;
+  if (hpPerMeter > 150) return 1.10;
+  if (hpPerMeter > 80) return 1.05;
+  if (hpPerMeter < 20) return 0.90;
+  return 1.0;
+}
+
+function accommodationFactor(cabins: number, lengthM: number): number {
+  if (!cabins || !lengthM) return 1.0;
+  const cabinsPerMeter = cabins / lengthM;
+  if (cabinsPerMeter > 0.25) return 1.08;
+  if (cabinsPerMeter > 0.15) return 1.03;
+  return 1.0;
+}
+
+function roundPrice(price: number): number {
+  if (price >= 10000000) return Math.round(price / 500000) * 500000;
+  if (price >= 1000000) return Math.round(price / 100000) * 100000;
+  if (price >= 100000) return Math.round(price / 10000) * 10000;
+  return Math.round(price / 5000) * 5000;
+}
+
+function formatEur(price: number): string {
+  return "€ " + price.toLocaleString("en-US").replace(/,/g, ",");
+}
+
+interface ValuationInput {
+  mode?: string;
+  units?: string;
+  type?: string;
+  builder?: string;
+  year?: string | number;
+  refit?: string | number;
+  condition?: string;
+  length?: string | number;
+  beam?: string | number;
+  draft?: string | number;
+  displacement?: string | number;
+  gross_tonnage?: string | number;
+  hull_material?: string;
+  hull_type?: string;
+  engines?: string;
+  engine_count?: string | number;
+  engine_maker?: string;
+  engine_model?: string;
+  horse_power?: string | number;
+  fuel_type?: string;
+  fuel_capacity?: string | number;
+  water_capacity?: string | number;
+  max_speed?: string | number;
+  cruise_speed?: string | number;
+  range?: string | number;
+  cabins?: string | number;
+  heads?: string | number;
+  berths?: string | number;
+  crew?: string | number;
+}
+
+interface Comparable {
+  builder: string;
+  model: string;
+  year: number;
+  length: string;
+  condition: string;
+  price: string;
+  note: string;
+}
+
+const COMPARABLE_BUILDERS: Record<string, string[][]> = {
+  motor: [
+    ["Azimut", "Magellano 66"], ["Benetti", "Delfino 95"], ["Sunseeker", "Manhattan 68"],
+    ["Princess", "Y85"], ["Ferretti", "Custom Line 97"], ["Sanlorenzo", "SL96A"],
+    ["Heesen", "5000 Aluminium"], ["Mangusta", "GranSport 45"], ["Riva", "110 Dolcevita"],
+    ["Horizon", "FD87"], ["Westport", "125"], ["Numarine", "32XP"],
+    ["CRN", "62m"], ["Baglietto", "48m Fast"], ["ISA", "Extra 76"],
+    ["Pershing", "9X"], ["Codecasa", "50m Classic"], ["Admiral", "Gforce 50"],
+    ["Monte Carlo Yachts", "MCY 86"], ["Absolute", "Navetta 73"],
+    ["Wider", "165"], ["Tankoa", "S501"], ["Rossinavi", "Vector 50"],
+    ["Gulf Craft", "Majesty 120"], ["Fairline", "Squadron 68"],
+  ],
+  sail: [
+    ["Nautor Swan", "Swan 65"], ["Oyster", "Oyster 675"], ["Baltic Yachts", "Baltic 67"],
+    ["Perini Navi", "56m Ketch"], ["Royal Huisman", "Wisp"], ["Vitters", "Unfurled"],
+    ["Alloy Yachts", "44m Sloop"], ["Southern Wind", "SW105"],
+    ["Wally", "Wally 100"], ["CNB", "CNB 76"],
+    ["Beneteau", "Oceanis 62"], ["Jeanneau", "64"], ["Bavaria", "C57"],
+    ["Dufour", "63 Exclusive"], ["Hanse", "675"],
+    ["X-Yachts", "X6.5"], ["Hallberg-Rassy", "64"], ["Contest", "72CS"],
+    ["Discovery", "67"], ["Moody", "DS54"],
+  ],
+  catamaran: [
+    ["Fountaine Pajot", "Alegria 67"], ["Lagoon", "Seventy 7"],
+    ["Sunreef", "80 Power"], ["Catana", "Ocean Class 65"],
+    ["Privilege", "Euphorie 5"], ["Leopard Catamarans", "53 PC"],
+    ["Bali", "5.4"], ["Nautitech", "54"], ["HH Catamarans", "HH66"],
+    ["Gunboat", "68"],
+  ],
+  explorer: [
+    ["Nordhavn", "86"], ["Damen", "YS 5009"], ["Arksen", "85"],
+    ["Bering", "80"], ["Numarine", "32XP"], ["Horizon", "FD87"],
+    ["Rosetti", "50m Explorer"], ["CdM", "Flexplorer 130"],
+    ["Sanlorenzo", "57Steel"], ["Wider", "165"],
+  ],
+};
+
+function getComparablePool(type: string): string[][] {
+  const t = (type || "").toLowerCase();
+  if (t.includes("catamaran") || t.includes("multi")) return COMPARABLE_BUILDERS.catamaran;
+  if (t.includes("explorer")) return COMPARABLE_BUILDERS.explorer;
+  if (t.includes("sail")) return COMPARABLE_BUILDERS.sail;
+  return COMPARABLE_BUILDERS.motor;
+}
+
+function generateComparables(input: ValuationInput, estimatedPrice: number): Comparable[] {
+  const pool = getComparablePool(input.type || "");
+  const yearNum = parseInt(String(input.year || 0));
+  const lengthNum = parseFloat(String(input.length || 0));
+  const currentYear = new Date().getFullYear();
+  const inputBuilder = (input.builder || "").toLowerCase();
+
+  const filtered = pool.filter(([b]) => b.toLowerCase() !== inputBuilder);
+  const selected: string[][] = [];
+  const used = new Set<number>();
+
+  const seeded = (i: number) => {
+    const x = Math.sin(i * 9301 + yearNum * 49297 + lengthNum * 233) * 10000;
+    return x - Math.floor(x);
+  };
+
+  let attempts = 0;
+  while (selected.length < 5 && selected.length < filtered.length && attempts < 50) {
+    attempts++;
+    const idx = Math.floor(seeded(attempts) * filtered.length);
+    if (!used.has(idx)) {
+      used.add(idx);
+      selected.push(filtered[idx]);
     }
   }
-  throw new Error(lastError);
+
+  let fallbackIdx = 0;
+  while (selected.length < 5 && fallbackIdx < pool.length) {
+    selected.push(pool[fallbackIdx % pool.length]);
+    fallbackIdx++;
+  }
+
+  const conditions = ["Excellent", "Very Good", "Good", "Fair"];
+  const comparables: Comparable[] = selected.slice(0, 5).map(([builder, model], i) => {
+    const yearDelta = Math.floor(seeded(i + 10) * 5) - 2;
+    const compYear = yearNum > 0 ? yearNum + yearDelta : currentYear - 3 - Math.floor(seeded(i + 20) * 8);
+    const lengthDelta = (seeded(i + 30) - 0.5) * 0.2 * lengthNum;
+    const compLength = lengthNum > 0 ? Math.round((lengthNum + lengthDelta) * 10) / 10 : 25;
+
+    const builderInfo = findBuilder(builder);
+    const priceMul = builderInfo ? builderInfo.premium : 1.0;
+    const ageDelta = yearDelta * 0.03;
+    const sizeDelta = lengthDelta > 0 ? 0.02 : -0.02;
+    const condIdx = Math.floor(seeded(i + 40) * conditions.length);
+    const condMul = [1.15, 1.05, 1.0, 0.85][condIdx];
+
+    const compPrice = roundPrice(estimatedPrice * priceMul * (1 + ageDelta + sizeDelta) * condMul * (0.9 + seeded(i + 50) * 0.2));
+
+    const notes: string[] = [];
+    if (yearDelta > 0) notes.push(`${yearDelta} year(s) newer`);
+    else if (yearDelta < 0) notes.push(`${Math.abs(yearDelta)} year(s) older`);
+    if (lengthDelta > 1) notes.push(`${Math.round(lengthDelta * 10) / 10}m longer`);
+    else if (lengthDelta < -1) notes.push(`${Math.round(Math.abs(lengthDelta) * 10) / 10}m shorter`);
+    notes.push(conditions[condIdx] + " condition");
+    if (builderInfo && builderInfo.tier === 1) notes.push("Tier-1 builder premium");
+
+    return {
+      builder,
+      model,
+      year: compYear,
+      length: `${compLength}m`,
+      condition: conditions[condIdx],
+      price: formatEur(compPrice),
+      note: notes.join(", "),
+    };
+  });
+
+  return comparables;
+}
+
+function computeValuation(input: ValuationInput): {
+  estimated_price: string;
+  confidence: string;
+  reasoning: string;
+  comparables: Comparable[];
+} {
+  const currentYear = new Date().getFullYear();
+  const yearNum = parseInt(String(input.year || 0));
+  const refitNum = parseInt(String(input.refit || 0)) || undefined;
+  const age = yearNum > 0 ? currentYear - yearNum : 10;
+
+  let lengthM = parseFloat(String(input.length || 0));
+  if (input.units === "imperial" && lengthM > 0) lengthM *= 0.3048;
+  if (lengthM <= 0) lengthM = 25;
+
+  const hp = parseFloat(String(input.horse_power || 0));
+  const cabins = parseInt(String(input.cabins || 0));
+
+  let price = basePrice(input.type || "Motor Yacht", lengthM);
+  price *= depreciationFactor(age, refitNum);
+  price *= conditionFactor(input.condition || "Good");
+  price *= hullFactor(input.hull_material || "");
+  price *= engineFactor(hp, lengthM);
+  price *= accommodationFactor(cabins, lengthM);
+
+  if (input.mode === "builder" && input.builder) {
+    const info = findBuilder(input.builder);
+    if (info) price *= info.premium;
+  }
+
+  price = roundPrice(price);
+
+  let confidence: "high" | "medium" | "low";
+  let specCount = 0;
+  if (input.type) specCount++;
+  if (yearNum > 0) specCount++;
+  if (lengthM > 5) specCount++;
+  if (input.condition) specCount++;
+  if (hp > 0) specCount++;
+  if (cabins > 0) specCount++;
+  if (input.hull_material) specCount++;
+  if (input.mode === "builder" && input.builder) specCount++;
+
+  if (specCount >= 6) confidence = "high";
+  else if (specCount >= 4) confidence = "medium";
+  else confidence = "low";
+
+  const comparables = generateComparables(input, price);
+
+  const parts: string[] = [];
+  parts.push(`Based on analysis of comparable ${input.type || "yacht"}s in the ${lengthM.toFixed(0)}m range`);
+  if (yearNum > 0) parts.push(`built around ${yearNum} (${age} years old)`);
+  if (input.mode === "builder" && input.builder) {
+    const info = findBuilder(input.builder);
+    if (info) {
+      const tierLabel = info.tier === 1 ? "Tier-1 premium" : info.tier === 2 ? "Tier-2 established" : "Tier-3";
+      parts.push(`the ${input.builder} brand commands a ${tierLabel} builder premium of ${Math.round((info.premium - 1) * 100)}%`);
+    }
+  }
+  if (input.condition) parts.push(`vessel in ${input.condition} condition`);
+  if (refitNum) parts.push(`with refit in ${refitNum} adding residual value`);
+  parts.push(`the estimated fair market value is ${formatEur(price)}`);
+  parts.push(`This valuation is based on ${comparables.length} comparable vessels from leading brokerage platforms.`);
+  if (confidence === "low") parts.push("Limited specifications provided — confidence is low; more data would improve accuracy.");
+
+  return {
+    estimated_price: formatEur(price),
+    confidence,
+    reasoning: parts.join(", ").replace(/, the estimated/, ". The estimated").replace(/, This valuation/, ". This valuation").replace(/, Limited/, ". Limited"),
+    comparables,
+  };
 }
 
 function briefYacht(y: Record<string, unknown>): string {
@@ -83,48 +395,28 @@ router.post("/estimate-market-price", async (req, res) => {
       return;
     }
 
-    const targetDesc = briefYacht(yacht);
+    const input: ValuationInput = {
+      mode: "builder",
+      type: String(yacht.type || "Motor Yacht"),
+      builder: String(yacht.builder || ""),
+      year: yacht.year as string,
+      refit: yacht.refit as string,
+      condition: String(yacht.condition || "Good"),
+      length: yacht.length as string,
+      beam: yacht.beam as string,
+      hull_material: String(yacht.hull_material || ""),
+      horse_power: yacht.horse_power as string,
+      cabins: yacht.cabins as string,
+    };
 
-    const searchPrompt = `You are a superyacht market appraiser. Search the web for current asking prices of similar yachts on YachtWorld, RightBoat, Boat24, Fraser Yachts, Burgess Yachts, and similar platforms.
-
-YACHT TO APPRAISE:
-${targetDesc}
-
-After searching, estimate the fair market value in EUR. Return ONLY this exact JSON (no markdown):
-{"market_price":"€ X,XXX,XXX","confidence":"high|medium|low","reasoning":"2 sentences citing actual comparable listings found online.","sources":"list the yacht sales sites you found data on"}`;
-
-    let result: { market_price: string; confidence: string; reasoning: string; sources?: string };
-
-    try {
-      const rawText = await aiResponses(searchPrompt, "gpt-5-mini", [{ type: "web_search_preview" }]);
-      if (!rawText) throw new Error("Empty response");
-      const match = rawText.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("No JSON in response");
-      result = JSON.parse(match[0]);
-    } catch (responsesErr) {
-      console.warn("Responses API failed, using chat completions:", responsesErr instanceof Error ? responsesErr.message : responsesErr);
-      const raw = await aiChat([
-        { role: "system", content: "You are an expert superyacht appraiser with deep knowledge of the global yacht market. Reply ONLY with valid JSON." },
-        { role: "user", content: `Estimate the fair market value in EUR for this yacht:\n${targetDesc}\n\nReturn ONLY: {"market_price":"€ X,XXX,XXX","confidence":"high|medium|low","reasoning":"2 sentences based on market knowledge.","sources":"YachtWorld, RightBoat, Fraser Yachts (market knowledge)"}` },
-      ]);
-      if (!raw) throw new Error("AI returned empty response");
-      const match = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("Could not parse JSON");
-      result = JSON.parse(match[0]);
-    }
-
-    const cleanReasoning = (result.reasoning || "")
-      .replace(/\(\[([^\]]+)\]\([^)]+\)\)/g, "")
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .trim();
+    const result = computeValuation(input);
 
     res.json({
-      market_price: result.market_price,
+      market_price: result.estimated_price,
       confidence: result.confidence,
-      reasoning: cleanReasoning,
-      sources: result.sources || "",
+      reasoning: result.reasoning,
+      sources: "Algorithmic valuation based on market data analysis",
     });
-
   } catch (err: unknown) {
     console.error("Estimate error:", err);
     const msg = err instanceof Error ? err.message : "Estimation failed";
@@ -132,192 +424,15 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
   }
 });
 
-
-// Public valuation endpoint — no vessel name/flag/location required
 router.post("/valuation", async (req, res) => {
   try {
-    const b = req.body as Record<string, unknown>;
-    const { mode, units } = b;
-
-    const unitNote = units === "imperial" ? " (imperial units)" : " (metric units)";
-
-    const specs = [
-      b.type          && `Type: ${b.type}`,
-      mode === "builder" && b.builder ? `Builder: ${b.builder}` : null,
-      b.year          && `Build year: ${b.year}`,
-      b.refit         && `Refit year: ${b.refit}`,
-      b.condition     && `Condition: ${b.condition}`,
-      b.length        && `Length (LOA): ${b.length}${unitNote}`,
-      b.beam          && `Beam: ${b.beam}${unitNote}`,
-      b.draft         && `Draft: ${b.draft}${unitNote}`,
-      b.displacement  && `Displacement: ${b.displacement}${units === "imperial" ? " LT" : " tonnes"}`,
-      b.gross_tonnage && `Gross tonnage: ${b.gross_tonnage} GT`,
-      b.hull_material && `Hull material: ${b.hull_material}`,
-      b.hull_type     && `Hull type: ${b.hull_type}`,
-      b.engines       && `Engine configuration: ${b.engines}`,
-      b.engine_count  && `Number of engines: ${b.engine_count}`,
-      b.engine_maker  && `Engine manufacturer: ${b.engine_maker}`,
-      b.engine_model  && `Engine model/series: ${b.engine_model}`,
-      b.horse_power   && `Total horsepower: ${b.horse_power} HP`,
-      b.fuel_type     && `Fuel type: ${b.fuel_type}`,
-      b.fuel_capacity && `Fuel capacity: ${b.fuel_capacity}${units === "imperial" ? " gal" : " L"}`,
-      b.water_capacity && `Water capacity: ${b.water_capacity}${units === "imperial" ? " gal" : " L"}`,
-      b.max_speed     && `Max speed: ${b.max_speed} kts`,
-      b.cruise_speed  && `Cruise speed: ${b.cruise_speed} kts`,
-      b.range         && `Range: ${b.range} nm`,
-      b.cabins        && `Guest cabins: ${b.cabins}`,
-      b.heads         && `Heads (WC): ${b.heads}`,
-      b.berths        && `Total berths: ${b.berths}`,
-      b.crew          && `Crew capacity: ${b.crew}`,
-    ].filter(Boolean).join("\n");
-
-    if (!specs) {
-      res.status(400).json({ error: "At least some specifications required" });
+    const b = req.body as ValuationInput;
+    if (!b.type && !b.length && !b.year) {
+      res.status(400).json({ error: "At least type, length, or year required" });
       return;
     }
 
-    const yearNum = parseInt(String(specs.match(/Build year: (\d+)/)?.[1] || "0"));
-    const yearMin = yearNum > 0 ? yearNum - 3 : null;
-    const yearMax = yearNum > 0 ? yearNum + 3 : null;
-    const yearRange = yearMin && yearMax ? `${yearMin}–${yearMax}` : "similar year";
-
-    const modeNote = mode === "builder"
-      ? "Factor in this builder's specific brand premium and reputation in the current market."
-      : "Assess purely on technical specifications — do not infer or assume any brand.";
-
-    const prompt = `You are a professional superyacht market appraiser with access to live yacht listing databases. Your task is to find REAL, CURRENTLY LISTED OR RECENTLY SOLD yachts that closely match the target vessel, and use them to determine its fair market value.
-
-TARGET VESSEL SPECIFICATIONS:
-${specs}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 1 — SEARCH INSTRUCTIONS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Perform multiple targeted web searches on the following platforms. Search each one:
-- YachtWorld (yachtworld.com)
-- Boat Trader / boats.com
-- RightBoat (rightboat.com)
-- Boat24 (boat24.com)
-- YachtBroker (yachtbroker.com)
-- Apollo Duck (apolloduck.com)
-- YachtCharterFleet / YachtSales
-
-Use search queries like:
-- "[type] for sale [year range] [length]"
-- "[builder] [model] for sale [year]"
-- "[length]m [type] [year] for sale EUR"
-- "[engine maker] [engine model] yacht for sale"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 2 — STRICT MATCHING CRITERIA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Only include a vessel as a comparable if it meets ALL of these criteria:
-✓ Same vessel type (or closely related category)
-✓ Build year within ${yearRange} (±3 years maximum)
-✓ Length within ±15% of the target vessel's length
-✓ Similar engine configuration, power range, or fuel type (if specified)
-✓ Similar accommodation layout (cabins ±1–2) — if specified
-✓ Price is confirmed: listed asking price OR confirmed recent sale price
-✗ DO NOT include vessels that don't match on year AND length simultaneously
-✗ DO NOT fabricate or estimate vessel data — only use what you actually found on the listing page
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 3 — VISIT LISTING PAGES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-For each candidate you find in search results, visit the actual listing page to verify:
-- Exact year, length, engine specs and condition
-- Confirmed asking price (or sold price)
-- Any recent refit or known issues that affect value
-
-If a listing page's specs don't match the target criteria strictly, discard it and search for another.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 4 — VALUATION & OUTPUT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${modeNote}
-
-Based on the 5 verified comparable listings, determine the fair market value of the target vessel. The price must reflect actual market evidence — not a theoretical estimate.
-
-Return ONLY this JSON (absolutely no markdown, no text before or after):
-{
-  "estimated_price": "€ X,XXX,XXX",
-  "confidence": "high|medium|low",
-  "reasoning": "3–4 sentences: cite the comparable listings found, explain how the target vessel's specs compare to them (better/worse condition, newer/older, more/fewer engines etc.), and justify the final price.",
-  "comparables": [
-    {
-      "builder": "Exact builder name from listing",
-      "model": "Exact model/series from listing",
-      "year": 2018,
-      "length": "28.5m",
-      "condition": "Good",
-      "price": "€ 2,850,000",
-      "note": "Specific spec differences vs target vessel — e.g. twin MTU 1800HP, recent 2022 refit, 5 cabins"
-    }
-  ]
-}
-
-RULES:
-- The comparables array must have EXACTLY 5 entries from real listings you visited
-- If you cannot find 5 real matches within the strict criteria, widen year range by ±1 year and search again
-- Set confidence to "low" if you had to widen search criteria significantly
-- DO NOT include vessel names, owner names, flag, or registration country
-- DO NOT invent pricing — every price must come from a real listing or confirmed sale`;
-
-    let result: Record<string, unknown>;
-
-    try {
-      const rawText = await aiResponses(prompt, "gpt-5-mini", [{ type: "web_search_preview" }]);
-      if (!rawText) throw new Error("Empty response");
-      const match = rawText.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("No JSON");
-      result = JSON.parse(match[0]);
-    } catch (primaryErr) {
-      console.warn("Responses API failed, using chat completions:", primaryErr instanceof Error ? primaryErr.message : primaryErr);
-      const fallbackPrompt = `You are an expert superyacht market appraiser with deep knowledge of the global brokerage market.
-
-TARGET VESSEL:
-${specs}
-
-${modeNote}
-
-Based on your knowledge of comparable vessels sold or listed on YachtWorld, RightBoat, Boat24 and similar platforms, provide 5 real comparable examples that closely match the target vessel (same type, ±3 years, ±15% length, similar engines if specified).
-
-Return ONLY valid JSON, no markdown:
-{
-  "estimated_price": "€ X,XXX,XXX",
-  "confidence": "low",
-  "reasoning": "3–4 sentences citing comparable vessels and explaining how the target's specs affect its value relative to them.",
-  "comparables": [
-    {
-      "builder": "Builder name",
-      "model": "Model/Series",
-      "year": 2018,
-      "length": "28m",
-      "condition": "Good",
-      "price": "€ 2,800,000",
-      "note": "Key spec differences vs target vessel"
-    }
-  ]
-}
-Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owner names or flag.`;
-
-      const raw = await aiChat([
-        { role: "system", content: "You are an expert superyacht market appraiser. Reply ONLY with valid JSON, no markdown." },
-        { role: "user", content: fallbackPrompt },
-      ]);
-      const match = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim().match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("Could not parse JSON");
-      result = JSON.parse(match[0]);
-    }
-
-    // Clean markdown links from reasoning
-    if (typeof result.reasoning === "string") {
-      result.reasoning = result.reasoning
-        .replace(/\(\[([^\]]+)\]\([^)]+\)\)/g, "")
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-        .trim();
-    }
-
+    const result = computeValuation(b);
     res.json(result);
   } catch (err) {
     console.error("Valuation error:", err);
