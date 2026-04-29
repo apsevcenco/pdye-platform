@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { Anchor, TrendingUp, Briefcase, Ship, Loader2 } from "lucide-react";
+import { Anchor, TrendingUp, Briefcase, Ship, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const ROLES = [
@@ -28,6 +28,7 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Shared
   const [name, setName] = useState("");
@@ -309,9 +310,17 @@ export default function Login() {
 
               <div>
                 <label className={lbl}>Password *</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                  autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={6}
-                  className={inp} placeholder="••••••••" />
+                <div className="relative">
+                  <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required
+                    autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={6}
+                    className={`${inp} pr-11`} placeholder="••••••••" />
+                  <button type="button" onClick={() => setShowPassword(s => !s)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    title={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-primary transition-colors p-1">
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 {mode === "register" && <p className="text-white/25 text-[10px] mt-1 font-sans">Minimum 6 characters</p>}
               </div>
 
