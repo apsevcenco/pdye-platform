@@ -2113,6 +2113,7 @@ function LeadsView() {
   const [loadErr, setLoadErr] = useState("");
   const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     supabaseAdmin
@@ -2125,6 +2126,20 @@ function LeadsView() {
         setLoading(false);
       });
   }, []);
+
+  async function deleteLead(id: number) {
+    if (!window.confirm("Delete this lead? This cannot be undone.")) return;
+    setDeletingId(id);
+    const { error } = await supabaseAdmin.from("leads").delete().eq("id", id);
+    if (error) {
+      setLoadErr(error.message);
+      setDeletingId(null);
+      return;
+    }
+    setLeads(prev => prev.filter(l => l.id !== id));
+    if (selected?.id === id) setSelected(null);
+    setDeletingId(null);
+  }
 
   const types = ["all", "Private Buyer Application", "Broker Application", "Owner Submission"];
   const filtered = filter === "all" ? leads : leads.filter(l => l.yacht_type === filter);
@@ -2213,7 +2228,18 @@ function LeadsView() {
                       {lead.created_at ? new Date(lead.created_at).toLocaleDateString("ru-RU") : "—"}
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <ChevronRight size={14} className="text-white/20 group-hover:text-primary transition-colors ml-auto" />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteLead(lead.id); }}
+                          disabled={deletingId === lead.id}
+                          className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition-all disabled:opacity-50"
+                          title="Delete lead"
+                          data-testid={`button-delete-lead-${lead.id}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <ChevronRight size={14} className="text-white/20 group-hover:text-primary transition-colors" />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -2230,9 +2256,20 @@ function LeadsView() {
             <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[selected.yacht_type] || "text-white/50 bg-white/5 border-white/10"}`}>
               {selected.yacht_type}
             </span>
-            <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors">
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => deleteLead(selected.id)}
+                disabled={deletingId === selected.id}
+                className="text-xs border border-red-500/30 text-red-400 px-3 py-1.5 font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                title="Delete lead"
+                data-testid="button-delete-lead-detail"
+              >
+                <Trash2 size={12} /> Delete
+              </button>
+              <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
