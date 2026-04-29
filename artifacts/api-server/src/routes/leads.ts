@@ -116,21 +116,37 @@ router.post("/leads/:id/approve", requireAdmin, async (req, res) => {
       ?.find(u => (u.email || "").toLowerCase() === email);
     let authUserId: string;
 
+    // Build the rich metadata object once — used for auth + profile upsert
+    const richMeta: Record<string, any> = {
+      name: lead.name || "",
+      phone: lead.phone || "",
+      company: lead.company || "",
+      budget: lead.budget || "",
+      yacht_type: lead.yacht_type || "",
+      location: lead.location || "",
+      notes: lead.message || "",
+      source: "lead",
+      lead_id: leadId,
+    };
+
     if (existing) {
-      // Update password for existing user
-      const { error: updErr } = await sb.auth.admin.updateUserById(existing.id, { password });
+      // Update password + metadata for existing user
+      const { error: updErr } = await sb.auth.admin.updateUserById(existing.id, {
+        password,
+        user_metadata: richMeta,
+      });
       if (updErr) {
         res.status(500).json({ error: "Failed to update existing user: " + updErr.message });
         return;
       }
       authUserId = existing.id;
     } else {
-      // Create new auth user
+      // Create new auth user with full metadata copy
       const { data: created, error: createErr } = await sb.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
-        user_metadata: { name: lead.name || "" },
+        user_metadata: richMeta,
       });
       if (createErr || !created.user) {
         res.status(500).json({ error: "Failed to create auth user: " + (createErr?.message || "unknown") });
@@ -139,13 +155,28 @@ router.post("/leads/:id/approve", requireAdmin, async (req, res) => {
       authUserId = created.user.id;
     }
 
-    // 3. Upsert profile in users table (only existing columns: id, email, role, approved)
-    const { error: profErr } = await sb.from("users").upsert({
+    // 3. Upsert profile in users table — try with all fields, fall back to base columns
+    //    if the schema is missing the optional columns (graceful degradation).
+    const fullProfile: Record<string, any> = {
       id: authUserId,
       email,
       role,
       approved: true,
-    }, { onConflict: "id" });
+      name: lead.name || null,
+      phone: lead.phone || null,
+      company: lead.company || null,
+      budget: lead.budget || null,
+      yacht_type: lead.yacht_type || null,
+      location: lead.location || null,
+      notes: lead.message || null,
+    };
+    let { error: profErr } = await sb.from("users").upsert(fullProfile, { onConflict: "id" });
+    if (profErr && /column .* does not exist|Could not find the .* column/i.test(profErr.message)) {
+      console.warn("[approve] users table missing optional columns, retrying with base set:", profErr.message);
+      const baseProfile = { id: authUserId, email, role, approved: true };
+      const retry = await sb.from("users").upsert(baseProfile, { onConflict: "id" });
+      profErr = retry.error;
+    }
     if (profErr) {
       res.status(500).json({ error: "Failed to create user profile: " + profErr.message });
       return;

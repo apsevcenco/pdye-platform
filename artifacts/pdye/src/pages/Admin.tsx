@@ -36,6 +36,7 @@ import {
   Inbox,
   Phone,
   Mail,
+  MapPin,
   Building2,
   Calendar,
   Star,
@@ -83,6 +84,7 @@ const navItems = [
   { id: "leads", label: "Leads", icon: Inbox },
   { id: "investors", label: "Private Buyers", icon: Users },
   { id: "brokers", label: "Brokers", icon: Briefcase },
+  { id: "owners", label: "Boat Owners", icon: Anchor },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "content", label: "Page Content", icon: PenLine },
@@ -91,7 +93,7 @@ const navItems = [
   { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
 ];
 
-type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string };
+type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string; name?: string; budget?: string; yacht_type?: string; location?: string };
 type DealRoomDoc = { id: string; deal_room_id: string; uploaded_by: string; file_name: string; file_url: string; file_type?: string; file_size?: number; visible_to_roles?: string[]; created_at: string };
 type DealRoomMsg = { id: string; deal_room_id: string; sender_id: string; message: string; is_system: boolean; created_at: string };
 
@@ -2545,7 +2547,7 @@ function InvestorsView() {
           <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
             <span className="text-primary text-sm font-bold">{initials(selected.email)}</span>
           </div>
-          <h2 className="font-display text-xl text-white mb-1 break-all">{selected.email}</h2>
+          <h2 className="font-display text-xl text-white mb-1 break-all">{selected.name || selected.email}</h2>
           <p className="text-white/40 text-xs mb-5">Registered {new Date(selected.created_at).toLocaleString("ru-RU")}</p>
 
           {!editing ? (
@@ -2694,7 +2696,7 @@ function BrokersView() {
           <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
             <span className="text-primary text-sm font-bold">{initials(selected.email)}</span>
           </div>
-          <h2 className="font-display text-xl text-white mb-1 break-all">{selected.email}</h2>
+          <h2 className="font-display text-xl text-white mb-1 break-all">{selected.name || selected.email}</h2>
           <p className="text-white/40 text-xs mb-5">Registered {new Date(selected.created_at).toLocaleString("ru-RU")}</p>
 
           {!editing ? (
@@ -2724,6 +2726,190 @@ function BrokersView() {
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Phone</label>
                 <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Notes</label>
+                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={saveEdit} disabled={saving} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                <button onClick={() => setEditing(false)} className="text-xs border border-white/10 text-white/60 px-4 py-2 font-bold uppercase tracking-wider hover:border-white/30 transition-colors">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OwnersView() {
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<UserRecord | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", company: "", phone: "", location: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<"all" | "approved" | "pending">("all");
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabaseAdmin.from("users").select("*").eq("role", "owner").order("created_at", { ascending: false });
+    const u = (data || []) as UserRecord[];
+    setUsers(u);
+    setLoading(false);
+  }
+
+  async function toggleApproval(user: UserRecord) {
+    await supabaseAdmin.from("users").update({ approved: !user.approved }).eq("id", user.id);
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, approved: !u.approved } : u));
+    if (selected?.id === user.id) setSelected({ ...user, approved: !user.approved });
+  }
+
+  async function saveEdit() {
+    if (!selected) return;
+    setSaving(true);
+    const patch: Record<string, any> = {
+      name: editForm.name || null,
+      company: editForm.company || null,
+      phone: editForm.phone || null,
+      location: editForm.location || null,
+      notes: editForm.notes || null,
+    };
+    let { error } = await supabaseAdmin.from("users").update(patch).eq("id", selected.id);
+    if (error && /column .* does not exist|Could not find the .* column/i.test(error.message)) {
+      // Strip unknown columns, retry with what's left (graceful for un-migrated schemas)
+      const safe = { company: patch.company, phone: patch.phone, notes: patch.notes };
+      const r = await supabaseAdmin.from("users").update(safe).eq("id", selected.id);
+      error = r.error;
+    }
+    if (error) { window.alert("Save failed: " + error.message); setSaving(false); return; }
+    const updated = { ...selected, ...patch } as UserRecord;
+    setUsers(prev => prev.map(u => u.id === selected.id ? updated : u));
+    setSelected(updated);
+    setEditing(false);
+    setSaving(false);
+  }
+
+  async function deleteUser(id: string) {
+    if (!window.confirm("Remove this owner? This cannot be undone.")) return;
+    await supabaseAdmin.from("users").delete().eq("id", id);
+    setUsers(prev => prev.filter(u => u.id !== id));
+    if (selected?.id === id) setSelected(null);
+  }
+
+  const filtered = filter === "all" ? users : filter === "approved" ? users.filter(u => u.approved) : users.filter(u => !u.approved);
+  const initials = (rec: UserRecord) => (rec.name || rec.email).split(/[\s@]/)[0].slice(0, 2).toUpperCase();
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
+
+  return (
+    <div className="flex gap-6 h-full">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="font-display text-3xl text-white font-bold">Boat Owners</h1>
+            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered owners</p>
+          </div>
+        </div>
+
+        <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
+          {(["all", "approved", "pending"] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+              {f === "all" ? `All (${users.length})` : f === "approved" ? `Approved (${users.filter(u => u.approved).length})` : `Pending (${users.filter(u => !u.approved).length})`}
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30">
+            <Anchor size={36} className="mb-3 opacity-30" />
+            <p className="text-sm">No owners found</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map(user => (
+              <div key={user.id} onClick={() => { setSelected(user); setEditing(false); }} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
+                    <span className="text-primary text-xs font-bold">{initials(user)}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-medium font-sans text-sm truncate">{user.name || user.email}</p>
+                    <p className="text-white/40 text-xs truncate">{[user.budget, user.location].filter(Boolean).join(" · ") || user.email} · Registered {new Date(user.created_at).toLocaleDateString("ru-RU")}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <StatusBadge status={user.approved ? "approved" : "pending"} />
+                  <button onClick={e => { e.stopPropagation(); toggleApproval(user); }} className={`text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border ${user.approved ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : "bg-green-500/10 text-green-400 border-green-500/20"}`}>
+                    {user.approved ? "Revoke" : "Approve"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selected && (
+        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+          <div className="flex items-center justify-between mb-5">
+            <StatusBadge status={selected.approved ? "approved" : "pending"} />
+            <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors"><X size={16} /></button>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+            <span className="text-primary text-sm font-bold">{initials(selected)}</span>
+          </div>
+          <h2 className="font-display text-xl text-white mb-1 break-all">{selected.name || selected.email}</h2>
+          <p className="text-white/40 text-xs mb-5">Registered {new Date(selected.created_at).toLocaleString("ru-RU")}</p>
+
+          {!editing ? (
+            <>
+              <div className="space-y-3 mb-5">
+                <div className="flex items-center gap-2 text-sm"><Mail size={13} className="text-primary flex-shrink-0" /><span className="text-white/70 break-all">{selected.email}</span></div>
+                {selected.phone && <div className="flex items-center gap-2 text-sm"><Phone size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.phone}</span></div>}
+                {selected.company && <div className="flex items-center gap-2 text-sm"><Building2 size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.company}</span></div>}
+                {selected.location && <div className="flex items-center gap-2 text-sm"><MapPin size={13} className="text-primary flex-shrink-0" /><span className="text-white/70">{selected.location}</span></div>}
+              </div>
+              {(selected.budget || selected.yacht_type) && (
+                <div className="mb-5 pt-5 border-t border-white/8 space-y-2">
+                  {selected.yacht_type && (<div><p className="text-white/40 text-[10px] uppercase tracking-widest mb-1">Type</p><p className="text-white/80 text-sm">{selected.yacht_type}</p></div>)}
+                  {selected.budget && (<div><p className="text-white/40 text-[10px] uppercase tracking-widest mb-1">Vessel / Budget</p><p className="text-white/80 text-sm">{selected.budget}</p></div>)}
+                </div>
+              )}
+              {selected.notes && (
+                <div className="mb-5 pt-5 border-t border-white/8">
+                  <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Notes</p>
+                  <p className="text-white/60 text-sm leading-relaxed whitespace-pre-wrap">{selected.notes}</p>
+                </div>
+              )}
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => { setEditForm({ name: selected.name || "", company: selected.company || "", phone: selected.phone || "", location: selected.location || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">Edit</button>
+                <button onClick={() => toggleApproval(selected)} className={`text-xs px-4 py-2 font-bold uppercase tracking-wider transition-colors border ${selected.approved ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10" : "border-green-500/30 text-green-400 hover:bg-green-500/10"}`}>
+                  {selected.approved ? "Revoke" : "Approve"}
+                </button>
+                <button onClick={() => deleteUser(selected.id)} className="text-xs border border-red-500/30 text-red-400 px-3 py-2 font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors"><Trash2 size={12} /></button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Name</label>
+                <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Company</label>
+                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Phone</label>
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Location</label>
+                <input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Notes</label>
@@ -3364,6 +3550,7 @@ const views: Record<string, React.ReactElement> = {
   leads: <LeadsView />,
   investors: <InvestorsView />,
   brokers: <BrokersView />,
+  owners: <OwnersView />,
   documents: <DocumentsView />,
   messages: <MessagesView />,
   content: <ContentView />,
