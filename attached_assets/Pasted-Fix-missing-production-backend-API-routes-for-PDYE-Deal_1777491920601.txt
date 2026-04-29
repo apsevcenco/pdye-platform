@@ -1,0 +1,66 @@
+Fix missing production backend API routes for PDYE Deal Room.
+
+The frontend currently calls these endpoints and receives 404 on Render:
+
+GET /api/deal-rooms
+GET /api/deal-rooms?include_archived=true
+GET /api/deal-room-messages-all
+
+Do not rewrite the app. Add missing Express backend routes and connect them to the existing Supabase/PostgreSQL tables.
+
+Current production tables are:
+
+- deals
+- deal_messages
+- deal_documents
+- deal_participants
+- deal_activity_logs
+- access_requests
+- nda_acceptance_logs
+- users
+- yachts
+
+Tasks:
+
+1. Find the main Express server file where routes are registered.
+2. Add these routes:
+
+GET /api/deal-rooms
+- Return all deals from the deals table.
+- If query include_archived=true is present, include archived deals if the archived/status column exists.
+- If no deals exist, return [].
+- Never return 404 for this route.
+
+GET /api/deal-room-messages-all
+- Return all rows from deal_messages.
+- Join or include related deal/user data only if existing code already supports it.
+- If no messages exist, return [].
+- Never return 404 for this route.
+
+GET /api/deal-rooms/:id
+- Return one deal from deals by id.
+- If not found, return 404 JSON { error: "Deal room not found" }.
+
+GET /api/deal-rooms/:id/messages
+- Return messages from deal_messages where deal_id equals :id.
+- If no messages, return [].
+
+POST /api/deal-rooms/:id/messages
+- Insert a new row into deal_messages using deal_id = :id.
+- Use the existing auth/user logic if available.
+- Return the created message.
+
+3. Use the existing database client already used in this project. Do not introduce a new database system.
+
+4. Make sure the routes are actually mounted under /api.
+
+5. Add console.error logs for failures.
+
+6. Ensure the backend returns JSON responses, not HTML.
+
+7. After adding routes, update nothing else unless required for TypeScript/build errors.
+
+Expected result:
+- /api/deal-rooms returns [] or a JSON list, not 404.
+- /api/deal-rooms?include_archived=true returns [] or a JSON list, not 404.
+- /api/deal-room-messages-all returns [] or a JSON list, not 404.
