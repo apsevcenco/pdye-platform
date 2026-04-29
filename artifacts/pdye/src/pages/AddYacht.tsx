@@ -128,16 +128,22 @@ export default function AddYacht() {
     setErr("");
     try {
       const fd = new FormData();
-      fd.append("photo", file);
+      // The server (multer) expects the file under the "file" field name —
+      // see artifacts/api-server/src/routes/upload.ts. Sending "photo" used
+      // to silently fail with "No file provided".
+      fd.append("file", file);
       const res = await fetch("/api/upload-photo", { method: "POST", body: fd });
-      const json = await res.json();
-      if (json.url) {
+      const json = await res.json().catch(() => ({} as any));
+      if (res.ok && json.url) {
         setPhotos(prev => [...prev, json.url]);
       } else {
-        setErr(json.error || "Upload failed.");
+        const msg = json.error || `Upload failed (HTTP ${res.status}).`;
+        console.error("[uploadPhoto] failed:", msg);
+        setErr(msg);
       }
-    } catch {
-      setErr("Upload error. Please try again.");
+    } catch (e: any) {
+      console.error("[uploadPhoto] network error:", e);
+      setErr("Upload error: " + (e?.message || "please try again."));
     }
     setUploading(false);
   }
