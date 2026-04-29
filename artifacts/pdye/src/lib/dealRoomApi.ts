@@ -65,3 +65,66 @@ export const dealRoomApi = {
   signCommission: (roomId: string, side: string, userId: string) =>
     request(`/deal-rooms/${roomId}/commission/sign`, { method: "POST", body: JSON.stringify({ side, user_id: userId }) }),
 };
+
+export interface DealNdaDocument {
+  id: string;
+  version: string;
+  title: string;
+  content: string;
+  content_hash: string;
+  created_at?: string;
+}
+
+export interface DealNdaSignResponse {
+  success: boolean;
+  signature_id: string;
+  signed_at: string;
+  document_version: string;
+  activated: boolean;
+}
+
+export const dealLegalApi = {
+  getNdaDocument: (): Promise<DealNdaDocument> => request("/deal-nda/document"),
+
+  signNda: (
+    roomId: string,
+    payload: {
+      signature_name: string;
+      accepted_read: boolean;
+      accepted_understand: boolean;
+      accepted_agree: boolean;
+      document_id: string;
+      content_hash: string;
+    }
+  ): Promise<DealNdaSignResponse> =>
+    request(`/deal-rooms/${roomId}/nda/sign`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  downloadSignedNda: async (roomId: string, side: "buyer" | "seller"): Promise<Blob> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const res = await fetch(
+      `${API_BASE}/deal-rooms/${roomId}/nda/signed-pdf?side=${side}`,
+      { headers }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || "Failed to download signed NDA");
+    }
+    return res.blob();
+  },
+};
+
+export function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

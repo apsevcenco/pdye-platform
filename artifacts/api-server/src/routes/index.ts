@@ -8,6 +8,7 @@ import leadsRouter from "./leads";
 import fxRouter from "./fx";
 import authRouter from "./auth";
 import platformNdaRouter from "./platformNda";
+import dealLegalRouter from "./dealLegal";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(leadsRouter);
 router.use(fxRouter);
 router.use(authRouter);
 router.use(platformNdaRouter);
+router.use(dealLegalRouter);
 
 export default router;

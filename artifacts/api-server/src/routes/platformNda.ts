@@ -519,7 +519,7 @@ function escapeHtml(s: string): string {
 router.get("/platform-nda/signature/:id/pdf", requireUser, async (req, res) => {
   try {
     const u = req.authUser!;
-    const sigId = req.params.id;
+    const sigId = String(req.params.id);
     const { rows } = await db().query(
       `SELECT user_id FROM platform_nda_signatures WHERE id = $1`,
       [sigId]

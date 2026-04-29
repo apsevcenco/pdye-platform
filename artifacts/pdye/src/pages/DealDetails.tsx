@@ -13,13 +13,13 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { dealRoomApi } from "@/lib/dealRoomApi";
+import { dealRoomApi, dealLegalApi, triggerBlobDownload, type DealNdaDocument } from "@/lib/dealRoomApi";
 import {
   type DealRoom, type DealRoomMessage, type DealRoomDocument, type AuditLog,
   type BlockVisibility, type BlockKey,
   DEAL_ROOM_STATUS_CONFIG, DEAL_ROOM_TIMELINE, BLOCK_KEYS, BLOCK_LABELS, auditAction,
 } from "@/lib/dealTypes";
-import { NDA_TEXT, TERMS_TEXT, DISCLAIMER_TEXT } from "@/lib/legalText";
+import { DISCLAIMER_TEXT } from "@/lib/legalText";
 
 type YachtFull = {
   id: string; name: string; builder: string | null; length: string | null;
@@ -61,9 +61,11 @@ export default function DealDetails() {
   const [loading, setLoading] = useState(true);
   const [msgText, setMsgText] = useState("");
   const [sending, setSending] = useState(false);
-  const [ndaCheck, setNdaCheck] = useState(false);
-  const [termsCheck, setTermsCheck] = useState(false);
   const [acceptingNda, setAcceptingNda] = useState(false);
+  const [ndaSignError, setNdaSignError] = useState<string | null>(null);
+  const [ndaVersionStale, setNdaVersionStale] = useState(false);
+  const [signedNdaSignatureSide, setSignedNdaSignatureSide] = useState<"buyer" | "seller" | null>(null);
+  const [ndaPdfDownloading, setNdaPdfDownloading] = useState(false);
   const [participantMap, setParticipantMap] = useState<Record<string, { email: string; role: string }>>({});
   const [chatPolling, setChatPolling] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
@@ -140,33 +142,58 @@ export default function DealDetails() {
     loadRoom();
   }
 
-  async function signNda() {
+  async function signNda(payload: {
+    signature_name: string;
+    accepted_read: boolean;
+    accepted_understand: boolean;
+    accepted_agree: boolean;
+    document_id: string;
+    content_hash: string;
+  }) {
     if (!room || !user) return;
     if (mySide !== "buyer" && mySide !== "seller") return;
     setAcceptingNda(true);
-    const now = new Date().toISOString();
-    const updates: Record<string, any> = {};
-    if (isBuyer) { updates.buyer_nda_status = "signed"; updates.buyer_nda_signed_at = now; }
-    if (isSeller) { updates.seller_nda_status = "signed"; updates.seller_nda_signed_at = now; }
-    await dealRoomApi.update(room.id, updates);
-    await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: user.id, side: mySide, provider: "internal", status: "signed", signed_at: now, completed_at: now });
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user.id, action: "nda_signed", meta: { side: mySide } });
-    await dealRoomApi.sendMessage(room.id, { sender_id: user.id, message: `NDA signed by ${mySide} party.`, is_system: true });
-    const refreshed = await dealRoomApi.get(room.id);
-    if (refreshed) {
-      const buyerSigned = refreshed.buyer_nda_status === "signed";
-      const sellerSigned = refreshed.seller_nda_status === "signed";
-      if (buyerSigned && sellerSigned && refreshed.status !== "active") {
-        await dealRoomApi.update(room.id, { status: "active", fully_activated_at: now });
-        await dealRoomApi.updateParticipants(room.id, { can_view: true, can_message: true, can_download: true });
-        await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user.id, action: "deal_room_activated", meta: { yacht_id: room.yacht_id, activated_at: now } });
-        await dealRoomApi.sendMessage(room.id, { sender_id: user.id, message: "Deal room activated after NDA completion by both parties. Full access is now available.", is_system: true });
-      } else if (buyerSigned !== sellerSigned) {
-        await dealRoomApi.update(room.id, { status: "partially_signed" });
+    setNdaSignError(null);
+    setNdaVersionStale(false);
+    try {
+      const result = await dealLegalApi.signNda(room.id, payload);
+      setSignedNdaSignatureSide(mySide as "buyer" | "seller");
+      await loadRoom();
+      return result;
+    } catch (e: any) {
+      const msg = e?.message || "Failed to sign NDA";
+      if (msg === "DEAL_NDA_VERSION_CHANGED") {
+        setNdaVersionStale(true);
+        setNdaSignError(
+          "The Non-Disclosure Agreement has been updated since you opened it. Please reload to review and sign the latest version."
+        );
+      } else {
+        setNdaSignError(msg);
       }
+      throw e;
+    } finally {
+      setAcceptingNda(false);
     }
-    setAcceptingNda(false);
-    loadRoom();
+  }
+
+  async function downloadSignedNda() {
+    if (!room) return;
+    const side: "buyer" | "seller" | null =
+      signedNdaSignatureSide ||
+      (mySide === "buyer" || mySide === "seller" ? (mySide as "buyer" | "seller") : null);
+    if (!side) return;
+    setNdaPdfDownloading(true);
+    try {
+      const blob = await dealLegalApi.downloadSignedNda(room.id, side);
+      const code = room.room_number
+        ? `DR-${String(room.room_number).padStart(6, "0")}`
+        : room.id.slice(0, 8).toUpperCase();
+      triggerBlobDownload(blob, `PDYE-NDA-${code}-${side}.pdf`);
+    } catch (e: any) {
+      setNdaSignError(e?.message || "Failed to download signed NDA");
+    } finally {
+      setNdaPdfDownloading(false);
+    }
   }
 
   const refreshMessages = useCallback(async () => {
@@ -346,9 +373,12 @@ export default function DealDetails() {
               ) : <LockedBlockNotice block="chat" />)}
               {activeTab === "legal" && (
                 <LegalTab room={room} mySide={mySide} myNdaStatus={myNdaStatus}
-                  showNdaForm={showNdaForm} ndaCheck={ndaCheck} termsCheck={termsCheck}
-                  setNdaCheck={setNdaCheck} setTermsCheck={setTermsCheck}
+                  showNdaForm={showNdaForm}
                   signNda={signNda} acceptingNda={acceptingNda}
+                  ndaSignError={ndaSignError} ndaVersionStale={ndaVersionStale}
+                  signedNdaSignatureSide={signedNdaSignatureSide}
+                  ndaPdfDownloading={ndaPdfDownloading}
+                  onDownloadSignedNda={downloadSignedNda}
                   participantMap={participantMap} canSeeIdentities={canSeeIdentities}
                   commissionCheck={commissionCheck} setCommissionCheck={setCommissionCheck}
                   signCommission={signCommission} signingCommission={signingCommission}
@@ -801,14 +831,26 @@ function MessagesTab({ messages, participantMap, user, msgText, setMsgText, send
    ═══════════════════════════════════════════════════ */
 type LegalTabProps = {
   room: DealRoom; mySide: string; myNdaStatus: string; showNdaForm: boolean;
-  ndaCheck: boolean; termsCheck: boolean; setNdaCheck: (v: boolean) => void;
-  setTermsCheck: (v: boolean) => void; signNda: () => void; acceptingNda: boolean;
+  signNda: (payload: {
+    signature_name: string;
+    accepted_read: boolean;
+    accepted_understand: boolean;
+    accepted_agree: boolean;
+    document_id: string;
+    content_hash: string;
+  }) => Promise<unknown>;
+  acceptingNda: boolean;
+  ndaSignError: string | null;
+  ndaVersionStale: boolean;
+  signedNdaSignatureSide: "buyer" | "seller" | null;
+  ndaPdfDownloading: boolean;
+  onDownloadSignedNda: () => void;
   participantMap: Record<string, { email: string; role: string }>;
   canSeeIdentities: boolean;
   commissionCheck: boolean; setCommissionCheck: (v: boolean) => void;
   signCommission: () => void; signingCommission: boolean;
 };
-function LegalTab({ room, mySide, myNdaStatus, showNdaForm, ndaCheck, termsCheck, setNdaCheck, setTermsCheck, signNda, acceptingNda, participantMap, canSeeIdentities, commissionCheck, setCommissionCheck, signCommission, signingCommission }: LegalTabProps) {
+function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNda, ndaSignError, ndaVersionStale, signedNdaSignatureSide, ndaPdfDownloading, onDownloadSignedNda, participantMap, canSeeIdentities, commissionCheck, setCommissionCheck, signCommission, signingCommission }: LegalTabProps) {
   const myCommissionStatus = mySide === "buyer" ? room.buyer_commission_status : mySide === "seller" ? room.seller_commission_status : "n/a";
   const showCommissionForm = room.commission_status === "pending" && myCommissionStatus === "sent" && mySide !== "admin";
   return (
@@ -832,14 +874,47 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, ndaCheck, termsCheck
       )}
 
       {showNdaForm && (
-        <NdaSigningForm ndaCheck={ndaCheck} termsCheck={termsCheck} onNdaChange={setNdaCheck} onTermsChange={setTermsCheck} onAccept={signNda} accepting={acceptingNda} />
+        <NdaSigningForm
+          onAccept={signNda}
+          accepting={acceptingNda}
+          signError={ndaSignError}
+          versionStale={ndaVersionStale}
+          mySide={mySide as "buyer" | "seller"}
+          signedSide={signedNdaSignatureSide}
+          pdfDownloading={ndaPdfDownloading}
+          onDownloadSignedNda={onDownloadSignedNda}
+        />
       )}
 
-      {myNdaStatus === "signed" && room.status !== "active" && mySide !== "admin" && (
-        <div className="bg-cyan-500/5 border border-cyan-500/20 p-6 text-center">
-          <Shield size={24} className="text-cyan-400 mx-auto mb-3" />
-          <h3 className="font-display text-lg text-white mb-1">NDA Signed — Awaiting Counterparty</h3>
-          <p className="text-white/50 text-sm font-sans">Your NDA has been signed. The deal room will activate once the other party also signs.</p>
+      {myNdaStatus === "signed" && mySide !== "admin" && (
+        <div className="bg-cyan-500/5 border border-cyan-500/20 p-6 text-center space-y-3">
+          <Shield size={24} className="text-cyan-400 mx-auto" />
+          {room.status !== "active" ? (
+            <>
+              <h3 className="font-display text-lg text-white mb-1">NDA Signed — Awaiting Counterparty</h3>
+              <p className="text-white/50 text-sm font-sans">
+                Your NDA has been signed. The deal room will activate once the other party also signs.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="font-display text-lg text-white mb-1">NDA on file</h3>
+              <p className="text-white/50 text-sm font-sans">
+                Your countersigned PDF was emailed to you. You can also download it below at any time.
+              </p>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onDownloadSignedNda}
+            disabled={ndaPdfDownloading}
+            className="inline-block border border-cyan-500/40 px-4 py-2 text-[10px] uppercase tracking-widest text-cyan-100 hover:bg-cyan-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {ndaPdfDownloading ? "Preparing PDF…" : "Download Signed NDA (PDF)"}
+          </button>
+          {ndaSignError && !showNdaForm && (
+            <p className="text-red-300 text-xs">{ndaSignError}</p>
+          )}
         </div>
       )}
 
@@ -946,48 +1021,241 @@ function NdaPartyCard({ side, status, sentAt, signedAt, email }: { side: string;
 /* ═══════════════════════════════════════════════════
    10. NDA SIGNING FORM
    ═══════════════════════════════════════════════════ */
-function NdaSigningForm({ ndaCheck, termsCheck, onNdaChange, onTermsChange, onAccept, accepting }: {
-  ndaCheck: boolean; termsCheck: boolean;
-  onNdaChange: (v: boolean) => void; onTermsChange: (v: boolean) => void;
-  onAccept: () => void; accepting: boolean;
+function NdaSigningForm({
+  onAccept, accepting, signError, versionStale,
+  mySide, signedSide, pdfDownloading, onDownloadSignedNda,
+}: {
+  onAccept: (payload: {
+    signature_name: string;
+    accepted_read: boolean;
+    accepted_understand: boolean;
+    accepted_agree: boolean;
+    document_id: string;
+    content_hash: string;
+  }) => Promise<unknown>;
+  accepting: boolean;
+  signError: string | null;
+  versionStale: boolean;
+  mySide: "buyer" | "seller";
+  signedSide: "buyer" | "seller" | null;
+  pdfDownloading: boolean;
+  onDownloadSignedNda: () => void;
 }) {
+  const [doc, setDoc] = useState<DealNdaDocument | null>(null);
+  const [docLoading, setDocLoading] = useState(true);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  const [acceptedRead, setAcceptedRead] = useState(false);
+  const [acceptedUnderstand, setAcceptedUnderstand] = useState(false);
+  const [acceptedAgree, setAcceptedAgree] = useState(false);
+  const [signatureName, setSignatureName] = useState("");
+
+  // Inject Great Vibes calligraphic font once.
+  useEffect(() => {
+    const id = "google-font-great-vibes";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setDocLoading(true);
+      setDocError(null);
+      try {
+        const d = await dealLegalApi.getNdaDocument();
+        if (!cancelled) setDoc(d);
+      } catch (e: any) {
+        if (!cancelled) setDocError(e?.message || "Failed to load NDA document");
+      } finally {
+        if (!cancelled) setDocLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const allAccepted = acceptedRead && acceptedUnderstand && acceptedAgree;
+  const nameValid = signatureName.trim().length >= 3;
+  const canSubmit = !!doc && allAccepted && nameValid && !accepting && !versionStale && !signedSide;
+
+  async function handleSign() {
+    if (!canSubmit || !doc) return;
+    try {
+      await onAccept({
+        signature_name: signatureName.trim(),
+        accepted_read: acceptedRead,
+        accepted_understand: acceptedUnderstand,
+        accepted_agree: acceptedAgree,
+        document_id: doc.id,
+        content_hash: doc.content_hash,
+      });
+    } catch {
+      // Parent component already captured the error message.
+    }
+  }
+
+  if (docLoading) {
+    return (
+      <div className="bg-[#0f1d33] border border-white/8 p-12 flex items-center justify-center text-white/40 text-xs uppercase tracking-widest gap-3">
+        <Loader2 size={14} className="animate-spin" /> Loading agreement…
+      </div>
+    );
+  }
+  if (docError || !doc) {
+    return (
+      <div className="bg-red-500/5 border border-red-500/20 p-6 text-red-300 text-sm">
+        {docError || "Could not load Deal Room NDA document."}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="bg-[#0f1d33] border border-orange-500/20 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle size={16} className="text-orange-400" />
-          <h3 className="font-display text-lg text-white">Non-Disclosure Agreement</h3>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-orange-400" />
+            <h3 className="font-display text-lg text-white">{doc.title}</h3>
+          </div>
+          <span className="text-[10px] uppercase tracking-widest text-white/30 font-mono">
+            v{doc.version} · {doc.content_hash.slice(0, 10)}…
+          </span>
         </div>
-        <div className="bg-black/30 border border-white/5 p-4 max-h-48 overflow-y-auto mb-4" style={{ scrollbarWidth: "thin" }}>
-          <pre className="text-white/60 text-xs font-sans whitespace-pre-wrap leading-relaxed">{NDA_TEXT}</pre>
+        <div
+          className="bg-black/30 border border-white/5 p-4 max-h-72 overflow-y-auto mb-4"
+          style={{ scrollbarWidth: "thin" }}
+        >
+          <pre className="text-white/65 text-xs font-sans whitespace-pre-wrap leading-relaxed">
+            {doc.content}
+          </pre>
         </div>
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <input type="checkbox" checked={ndaCheck} onChange={e => onNdaChange(e.target.checked)} className="mt-1 accent-primary" />
-          <span className="text-white/70 text-sm font-sans group-hover:text-white transition-colors">I have read and agree to the Non-Disclosure Agreement</span>
-        </label>
+
+        <div className="space-y-3 mb-5">
+          <label className="flex items-start gap-3 text-sm text-white/75 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedRead}
+              onChange={e => setAcceptedRead(e.target.checked)}
+              className="mt-0.5 accent-primary cursor-pointer"
+              disabled={accepting || !!signedSide}
+            />
+            <span>I confirm that I have read the full text of this Agreement.</span>
+          </label>
+          <label className="flex items-start gap-3 text-sm text-white/75 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedUnderstand}
+              onChange={e => setAcceptedUnderstand(e.target.checked)}
+              className="mt-0.5 accent-primary cursor-pointer"
+              disabled={accepting || !!signedSide}
+            />
+            <span>I understand my obligations and the legal consequences of breaching this Agreement.</span>
+          </label>
+          <label className="flex items-start gap-3 text-sm text-white/75 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedAgree}
+              onChange={e => setAcceptedAgree(e.target.checked)}
+              className="mt-0.5 accent-primary cursor-pointer"
+              disabled={accepting || !!signedSide}
+            />
+            <span>I agree to be legally bound by all terms of this Agreement.</span>
+          </label>
+        </div>
+
+        <div className="mb-2">
+          <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">
+            Full Legal Name (Electronic Signature) — {mySide.toUpperCase()} party
+          </label>
+          <input
+            type="text"
+            value={signatureName}
+            onChange={e => setSignatureName(e.target.value)}
+            placeholder="Type your full legal name"
+            disabled={accepting || !!signedSide}
+            className="w-full bg-transparent border border-white/15 px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-primary/60 transition-colors"
+          />
+          {nameValid && (
+            <div className="mt-3 px-4 py-4 border border-primary/30 bg-[#070f1a]">
+              <div className="text-[9px] uppercase tracking-widest text-white/35 mb-2">
+                Signature preview
+              </div>
+              <div
+                className="text-primary"
+                style={{
+                  fontFamily: "'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive",
+                  fontSize: "44px",
+                  lineHeight: 1.1,
+                }}
+              >
+                {signatureName.trim()}
+              </div>
+              <div className="mt-2 border-t border-white/10 pt-2 text-[9px] uppercase tracking-widest text-white/30">
+                {mySide === "buyer" ? "Buyer" : "Seller"} — Electronic signature
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="bg-[#0f1d33] border border-orange-500/20 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Shield size={16} className="text-orange-400" />
-          <h3 className="font-display text-lg text-white">Terms of Access & Non-Circumvention</h3>
+
+      {signError && (
+        <div className="border border-red-500/30 bg-red-500/5 p-3 text-red-300 text-xs space-y-2">
+          <div>{signError}</div>
+          {versionStale && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-block border border-red-500/40 px-3 py-1.5 text-[10px] uppercase tracking-widest text-red-100 hover:bg-red-500/10 transition-colors"
+            >
+              Reload to view latest version
+            </button>
+          )}
         </div>
-        <div className="bg-black/30 border border-white/5 p-4 max-h-48 overflow-y-auto mb-4" style={{ scrollbarWidth: "thin" }}>
-          <pre className="text-white/60 text-xs font-sans whitespace-pre-wrap leading-relaxed">{TERMS_TEXT}</pre>
+      )}
+
+      {signedSide && (
+        <div className="border border-green-500/30 bg-green-500/5 p-4 text-green-300 text-xs space-y-2">
+          <div className="font-semibold">NDA signed successfully.</div>
+          <div className="text-green-200/80">
+            A signed PDF copy is being emailed to your registered address.
+          </div>
+          <button
+            type="button"
+            onClick={onDownloadSignedNda}
+            disabled={pdfDownloading}
+            className="inline-block mt-1 border border-green-500/40 px-3 py-1.5 text-[10px] uppercase tracking-widest text-green-100 hover:bg-green-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {pdfDownloading ? "Preparing PDF…" : "Download Signed NDA (PDF)"}
+          </button>
         </div>
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <input type="checkbox" checked={termsCheck} onChange={e => onTermsChange(e.target.checked)} className="mt-1 accent-primary" />
-          <span className="text-white/70 text-sm font-sans group-hover:text-white transition-colors">I have read and agree to the Terms of Access and Non-Circumvention Agreement</span>
-        </label>
-      </div>
-      <div className="bg-yellow-500/5 border border-yellow-500/20 p-3 flex items-center gap-3">
-        <AlertTriangle size={14} className="text-yellow-400/60 flex-shrink-0" />
-        <p className="text-yellow-400/60 text-[10px] font-sans">
-          <span className="font-bold uppercase tracking-widest">Simulation Mode</span> — This is an internal NDA signing. In production, this will be handled via DocuSign.
+      )}
+
+      <div className="bg-yellow-500/5 border border-yellow-500/20 p-3 flex items-start gap-3">
+        <AlertTriangle size={14} className="text-yellow-400/60 flex-shrink-0 mt-0.5" />
+        <p className="text-yellow-400/70 text-[10px] font-sans leading-relaxed">
+          By clicking <span className="font-bold">Sign Agreement</span>, your full name, IP address,
+          browser, and the document hash will be recorded as your legally binding electronic signature.
+          A countersigned PDF will be emailed to you immediately.
         </p>
       </div>
-      <button onClick={onAccept} disabled={!ndaCheck || !termsCheck || accepting}
-        className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
-        {accepting ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><CheckCircle size={14} /> Sign NDA & Accept Terms</>}
+
+      <button
+        onClick={handleSign}
+        disabled={!canSubmit}
+        className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+      >
+        {accepting ? (
+          <><RefreshCw size={14} className="animate-spin" /> Signing…</>
+        ) : signedSide ? (
+          <><CheckCircle size={14} /> Signed ✓</>
+        ) : (
+          <><CheckCircle size={14} /> Sign Agreement</>
+        )}
       </button>
     </div>
   );

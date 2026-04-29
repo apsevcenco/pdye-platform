@@ -146,6 +146,26 @@ Express on port 8080. Routes:
   - Frontend: `PlatformNda.tsx` injects Google Fonts `Great Vibes` for live signature preview + post-sign download button via `platformNdaApi.downloadSignedPdf()` (authenticated `fetch` → blob → `URL.createObjectURL`). `AdminPlatformNda.tsx` audit log shows signed names in Great Vibes + per-row authenticated PDF download. Helper `triggerBlobDownload()` in `platformNdaApi.ts`.
   - Important: `<a href>` cannot pass bearer tokens to the API; ALL signed-PDF downloads MUST use `platformNdaApi.downloadSignedPdf()` + `triggerBlobDownload()`.
 
+### Deal Room NDA — Phase 2 (Per-Room Entry-Gate Signing)
+
+Same Phase-2 pattern as Platform NDA, applied to the Deal Room entry-gate NDA. Combines the previous separate NDA + Terms of Access into a single versioned, hashed legal document; one signature per side covers both.
+
+- **Backend** (`artifacts/api-server/src/routes/dealLegal.ts`):
+  - Heliumdb tables (auto-migrated, eager-triggered on module load): `deal_nda_documents` (versioned, content_hash, partial unique index `is_active = true`), `deal_nda_signatures` (deal_room_id, user_id, side, user_email, signature_name, **accepted_read / accepted_understand / accepted_agree**, document_id, document_version, document_hash, ip, user_agent, signed_at) with `UNIQUE(deal_room_id, user_id, side)` for hard idempotency
+  - Initial v1.0 seeded automatically: `Deal Room Non-Disclosure & Terms of Access Agreement` (12 sections, Part I — Non-Disclosure + Part II — Terms of Access & Non-Circumvention)
+  - Endpoints:
+    - `GET /api/deal-nda/document` — active doc (auth required)
+    - `POST /api/deal-rooms/:id/nda/sign` — auth + `requirePlatformNdaSigned`; body: `signature_name` (≥3), `accepted_read|understand|agree` (all true), `document_id`, `content_hash`. **Fully transactional**: dedicated pg client + `BEGIN` + `SELECT … FOR UPDATE` on the room + `INSERT … ON CONFLICT DO NOTHING` on the signature, room status flip, `nda_envelopes` insert (legacy compat), audit log, system message, both-sides-signed activation guarded by `UPDATE … WHERE status <> 'active' RETURNING` + `rowCount > 0` (so concurrent racers don't double-emit activation messages/audits/participants), then `COMMIT`. Returns 409 `DEAL_NDA_VERSION_CHANGED` on hash mismatch and 409 `ALREADY_SIGNED` on lost-race retry. PDF generation + Resend email run **after commit** as fire-and-forget; email lookup (Supabase admin) happens **before** `BEGIN` so the row lock isn't held during a network call.
+    - `GET /api/deal-rooms/:roomId/nda/signed-pdf?side=buyer|seller` — admin or any participant; rebuilds the PDF from the latest stored signature for that side.
+    - `GET /api/admin/deal-nda/signatures` — admin audit view.
+  - PDF (`src/lib/dealLegalPdf.ts`) + email (`src/lib/dealLegalEmail.ts`) reuse the Great Vibes font + audit-block + pre-signed PDYE counterparty pattern from Platform NDA; PDF header includes the deal-room code (`DR-XXXXXX`).
+  - Shared helpers in `src/lib/legalFont.ts`: `loadGreatVibesFont()`, `escapeHtml()`, `getClientIp()` (refactored from `ndaPdf.ts` so Platform + Deal NDA flows share one font loader and IP normalizer).
+- **Frontend** (`artifacts/pdye/src/pages/DealDetails.tsx` + `src/lib/dealRoomApi.ts`):
+  - `dealLegalApi`: `getNdaDocument()`, `signNda(roomId, payload)`, `downloadSignedNda(roomId, side)` — last one returns a `Blob` (uses authenticated `fetch` + `triggerBlobDownload`; `<a href>` won't pass bearer tokens).
+  - `NdaSigningForm` rewrite: fetches active doc on mount and shows version + truncated hash, single combined scroll pane, 3 acknowledgement checkboxes (read / understand / agree), full-name signature input with live Great Vibes preview (font injected once), inline 409 banner with reload prompt.
+  - `LegalTab` shows a durable post-sign banner (whenever `myNdaStatus === 'signed'`, including after the room becomes active and after full reload) with a "Download Signed NDA (PDF)" button — works for both single-side-signed waiting state and active rooms.
+  - All direct Supabase NDA writes were removed from `DealDetails.tsx`; the parent `signNda` handler delegates fully to the new API and surfaces 409 / version-stale errors via state.
+
 ### Admin Client Dossier (`/admin/users/:id`)
 
 - **Goal**: in the admin panel each user-category row (Investors / Brokers / Owners) acts as the master client card. Clicking the row opens a dedicated full-page dossier that aggregates everything known about the client.
