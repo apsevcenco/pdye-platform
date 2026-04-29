@@ -136,13 +136,12 @@ router.post("/leads/:id/approve", requireAdmin, async (req, res) => {
       authUserId = created.user.id;
     }
 
-    // 3. Upsert profile in users table
+    // 3. Upsert profile in users table (only existing columns: id, email, role, approved)
     const { error: profErr } = await sb.from("users").upsert({
       id: authUserId,
       email,
       role,
       approved: true,
-      phone: lead.phone || null,
     }, { onConflict: "id" });
     if (profErr) {
       res.status(500).json({ error: "Failed to create user profile: " + profErr.message });
