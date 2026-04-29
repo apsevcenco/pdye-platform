@@ -60,12 +60,13 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     async function fetchRates() {
       setLoading(true);
       try {
-        const res = await fetch("https://api.frankfurter.app/latest?from=EUR&to=USD,GBP");
+        const apiBase = (import.meta.env.VITE_API_URL as string | undefined) || "/api";
+        const res = await fetch(`${apiBase}/fx/rates`);
         if (!res.ok) throw new Error("fetch failed");
         const data = await res.json();
-        if (!cancelled) {
+        if (!cancelled && data?.rates) {
           setRates({ EUR: 1, USD: data.rates.USD, GBP: data.rates.GBP });
-          setLastUpdated(new Date());
+          setLastUpdated(data.fetchedAt ? new Date(data.fetchedAt) : new Date());
         }
       } catch {
         // keep defaults

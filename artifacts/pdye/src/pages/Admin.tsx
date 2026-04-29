@@ -3402,11 +3402,23 @@ export default function Admin() {
       .select("*", { count: "exact", head: true })
       .eq("approved", false)
       .then(({ count }) => { if (count !== null) setPendingUsersCount(count); });
-    supabaseAdmin
-      .from("deal_room_messages")
-      .select("*", { count: "exact", head: true })
-      .eq("is_system", false)
-      .then(({ count }) => { if (count !== null) setUnreadMsgCount(Math.min(count, 9)); });
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+        const apiBase = (import.meta.env.VITE_API_URL as string | undefined) || "/api";
+        const res = await fetch(`${apiBase}/deal-room-messages-all`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const rows = await res.json();
+        const count = Array.isArray(rows) ? rows.filter((r: any) => !r.is_system).length : 0;
+        setUnreadMsgCount(Math.min(count, 9));
+      } catch {
+        // silent
+      }
+    })();
   }, []);
 
   const sidebarContent = (
