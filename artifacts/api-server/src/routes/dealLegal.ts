@@ -624,6 +624,88 @@ router.get(
   }
 );
 
+/* ─────────────── Admin: get / publish Deal Room NDA template ─────────────── */
+
+router.get("/admin/deal-nda", requireAdmin, async (_req, res) => {
+  try {
+    const { rows: active } = await db().query(
+      `SELECT id, version, title, content, content_hash, is_active, created_at
+         FROM deal_nda_documents
+        WHERE is_active = true
+        ORDER BY created_at DESC
+        LIMIT 1`
+    );
+    const { rows: history } = await db().query(
+      `SELECT id, version, title, content_hash, is_active, created_at
+         FROM deal_nda_documents
+        ORDER BY created_at DESC`
+    );
+    res.json({
+      active: active[0] || null,
+      history,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/admin/deal-nda", requireAdmin, async (req, res) => {
+  try {
+    const { version, title, content } = req.body || {};
+    if (!version || typeof version !== "string" || !version.trim()) {
+      res.status(400).json({ error: "Version label is required" });
+      return;
+    }
+    if (!content || typeof content !== "string" || content.trim().length < 100) {
+      res.status(400).json({ error: "Content is required (minimum 100 characters)" });
+      return;
+    }
+
+    const trimmedVersion = version.trim();
+    const trimmedContent = content.trim();
+    const trimmedTitle = title && typeof title === "string" && title.trim()
+      ? title.trim()
+      : INITIAL_NDA_TITLE;
+    const hash = sha256Hex(trimmedContent);
+
+    const client = await db().connect();
+    try {
+      await client.query("BEGIN");
+      const exists = await client.query(
+        "SELECT 1 FROM deal_nda_documents WHERE version = $1",
+        [trimmedVersion]
+      );
+      if (exists.rows.length > 0) {
+        await client.query("ROLLBACK");
+        res.status(400).json({
+          error: `Version "${trimmedVersion}" already exists. Choose a different label (e.g. v1.1, v2.0).`,
+        });
+        return;
+      }
+      await client.query("UPDATE deal_nda_documents SET is_active = false WHERE is_active = true");
+      const { rows } = await client.query(
+        `INSERT INTO deal_nda_documents (version, title, content, content_hash, is_active, created_by)
+         VALUES ($1, $2, $3, $4, true, $5)
+         RETURNING id, version, title, content_hash, is_active, created_at`,
+        [trimmedVersion, trimmedTitle, trimmedContent, hash, req.authUser!.id]
+      );
+      await client.query("COMMIT");
+      console.log(
+        `[deal-legal] Admin ${req.authUser!.email} published new Deal NDA version: ${trimmedVersion}`
+      );
+      res.json(rows[0]);
+    } catch (e: any) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (e: any) {
+    console.error("[admin/deal-nda PUT] error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 /* ─────────────── Admin: list all signatures (optional inspection) ─────────────── */
 
 router.get(
