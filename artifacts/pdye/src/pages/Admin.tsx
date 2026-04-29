@@ -93,6 +93,7 @@ const navItems = [
   { id: "requests-link", label: "Access Requests", icon: CheckCircle, href: "/admin-requests" },
   { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
   { id: "platform-nda-link", label: "Platform NDA", icon: FileText, href: "/admin-platform-nda" },
+  { id: "deal-nda-link", label: "Deal Room NDA", icon: FileText, href: "/admin-deal-nda" },
   { id: "deal-commission-link", label: "Commission Agreement", icon: FileText, href: "/admin-deal-commission" },
 ];
 

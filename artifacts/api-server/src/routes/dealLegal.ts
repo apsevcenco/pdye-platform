@@ -726,6 +726,70 @@ router.get(
   }
 );
 
+/* ─────────────── Admin: download a specific signed Deal NDA PDF by signature ID ───────────────
+   This is the audit-trail-correct download path. Unlike the participant
+   `/deal-rooms/:roomId/nda/signed-pdf?side=...` endpoint (which always returns
+   the most recent signature for that room+side), this endpoint resolves the
+   exact signature row the admin clicked on, even if newer signatures exist.
+*/
+router.get(
+  "/admin/deal-nda/signatures/:id/pdf",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const sigId = String(req.params.id);
+      const { rows: sigRows } = await db().query(
+        `SELECT s.*, d.title, d.content
+           FROM deal_nda_signatures s
+           JOIN deal_nda_documents d ON d.id = s.document_id
+          WHERE s.id = $1`,
+        [sigId]
+      );
+      if (sigRows.length === 0) {
+        res.status(404).json({ error: "Signature not found" });
+        return;
+      }
+      const sig = sigRows[0];
+
+      const { rows: roomRows } = await db().query(
+        "SELECT id, room_number FROM deal_rooms WHERE id = $1",
+        [sig.deal_room_id]
+      );
+      const room = roomRows[0] || { id: sig.deal_room_id, room_number: null };
+
+      const pdf = await generateDealLegalPdf({
+        document: {
+          title: sig.title,
+          version: sig.document_version,
+          content: sig.content,
+          content_hash: sig.document_hash,
+        },
+        signature: {
+          signature_name: sig.signature_name,
+          user_email: sig.user_email,
+          signed_at: sig.signed_at,
+          ip: sig.ip,
+          user_agent: sig.user_agent,
+          document_version: sig.document_version,
+          document_hash: sig.document_hash,
+          side: sig.side,
+        },
+        dealRef: { deal_room_id: sig.deal_room_id, deal_room_code: dealRoomCode(room) },
+      });
+
+      const safeName = String(sig.signature_name).replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
+      const filename = `PDYE-DealNDA-${dealRoomCode(room)}-${sig.side}-${sig.document_version}-${safeName}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Length", String(pdf.length));
+      res.end(pdf);
+    } catch (e: any) {
+      console.error("[admin/deal-nda PDF by-id] error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  }
+);
+
 // Eagerly trigger pool init + migration on module load.
 setImmediate(() => {
   try { db(); } catch (e) { console.error("[deal-legal] eager init failed:", e); }
