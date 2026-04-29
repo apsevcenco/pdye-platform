@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaSignature } from "@/lib/platformNdaApi";
+import { archiveUserAction, deleteUserAction, countUserReferences } from "@/lib/userAdminActions";
 
 type UserRecord = {
   id: string;
@@ -96,23 +97,43 @@ export default function AdminUserDetail() {
     const next = !user.archived;
     if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
     setArchiving(true);
-    const archived_at = next ? new Date().toISOString() : null;
-    const { error: e } = await supabaseAdmin
-      .from("users")
-      .update({ archived: next, archived_at })
-      .eq("id", user.id);
-    if (e) alert("Failed: " + e.message);
-    else setUser({ ...user, archived: next, archived_at });
+    const r = await archiveUserAction(user.id, next);
+    if (!r.ok) {
+      alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
+    } else {
+      setUser({ ...user, archived: next, archived_at: next ? new Date().toISOString() : null });
+    }
     setArchiving(false);
   }
 
   async function deleteUser() {
     if (!user) return;
-    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
     setDeleting(true);
-    const { error: e } = await supabaseAdmin.from("users").delete().eq("id", user.id);
-    if (e) {
-      alert("Delete failed: " + e.message + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+    const refs = await countUserReferences(user.id);
+    if (refs.preflightFailed) {
+      alert(
+        `Cannot delete ${user.email}: dependency check failed for one or more tables. Refusing to delete to avoid orphaning records.\n\n` +
+        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+      );
+      setDeleting(false);
+      return;
+    }
+    if (refs.total > 0) {
+      alert(
+        `Cannot delete ${user.email}: linked to existing records.\n\n` +
+        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nUse Archive instead — it hides the user from active lists while preserving the linked history.`
+      );
+      setDeleting(false);
+      return;
+    }
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nNo dependent records were found.`)) {
+      setDeleting(false);
+      return;
+    }
+    const r = await deleteUserAction(user.id);
+    if (!r.ok) {
+      alert("Delete failed: " + r.error);
       setDeleting(false);
     } else {
       setLocation("/admin");

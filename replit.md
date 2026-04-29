@@ -163,14 +163,17 @@ Express on port 8080. Routes:
 
 ### User Archive & Delete (admin)
 
-- **Schema**: migration `artifacts/pdye/migrations/003_users_archived.sql` adds `archived BOOLEAN DEFAULT false` + `archived_at TIMESTAMPTZ` + index on `users` table. **Must be run manually in Supabase SQL Editor** before the buttons work (DATABASE_URL is heliumdb, not supabase).
-- **Module-level helpers in `Admin.tsx`**: `archiveUserAction(userId, archive)` and `deleteUserAction(userId)` wrap the supabase update/delete calls and return `{ ok, error }`.
-- **Per-row buttons** (Investors / Brokers / Owners views): Approve · Archive/Restore · Delete sit next to each other; all use `e.stopPropagation()` so the row click still navigates to the dossier. Delete uses a strong confirm and surfaces FK-reference errors with a hint to archive instead.
+- **Schema**: migration `artifacts/pdye/migrations/003_users_archived.sql` adds `archived BOOLEAN DEFAULT false` + `archived_at TIMESTAMPTZ` + index on `users` table. **Must be run manually in Supabase SQL Editor** before Archive/Restore work (DATABASE_URL is heliumdb, not supabase). Delete works without it.
+- **Centralized helpers** in `src/lib/userAdminActions.ts`:
+  - `archiveUserAction(userId, archive)` → `{ ok, error?, errorKind? }`. Detects Postgres error code `42703` / "column does not exist" and returns `errorKind: "migration_missing"` with a friendly hint pointing to migration 003.
+  - `countUserReferences(userId)` → `{ counts: [{label, count}], total }` — counts rows in dependent tables (`access_requests`, `deal_participants`, `deal_room_participants`, `deal_rooms` × buyer/seller/listing_owner, `nda_envelopes`, `audit_logs`). Tables that don't exist or other query errors are silently skipped (we only block on positively-counted refs).
+  - `deleteUserAction(userId)` → `{ ok, error?, errorKind? }`. Runs the preflight count first; if any references exist, refuses with `errorKind: "has_references"` and a list of counts plus an "Archive instead" recommendation. Otherwise issues the `users` delete.
+- **Per-row buttons** (Investors / Brokers / Owners): Approve · Archive/Restore · Delete sit next to each other; all use `e.stopPropagation()` so the row click still navigates to the dossier. Delete first runs the preflight, surfaces an alert with linked-record counts if any, otherwise asks for final confirmation.
 - **Show-archived toggle** in each view header (top-right). Default hidden; archived rows render at 50% opacity with an "Archived" badge.
 - **Filter chains**:
   - Investors / Owners: `baseUsers = showArchived ? users : users.filter(u => !u.archived)` then existing `filter` (all/approved/pending) applies on top.
   - Brokers: `visibleUsers = showArchived ? users : users.filter(u => !u.archived)` (no approve filter).
-- **Mirrored in `AdminUserDetail.tsx`**: identity header has Approve · Archive/Restore · Delete; "Archived" badge appears next to approval badge when applicable; Delete navigates back to `/admin` on success.
+- **Mirrored in `AdminUserDetail.tsx`**: identity header has Approve · Archive/Restore · Delete using the same shared helpers; "Archived" badge appears next to approval badge when applicable; Delete navigates back to `/admin` on success.
 
 ## Structure
 

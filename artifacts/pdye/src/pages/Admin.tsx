@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { archiveUserAction, deleteUserAction, countUserReferences } from "@/lib/userAdminActions";
 import { useAuth } from "@/context/AuthContext";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
@@ -95,19 +96,6 @@ const navItems = [
 ];
 
 type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string; name?: string; budget?: string; yacht_type?: string; location?: string; archived?: boolean; archived_at?: string | null };
-
-async function archiveUserAction(userId: string, archive: boolean): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabaseAdmin
-    .from("users")
-    .update({ archived: archive, archived_at: archive ? new Date().toISOString() : null })
-    .eq("id", userId);
-  return { ok: !error, error: error?.message };
-}
-
-async function deleteUserAction(userId: string): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabaseAdmin.from("users").delete().eq("id", userId);
-  return { ok: !error, error: error?.message };
-}
 type DealRoomDoc = { id: string; deal_room_id: string; uploaded_by: string; file_name: string; file_url: string; file_type?: string; file_size?: number; visible_to_roles?: string[]; created_at: string };
 type DealRoomMsg = { id: string; deal_room_id: string; sender_id: string; message: string; is_system: boolean; created_at: string };
 
@@ -2450,17 +2438,38 @@ function InvestorsView() {
     if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
     setBusyRow(user.id);
     const r = await archiveUserAction(user.id, next);
-    if (!r.ok) alert("Failed: " + r.error);
+    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
     else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
     setBusyRow(null);
   }
 
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
     setBusyRow(user.id);
+    const refs = await countUserReferences(user.id);
+    if (refs.preflightFailed) {
+      alert(
+        `Cannot delete ${user.email}: dependency check failed for one or more tables. Refusing to delete to avoid orphaning records.\n\n` +
+        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+      );
+      setBusyRow(null);
+      return;
+    }
+    if (refs.total > 0) {
+      alert(
+        `Cannot delete ${user.email}: linked to existing records.\n\n` +
+        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nUse Archive instead — it hides the user from active lists while preserving the linked history.`
+      );
+      setBusyRow(null);
+      return;
+    }
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nNo dependent records were found.`)) {
+      setBusyRow(null);
+      return;
+    }
     const r = await deleteUserAction(user.id);
-    if (!r.ok) alert("Delete failed: " + r.error + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+    if (!r.ok) alert("Delete failed: " + r.error);
     else setUsers(prev => prev.filter(u => u.id !== user.id));
     setBusyRow(null);
   }
@@ -2670,17 +2679,38 @@ function BrokersView() {
     if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
     setBusyRow(user.id);
     const r = await archiveUserAction(user.id, next);
-    if (!r.ok) alert("Failed: " + r.error);
+    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
     else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
     setBusyRow(null);
   }
 
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
     setBusyRow(user.id);
+    const refs = await countUserReferences(user.id);
+    if (refs.preflightFailed) {
+      alert(
+        `Cannot delete ${user.email}: dependency check failed for one or more tables. Refusing to delete to avoid orphaning records.\n\n` +
+        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+      );
+      setBusyRow(null);
+      return;
+    }
+    if (refs.total > 0) {
+      alert(
+        `Cannot delete ${user.email}: linked to existing records.\n\n` +
+        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nUse Archive instead — it hides the user from active lists while preserving the linked history.`
+      );
+      setBusyRow(null);
+      return;
+    }
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nNo dependent records were found.`)) {
+      setBusyRow(null);
+      return;
+    }
     const r = await deleteUserAction(user.id);
-    if (!r.ok) alert("Delete failed: " + r.error + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+    if (!r.ok) alert("Delete failed: " + r.error);
     else setUsers(prev => prev.filter(u => u.id !== user.id));
     setBusyRow(null);
   }
@@ -2851,17 +2881,38 @@ function OwnersView() {
     if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
     setBusyRow(user.id);
     const r = await archiveUserAction(user.id, next);
-    if (!r.ok) alert("Failed: " + r.error);
+    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
     else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
     setBusyRow(null);
   }
 
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
     setBusyRow(user.id);
+    const refs = await countUserReferences(user.id);
+    if (refs.preflightFailed) {
+      alert(
+        `Cannot delete ${user.email}: dependency check failed for one or more tables. Refusing to delete to avoid orphaning records.\n\n` +
+        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+      );
+      setBusyRow(null);
+      return;
+    }
+    if (refs.total > 0) {
+      alert(
+        `Cannot delete ${user.email}: linked to existing records.\n\n` +
+        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nUse Archive instead — it hides the user from active lists while preserving the linked history.`
+      );
+      setBusyRow(null);
+      return;
+    }
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nNo dependent records were found.`)) {
+      setBusyRow(null);
+      return;
+    }
     const r = await deleteUserAction(user.id);
-    if (!r.ok) alert("Delete failed: " + r.error + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+    if (!r.ok) alert("Delete failed: " + r.error);
     else setUsers(prev => prev.filter(u => u.id !== user.id));
     setBusyRow(null);
   }
