@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { Anchor, TrendingUp, Briefcase, Ship, Loader2, Eye, EyeOff } from "lucide-react";
@@ -21,10 +21,25 @@ const sel = "w-full bg-background border border-white/10 focus:border-primary px
 const lbl = "block text-white/50 text-[9.5px] uppercase tracking-widest mb-1.5 font-sans font-bold";
 
 export default function Login() {
-  const { login, register } = useAuth();
+  const { login, register, user, userProfile, ndaStatus, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [role, setRole] = useState("investor");
+
+  // If the visitor is already authenticated (direct URL, back button, or
+  // late-firing onAuthStateChange after login), route them where they belong:
+  //   - admin → /admin
+  //   - non-admin & not approved → /yachts (ProtectedRoute will show UnderReview)
+  //   - non-admin & approved & NDA not signed → /platform-nda
+  //   - non-admin & approved & NDA signed → /yachts
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (!userProfile) return;
+    if (userProfile.role === "admin") { setLocation("/admin"); return; }
+    if (!userProfile.approved) { setLocation("/yachts"); return; }
+    if (ndaStatus === null) return; // still loading NDA status
+    setLocation(ndaStatus.signed ? "/yachts" : "/platform-nda");
+  }, [authLoading, user, userProfile, ndaStatus, setLocation]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,7 +92,8 @@ export default function Login() {
     if (mode === "login") {
       const { error } = await login(email, password);
       if (error) setError(error);
-      else setLocation("/yachts");
+      // On success, the useEffect above (now seeing user/profile/ndaStatus)
+      // will route to /platform-nda or /yachts depending on NDA state.
     } else {
       if (!name.trim()) { setError("Full name is required."); setLoading(false); return; }
 

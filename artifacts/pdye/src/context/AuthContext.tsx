@@ -74,11 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchSeq = useRef(0); // monotonic counter to discard stale profile fetches
   const ndaSeq = useRef(0);
 
-  async function loadProfile(userId: string) {
+  async function loadProfile(userId: string): Promise<UserProfile | null> {
     const seq = ++fetchSeq.current;
     const profile = await fetchProfile(userId);
-    if (fetchSeq.current !== seq) return; // superseded by newer fetch
+    if (fetchSeq.current !== seq) return profile; // superseded by newer fetch
     setUserProfile(profile);
+    return profile;
   }
 
   async function loadNdaStatus(profile: UserProfile | null, token: string | undefined) {
@@ -164,8 +165,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function login(email: string, password: string): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
+
+    // Hydrate React state BEFORE returning so the caller's setLocation()
+    // lands on a route whose ProtectedRoute can immediately read user/profile/nda
+    // and route correctly (e.g. → /platform-nda for unsigned users).
+    // Without this, there is a race where onAuthStateChange has not yet pushed
+    // user into state and ProtectedRoute redirects back to /login.
+    if (data.session && data.user) {
+      setSession(data.session);
+      setUser(data.user);
+      const profile = await loadProfile(data.user.id);
+      await loadNdaStatus(profile, data.session.access_token);
+    }
     return { error: null };
   }
 
@@ -210,7 +223,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.session) {
       setSession(data.session);
       setUser(data.session.user);
-      await loadProfile(data.session.user.id);
+      const profile = await loadProfile(data.session.user.id);
+      await loadNdaStatus(profile, data.session.access_token);
     }
 
     return { error: null };
