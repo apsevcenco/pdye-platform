@@ -226,6 +226,7 @@ export default function Yachts() {
                     requestStatus={requests[yacht.id] || "none"}
                     onRequest={() => handleRequest(yacht.id)}
                     requesting={requesting === yacht.id}
+                    isOwner={!!user && yacht.owner_id === user.id}
                   />
                 </motion.div>
               ))}

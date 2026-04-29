@@ -77,37 +77,72 @@ export default function AddYacht() {
   const descRef = useRef<HTMLTextAreaElement>(null);
   const [descTbStyles, setDescTbStyles] = useState<ToolbarStyles>({ ...DEFAULT_TOOLBAR_STYLES });
 
-  // Check for ?edit=id param
+  // Check for ?edit=id in the URL — must work for both:
+  //   - direct navigation (Dashboard "Edit" Link → fresh mount)
+  //   - in-place URL changes (already on /add-yacht when the user clicks Edit)
+  // Wouter's hash router only exposes the path part to useLocation, so the query lives in
+  // window.location.hash. We listen to "hashchange" to react to in-place URL updates and
+  // also re-parse whenever location/user change (covers initial mount).
+  const [location] = useLocation();
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
-    const id = params.get("edit");
-    if (id && user) {
-      setEditId(id);
-      supabase.from("yachts").select("*").eq("id", id).eq("owner_id", user.id).single()
-        .then(({ data }) => {
-          if (!data) return;
-          setForm({
-            name: data.name || "",
-            builder: data.builder || "",
-            length: data.length || "",
-            year: data.year || "",
-            description: data.description || "",
-            location: data.location || "",
-            price: data.price || "",
-            distressed_price: data.distressed_price || "",
-            market_price: data.market_price || "",
-            type: data.type || "Motor Yacht",
-            cabins: data.cabins != null ? String(data.cabins) : "",
-            crew: data.crew != null ? String(data.crew) : "",
-            is_private: data.is_private || false,
-            status: data.status || "Available",
-          });
-          if (data.photos) setPhotos(data.photos);
-          else if (data.image) setPhotos([data.image]);
-          else if (data.main_image) setPhotos([data.main_image]);
-        });
+    let cancelled = false;
+
+    function parseEditId(): string | null {
+      // window.location.hash is like "#/add-yacht?edit=abc-uuid".
+      const raw = window.location.hash || "";
+      const qIdx = raw.indexOf("?");
+      if (qIdx < 0) return null;
+      const params = new URLSearchParams(raw.slice(qIdx + 1));
+      return params.get("edit");
     }
-  }, [user]);
+
+    async function syncFromUrl() {
+      const id = parseEditId();
+      if (!id) {
+        // No edit param → blank "new listing" form.
+        if (cancelled) return;
+        setEditId(null);
+        setForm(EMPTY);
+        setPhotos([]);
+        return;
+      }
+      if (!user) return; // wait for auth to load; this effect re-runs when user appears
+      setEditId(id);
+      const { data } = await supabase
+        .from("yachts")
+        .select("*")
+        .eq("id", id)
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setForm({
+        name: data.name || "",
+        builder: data.builder || "",
+        length: data.length || "",
+        year: data.year || "",
+        description: data.description || "",
+        location: data.location || "",
+        price: data.price || "",
+        distressed_price: data.distressed_price || "",
+        market_price: data.market_price || "",
+        type: data.type || "Motor Yacht",
+        cabins: data.cabins != null ? String(data.cabins) : "",
+        crew: data.crew != null ? String(data.crew) : "",
+        is_private: data.is_private || false,
+        status: data.status || "Available",
+      });
+      if (data.photos) setPhotos(data.photos);
+      else if (data.image) setPhotos([data.image]);
+      else if (data.main_image) setPhotos([data.main_image]);
+    }
+
+    syncFromUrl();
+    window.addEventListener("hashchange", syncFromUrl);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("hashchange", syncFromUrl);
+    };
+  }, [user, location]);
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
   if (!user) return <Redirect to="/login" />;

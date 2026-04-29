@@ -10,6 +10,8 @@ interface YachtCardProps {
   requestStatus?: RequestStatus;
   onRequest?: () => void;
   requesting?: boolean;
+  /** When true, this listing belongs to the viewer — show direct access, no "Confidential" gate. */
+  isOwner?: boolean;
 }
 
 const STATUS_CONFIG: Record<RequestStatus, { label: string; icon: React.ReactNode; style: string; btnStyle: string }> = {
@@ -39,9 +41,11 @@ const STATUS_CONFIG: Record<RequestStatus, { label: string; icon: React.ReactNod
   },
 };
 
-export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting = false }: YachtCardProps) {
+export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting = false, isOwner = false }: YachtCardProps) {
   const image = (yacht as any).main_image || yacht.image || "";
-  const cfg = STATUS_CONFIG[requestStatus];
+  // For the owner of the listing, treat it the same as "approved" — full direct access, no gate.
+  const effectiveStatus: RequestStatus = isOwner ? "approved" : requestStatus;
+  const cfg = STATUS_CONFIG[effectiveStatus];
   const { formatPrice } = useCurrency();
 
   return (
@@ -62,8 +66,8 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
 
-        {/* Locked overlay — only when not approved */}
-        {requestStatus !== "approved" && (
+        {/* Locked overlay — only when the viewer is not the owner and access is not approved */}
+        {effectiveStatus !== "approved" && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/30 backdrop-blur-[1px]">
             <div className="bg-background/80 border border-white/10 px-4 py-2 flex items-center gap-2">
               <Lock size={13} className="text-primary/70" />
@@ -80,6 +84,11 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
           {yacht.type && (
             <span className="bg-primary/20 backdrop-blur-sm border border-primary/30 text-primary text-xs font-bold tracking-wider uppercase px-3 py-1">
               {yacht.type}
+            </span>
+          )}
+          {isOwner && (
+            <span className="bg-primary/20 backdrop-blur-sm border border-primary/40 text-primary text-xs font-bold tracking-wider uppercase px-3 py-1">
+              Your Listing
             </span>
           )}
         </div>
@@ -138,12 +147,12 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
         </div>
 
         {/* CTA */}
-        {requestStatus === "approved" ? (
+        {effectiveStatus === "approved" ? (
           <Link
             href={`/yacht/${yacht.id}`}
             className="flex items-center justify-center gap-2 w-full border border-primary text-primary hover:bg-primary hover:text-background py-3 text-xs font-bold tracking-widest uppercase transition-all duration-300 mt-auto"
           >
-            View Full Details <ChevronRight size={13} />
+            {isOwner ? "Open My Listing" : "View Full Details"} <ChevronRight size={13} />
           </Link>
         ) : (
           <button
