@@ -293,6 +293,7 @@ function Dashboard() {
 }
 
 function YachtsView() {
+  const { user: authUser } = useAuth();
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -494,7 +495,12 @@ function YachtsView() {
       image: str(form.image) || (formPhotos[0] ?? ""),
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
+      main_image: formPhotos[0] || str(form.image) || null,
       is_private: formIsPrivate,
+      // Admin acts as the seller for listings created here, and admin posts go
+      // live immediately (admin is the moderator — no self-review needed).
+      owner_id: authUser?.id ?? null,
+      listing_status: "approved",
     };
 
     const { error } = await supabaseAdmin.from("yachts").insert([payload]);
@@ -616,6 +622,7 @@ function YachtsView() {
       image: str(form.image) || (formPhotos[0] ?? null),
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
+      main_image: formPhotos[0] || str(form.image) || null,
       is_private: formIsPrivate,
     };
 
