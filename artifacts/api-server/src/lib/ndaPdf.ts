@@ -1,28 +1,33 @@
 import PDFDocument from "pdfkit";
 import { readFileSync, existsSync } from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// We deliberately avoid `import.meta.url` here — esbuild bundles this module to CJS,
+// where `import.meta.url` is `undefined` and would crash at module load.
+// Both dev (tsx, run from artifact root) and prod (bundled, run from monorepo root)
+// have stable resolutions relative to process.cwd().
+const FONT_CANDIDATES = [
+  // Prod: bundled dist, run as `node artifacts/api-server/dist/index.cjs` from monorepo root.
+  "artifacts/api-server/dist/assets/fonts/GreatVibes-Regular.ttf",
+  // Dev: tsx run from artifact dir (cwd = artifacts/api-server).
+  "src/assets/fonts/GreatVibes-Regular.ttf",
+  // Dev: tsx run from monorepo root.
+  "artifacts/api-server/src/assets/fonts/GreatVibes-Regular.ttf",
+  // Prod fallback if cwd is the artifact dir.
+  "dist/assets/fonts/GreatVibes-Regular.ttf",
+];
 
 let cachedFont: Buffer | null | undefined; // undefined = not tried; null = tried & missing
 function loadCalligraphicFont(): Buffer | null {
   if (cachedFont !== undefined) return cachedFont;
-  // Resolve in dev (src/lib → src/assets/fonts) and in prod (dist → dist/assets/fonts).
-  const candidates = [
-    path.resolve(__dirname, "../assets/fonts/GreatVibes-Regular.ttf"),
-    path.resolve(__dirname, "./assets/fonts/GreatVibes-Regular.ttf"),
-    path.resolve(process.cwd(), "artifacts/api-server/src/assets/fonts/GreatVibes-Regular.ttf"),
-    path.resolve(process.cwd(), "artifacts/api-server/dist/assets/fonts/GreatVibes-Regular.ttf"),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      cachedFont = readFileSync(p);
+  for (const rel of FONT_CANDIDATES) {
+    const abs = path.resolve(process.cwd(), rel);
+    if (existsSync(abs)) {
+      cachedFont = readFileSync(abs);
       return cachedFont;
     }
   }
-  console.warn("[ndaPdf] Calligraphic font not found in any candidate path. Falling back to italic Times.");
+  console.warn(`[ndaPdf] Calligraphic font not found (cwd=${process.cwd()}). Falling back to italic Times.`);
   cachedFont = null;
   return cachedFont;
 }
