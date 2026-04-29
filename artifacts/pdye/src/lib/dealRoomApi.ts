@@ -62,8 +62,6 @@ export const dealRoomApi = {
 
   sendCommission: (roomId: string, adminId: string) =>
     request(`/deal-rooms/${roomId}/commission/send`, { method: "POST", body: JSON.stringify({ admin_id: adminId }) }),
-  signCommission: (roomId: string, side: string, userId: string) =>
-    request(`/deal-rooms/${roomId}/commission/sign`, { method: "POST", body: JSON.stringify({ side, user_id: userId }) }),
 };
 
 export interface DealNdaDocument {
@@ -116,6 +114,94 @@ export const dealLegalApi = {
     }
     return res.blob();
   },
+};
+
+/* ─────────────────── Commission Agreement API ─────────────────── */
+
+export interface DealCommissionDocument {
+  id: string;
+  version: string;
+  title: string;
+  content: string;
+  content_hash: string;
+  created_at?: string;
+}
+
+export interface DealCommissionSignResponse {
+  success: boolean;
+  signature_id: string;
+  signed_at: string;
+  document_version: string;
+  both_signed: boolean;
+}
+
+export interface DealCommissionAdminBundle {
+  active: (DealCommissionDocument & { created_by?: string | null }) | null;
+  history: Array<{
+    id: string;
+    version: string;
+    title: string;
+    content_hash: string;
+    is_active: boolean;
+    created_at: string;
+    created_by: string | null;
+  }>;
+}
+
+export interface DealCommissionSignatureRow {
+  id: string;
+  deal_room_id: string;
+  user_id: string;
+  side: "buyer" | "seller";
+  user_email: string;
+  signature_name: string;
+  document_id: string;
+  document_version: string;
+  document_hash: string;
+  ip: string | null;
+  user_agent: string | null;
+  signed_at: string;
+}
+
+export const dealCommissionApi = {
+  getDocument: (): Promise<DealCommissionDocument> => request("/deal-commission/document"),
+
+  sign: (
+    roomId: string,
+    payload: {
+      signature_name: string;
+      accepted_read: boolean;
+      accepted_understand: boolean;
+      accepted_agree: boolean;
+      document_id: string;
+      content_hash: string;
+    }
+  ): Promise<DealCommissionSignResponse> =>
+    request(`/deal-rooms/${roomId}/commission/sign`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  downloadSigned: async (roomId: string, side: "buyer" | "seller"): Promise<Blob> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const res = await fetch(
+      `${API_BASE}/deal-rooms/${roomId}/commission/signed-pdf?side=${side}`,
+      { headers }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || "Failed to download signed Commission Agreement");
+    }
+    return res.blob();
+  },
+
+  // Admin
+  adminGet: (): Promise<DealCommissionAdminBundle> => request("/admin/deal-commission"),
+  adminPublish: (data: { version: string; title: string; content: string }) =>
+    request("/admin/deal-commission", { method: "PUT", body: JSON.stringify(data) }),
+  adminListSignatures: (): Promise<DealCommissionSignatureRow[]> => request("/admin/deal-commission/signatures"),
 };
 
 export function triggerBlobDownload(blob: Blob, filename: string): void {

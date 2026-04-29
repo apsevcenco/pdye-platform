@@ -93,6 +93,7 @@ const navItems = [
   { id: "requests-link", label: "Access Requests", icon: CheckCircle, href: "/admin-requests" },
   { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
   { id: "platform-nda-link", label: "Platform NDA", icon: FileText, href: "/admin-platform-nda" },
+  { id: "deal-commission-link", label: "Commission Agreement", icon: FileText, href: "/admin-deal-commission" },
 ];
 
 type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string; name?: string; budget?: string; yacht_type?: string; location?: string; archived?: boolean; archived_at?: string | null };
@@ -2435,10 +2436,10 @@ function InvestorsView() {
   async function archiveRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     const next = !user.archived;
-    if (!confirm(next ? `Архивировать ${user.email}? Пользователя можно будет восстановить позже.` : `Восстановить ${user.email} из архива?`)) return;
+    if (!confirm(next ? `Archive ${user.email}? The user can be restored later.` : `Restore ${user.email} from archive?`)) return;
     setBusyRow(user.id);
     const r = await archiveUserAction(user.id, next);
-    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Не удалось: " + r.error);
+    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
     else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
     setBusyRow(null);
   }
@@ -2449,22 +2450,25 @@ function InvestorsView() {
     const all = await countAllUserReferences(user.id);
     if (all.supabase.preflightFailed) {
       alert(
-        `Не удаётся удалить ${user.email}: проверка зависимостей в Supabase завершилась с ошибкой.\n\n` +
-        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n")
+        `Cannot delete ${user.email}: the Supabase dependency check failed.\n\n` +
+        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
       );
       setBusyRow(null);
       return;
     }
     if (all.heliumdb.error) {
-      alert(`Не удаётся проверить базу сделок: ${all.heliumdb.error}\n\nУдаление отменено.`);
+      alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
       setBusyRow(null);
       return;
     }
     if (all.blockingTotal > 0) {
+      const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
+      const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
+      const allLines = [supLines, hdLines].filter(Boolean).join("\n");
       alert(
-        `Не удаётся удалить ${user.email}: есть связанные записи в Supabase (FK-ограничения):\n\n` +
-        all.supabase.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
+        `Cannot delete ${user.email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
+        allLines +
+        `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
       );
       setBusyRow(null);
       return;
@@ -2472,25 +2476,25 @@ function InvestorsView() {
     let cascadeFlag = false;
     if (all.cascadeableTotal > 0) {
       const ok = confirm(
-        `У ${user.email} есть записи в базе сделок (heliumdb), не видные Supabase:\n\n` +
+        `${user.email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
         all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nПри удалении они будут БЕЗВОЗВРАТНО удалены вместе с пользователем. Это действие нельзя отменить.\n\nПродолжить?`
+        `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
       );
       if (!ok) { setBusyRow(null); return; }
       cascadeFlag = true;
     } else {
-      if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
+      if (!confirm(`PERMANENTLY DELETE ${user.email}? This action cannot be undone.\n\nNo linked records found.`)) {
         setBusyRow(null);
         return;
       }
     }
     const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
     if (!r.ok) {
-      alert("Удаление не удалось: " + r.error);
+      alert("Delete failed: " + r.error);
     } else {
       setUsers(prev => prev.filter(u => u.id !== user.id));
       if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        alert(`Пользователь ${user.email} удалён.\n\nУдалено в базе сделок:\n` +
+        alert(`User ${user.email} deleted.\n\nRemoved from the deal-rooms database:\n` +
           r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
       }
     }
@@ -2699,10 +2703,10 @@ function BrokersView() {
   async function archiveRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     const next = !user.archived;
-    if (!confirm(next ? `Архивировать ${user.email}? Пользователя можно будет восстановить позже.` : `Восстановить ${user.email} из архива?`)) return;
+    if (!confirm(next ? `Archive ${user.email}? The user can be restored later.` : `Restore ${user.email} from archive?`)) return;
     setBusyRow(user.id);
     const r = await archiveUserAction(user.id, next);
-    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Не удалось: " + r.error);
+    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
     else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
     setBusyRow(null);
   }
@@ -2713,22 +2717,25 @@ function BrokersView() {
     const all = await countAllUserReferences(user.id);
     if (all.supabase.preflightFailed) {
       alert(
-        `Не удаётся удалить ${user.email}: проверка зависимостей в Supabase завершилась с ошибкой.\n\n` +
-        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n")
+        `Cannot delete ${user.email}: the Supabase dependency check failed.\n\n` +
+        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
       );
       setBusyRow(null);
       return;
     }
     if (all.heliumdb.error) {
-      alert(`Не удаётся проверить базу сделок: ${all.heliumdb.error}\n\nУдаление отменено.`);
+      alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
       setBusyRow(null);
       return;
     }
     if (all.blockingTotal > 0) {
+      const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
+      const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
+      const allLines = [supLines, hdLines].filter(Boolean).join("\n");
       alert(
-        `Не удаётся удалить ${user.email}: есть связанные записи в Supabase (FK-ограничения):\n\n` +
-        all.supabase.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
+        `Cannot delete ${user.email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
+        allLines +
+        `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
       );
       setBusyRow(null);
       return;
@@ -2736,25 +2743,25 @@ function BrokersView() {
     let cascadeFlag = false;
     if (all.cascadeableTotal > 0) {
       const ok = confirm(
-        `У ${user.email} есть записи в базе сделок (heliumdb), не видные Supabase:\n\n` +
+        `${user.email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
         all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nПри удалении они будут БЕЗВОЗВРАТНО удалены вместе с пользователем. Это действие нельзя отменить.\n\nПродолжить?`
+        `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
       );
       if (!ok) { setBusyRow(null); return; }
       cascadeFlag = true;
     } else {
-      if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
+      if (!confirm(`PERMANENTLY DELETE ${user.email}? This action cannot be undone.\n\nNo linked records found.`)) {
         setBusyRow(null);
         return;
       }
     }
     const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
     if (!r.ok) {
-      alert("Удаление не удалось: " + r.error);
+      alert("Delete failed: " + r.error);
     } else {
       setUsers(prev => prev.filter(u => u.id !== user.id));
       if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        alert(`Пользователь ${user.email} удалён.\n\nУдалено в базе сделок:\n` +
+        alert(`User ${user.email} deleted.\n\nRemoved from the deal-rooms database:\n` +
           r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
       }
     }
@@ -2924,10 +2931,10 @@ function OwnersView() {
   async function archiveRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     const next = !user.archived;
-    if (!confirm(next ? `Архивировать ${user.email}? Пользователя можно будет восстановить позже.` : `Восстановить ${user.email} из архива?`)) return;
+    if (!confirm(next ? `Archive ${user.email}? The user can be restored later.` : `Restore ${user.email} from archive?`)) return;
     setBusyRow(user.id);
     const r = await archiveUserAction(user.id, next);
-    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Не удалось: " + r.error);
+    if (!r.ok) alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
     else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
     setBusyRow(null);
   }
@@ -2938,22 +2945,25 @@ function OwnersView() {
     const all = await countAllUserReferences(user.id);
     if (all.supabase.preflightFailed) {
       alert(
-        `Не удаётся удалить ${user.email}: проверка зависимостей в Supabase завершилась с ошибкой.\n\n` +
-        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n")
+        `Cannot delete ${user.email}: the Supabase dependency check failed.\n\n` +
+        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
       );
       setBusyRow(null);
       return;
     }
     if (all.heliumdb.error) {
-      alert(`Не удаётся проверить базу сделок: ${all.heliumdb.error}\n\nУдаление отменено.`);
+      alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
       setBusyRow(null);
       return;
     }
     if (all.blockingTotal > 0) {
+      const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
+      const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
+      const allLines = [supLines, hdLines].filter(Boolean).join("\n");
       alert(
-        `Не удаётся удалить ${user.email}: есть связанные записи в Supabase (FK-ограничения):\n\n` +
-        all.supabase.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
+        `Cannot delete ${user.email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
+        allLines +
+        `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
       );
       setBusyRow(null);
       return;
@@ -2961,25 +2971,25 @@ function OwnersView() {
     let cascadeFlag = false;
     if (all.cascadeableTotal > 0) {
       const ok = confirm(
-        `У ${user.email} есть записи в базе сделок (heliumdb), не видные Supabase:\n\n` +
+        `${user.email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
         all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nПри удалении они будут БЕЗВОЗВРАТНО удалены вместе с пользователем. Это действие нельзя отменить.\n\nПродолжить?`
+        `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
       );
       if (!ok) { setBusyRow(null); return; }
       cascadeFlag = true;
     } else {
-      if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
+      if (!confirm(`PERMANENTLY DELETE ${user.email}? This action cannot be undone.\n\nNo linked records found.`)) {
         setBusyRow(null);
         return;
       }
     }
     const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
     if (!r.ok) {
-      alert("Удаление не удалось: " + r.error);
+      alert("Delete failed: " + r.error);
     } else {
       setUsers(prev => prev.filter(u => u.id !== user.id));
       if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        alert(`Пользователь ${user.email} удалён.\n\nУдалено в базе сделок:\n` +
+        alert(`User ${user.email} deleted.\n\nRemoved from the deal-rooms database:\n` +
           r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
       }
     }

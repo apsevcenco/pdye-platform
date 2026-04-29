@@ -19,25 +19,26 @@ type HeliumRef = { table: string; column: string; label: string };
 // USER-OWNED data: safe to cascade-delete when the user is removed.
 // These rows belong to the specific user and have no shared usage.
 const CASCADE_USER_REFS: HeliumRef[] = [
-  { table: "platform_nda_signatures",  column: "user_id",        label: "подпис(ь/и) Платформенного NDA" },
-  { table: "deal_nda_signatures",      column: "user_id",        label: "подпис(ь/и) NDA комнаты сделки" },
-  { table: "nda_envelopes",            column: "user_id",        label: "конверт(а/ов) NDA (устаревший)" },
-  { table: "deal_room_participants",   column: "user_id",        label: "участи(е/й) в комнате сделки" },
-  { table: "deal_rooms",               column: "buyer_user_id",  label: "комнат(ы) сделок как покупатель" },
-  { table: "deal_rooms",               column: "seller_user_id", label: "комнат(ы) сделок как продавец" },
-  { table: "deal_room_messages",       column: "sender_id",      label: "сообщени(е/й) в комнате сделки" },
-  { table: "deal_room_documents",      column: "uploaded_by",    label: "загруженных документ(а/ов) в комнате сделки" },
-  { table: "deal_room_blocks",         column: "unlocked_by",    label: "разблокированных блок(а/ов) в комнате сделки" },
-  { table: "audit_logs",               column: "user_id",        label: "запис(ь/и) аудита" },
+  { table: "platform_nda_signatures",  column: "user_id",        label: "Platform NDA signature(s)" },
+  { table: "deal_nda_signatures",      column: "user_id",        label: "Deal Room NDA signature(s)" },
+  { table: "nda_envelopes",            column: "user_id",        label: "legacy NDA envelope(s)" },
+  { table: "deal_room_participants",   column: "user_id",        label: "deal room participation(s)" },
+  { table: "deal_rooms",               column: "buyer_user_id",  label: "deal room(s) as buyer" },
+  { table: "deal_rooms",               column: "seller_user_id", label: "deal room(s) as seller" },
+  { table: "deal_room_messages",       column: "sender_id",      label: "deal room message(s)" },
+  { table: "deal_room_documents",      column: "uploaded_by",    label: "uploaded deal room document(s)" },
+  { table: "deal_room_blocks",         column: "unlocked_by",    label: "unlocked deal room block(s)" },
+  { table: "audit_logs",               column: "user_id",        label: "audit log record(s)" },
 ];
 
 // SHARED / ADMIN-CREATED data: must NOT be cascade-deleted because deleting it
 // would break the platform for other users (e.g. wiping the seeded NDA template).
 // If a user has any of these, delete is REFUSED — admin must manually reassign.
 const BLOCK_USER_REFS: HeliumRef[] = [
-  { table: "platform_nda_documents", column: "created_by",         label: "версия(ий) Платформенного NDA (общий шаблон!)" },
-  { table: "deal_nda_documents",     column: "created_by",         label: "версия(ий) NDA для комнат сделок (общий шаблон!)" },
-  { table: "deal_rooms",             column: "created_by_admin_id", label: "комнат(ы) сделок, созданных этим админом" },
+  { table: "platform_nda_documents",     column: "created_by",          label: "Platform NDA version(s) (shared template!)" },
+  { table: "deal_nda_documents",         column: "created_by",          label: "Deal Room NDA version(s) (shared template!)" },
+  { table: "deal_commission_documents",  column: "created_by",          label: "Commission Agreement version(s) (shared template!)" },
+  { table: "deal_rooms",                 column: "created_by_admin_id", label: "deal room(s) created by this admin" },
 ];
 
 async function tableExists(client: pg.PoolClient | pg.Pool, table: string): Promise<boolean> {
@@ -109,7 +110,7 @@ router.post("/admin/users/:userId/cascade-delete", requireAdmin, async (req: Req
   const userId = String(req.params.userId || "");
   if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user id" }); return; }
   if (req.authUser && req.authUser.id === userId) {
-    res.status(400).json({ error: "Нельзя каскадно удалить свой собственный аккаунт" });
+    res.status(400).json({ error: "You cannot cascade-delete your own account" });
     return;
   }
 
@@ -118,13 +119,13 @@ router.post("/admin/users/:userId/cascade-delete", requireAdmin, async (req: Req
   try {
     blocking = await countRefs(BLOCK_USER_REFS, userId);
   } catch (e: any) {
-    res.status(500).json({ error: "Не удалось проверить блокирующие зависимости: " + (e?.message || "") });
+    res.status(500).json({ error: "Could not check blocking dependencies: " + (e?.message || "") });
     return;
   }
   if (blocking.total > 0) {
     res.status(409).json({
-      error: "У пользователя есть общие/админские записи, удаление которых сломает платформу. " +
-             "Сначала переназначьте их другому администратору.",
+      error: "The user has shared/admin records whose removal would break the platform. " +
+             "Reassign them to another administrator first.",
       blocking: blocking.counts,
     });
     return;

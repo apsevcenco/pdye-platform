@@ -13,7 +13,7 @@ import {
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { dealRoomApi, dealLegalApi, triggerBlobDownload, type DealNdaDocument } from "@/lib/dealRoomApi";
+import { dealRoomApi, dealLegalApi, dealCommissionApi, triggerBlobDownload, type DealNdaDocument, type DealCommissionDocument } from "@/lib/dealRoomApi";
 import {
   type DealRoom, type DealRoomMessage, type DealRoomDocument, type AuditLog,
   type BlockVisibility, type BlockKey,
@@ -73,8 +73,11 @@ export default function DealDetails() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [blocks, setBlocks] = useState<BlockVisibility | null>(null);
-  const [commissionCheck, setCommissionCheck] = useState(false);
-  const [signingCommission, setSigningCommission] = useState(false);
+  const [acceptingCommission, setAcceptingCommission] = useState(false);
+  const [commissionSignError, setCommissionSignError] = useState<string | null>(null);
+  const [commissionVersionStale, setCommissionVersionStale] = useState(false);
+  const [signedCommissionSignatureSide, setSignedCommissionSignatureSide] = useState<"buyer" | "seller" | null>(null);
+  const [commissionPdfDownloading, setCommissionPdfDownloading] = useState(false);
 
   const isAdmin = userProfile?.role === "admin";
   const isBuyer = room?.buyer_user_id === user?.id;
@@ -131,15 +134,58 @@ export default function DealDetails() {
     setLoading(false);
   }
 
-  async function signCommission() {
-    if (!room || !user || (mySide !== "buyer" && mySide !== "seller")) return;
-    setSigningCommission(true);
-    await dealRoomApi.signCommission(room.id, mySide, user.id);
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user.id, action: "commission_signed", meta: { side: mySide } });
-    await dealRoomApi.sendMessage(room.id, { sender_id: user.id, message: `Commission Agreement signed by ${mySide} party.`, is_system: true });
-    setSigningCommission(false);
-    setCommissionCheck(false);
-    loadRoom();
+  async function signCommission(payload: {
+    signature_name: string;
+    accepted_read: boolean;
+    accepted_understand: boolean;
+    accepted_agree: boolean;
+    document_id: string;
+    content_hash: string;
+  }) {
+    if (!room || !user) return;
+    if (mySide !== "buyer" && mySide !== "seller") return;
+    setAcceptingCommission(true);
+    setCommissionSignError(null);
+    setCommissionVersionStale(false);
+    try {
+      const result = await dealCommissionApi.sign(room.id, payload);
+      setSignedCommissionSignatureSide(mySide as "buyer" | "seller");
+      await loadRoom();
+      return result;
+    } catch (e: any) {
+      const msg = e?.message || "Failed to sign Commission Agreement";
+      if (msg === "DEAL_COMMISSION_VERSION_CHANGED") {
+        setCommissionVersionStale(true);
+        setCommissionSignError(
+          "The Commission Agreement has been updated since you opened it. Please reload to review and sign the latest version."
+        );
+      } else {
+        setCommissionSignError(msg);
+      }
+      throw e;
+    } finally {
+      setAcceptingCommission(false);
+    }
+  }
+
+  async function downloadSignedCommission() {
+    if (!room) return;
+    const side: "buyer" | "seller" | null =
+      signedCommissionSignatureSide ||
+      (mySide === "buyer" || mySide === "seller" ? (mySide as "buyer" | "seller") : null);
+    if (!side) return;
+    setCommissionPdfDownloading(true);
+    try {
+      const blob = await dealCommissionApi.downloadSigned(room.id, side);
+      const code = room.room_number
+        ? `DR-${String(room.room_number).padStart(6, "0")}`
+        : room.id.slice(0, 8).toUpperCase();
+      triggerBlobDownload(blob, `PDYE-Commission-${code}-${side}.pdf`);
+    } catch (e: any) {
+      setCommissionSignError(e?.message || "Failed to download signed Commission Agreement");
+    } finally {
+      setCommissionPdfDownloading(false);
+    }
   }
 
   async function signNda(payload: {
@@ -380,8 +426,11 @@ export default function DealDetails() {
                   ndaPdfDownloading={ndaPdfDownloading}
                   onDownloadSignedNda={downloadSignedNda}
                   participantMap={participantMap} canSeeIdentities={canSeeIdentities}
-                  commissionCheck={commissionCheck} setCommissionCheck={setCommissionCheck}
-                  signCommission={signCommission} signingCommission={signingCommission}
+                  signCommission={signCommission} acceptingCommission={acceptingCommission}
+                  commissionSignError={commissionSignError} commissionVersionStale={commissionVersionStale}
+                  signedCommissionSignatureSide={signedCommissionSignatureSide}
+                  commissionPdfDownloading={commissionPdfDownloading}
+                  onDownloadSignedCommission={downloadSignedCommission}
                 />
               )}
               {activeTab === "offers" && showDealRoom && <OffersTab isTerminal={isTerminal} />}
@@ -847,10 +896,22 @@ type LegalTabProps = {
   onDownloadSignedNda: () => void;
   participantMap: Record<string, { email: string; role: string }>;
   canSeeIdentities: boolean;
-  commissionCheck: boolean; setCommissionCheck: (v: boolean) => void;
-  signCommission: () => void; signingCommission: boolean;
+  signCommission: (payload: {
+    signature_name: string;
+    accepted_read: boolean;
+    accepted_understand: boolean;
+    accepted_agree: boolean;
+    document_id: string;
+    content_hash: string;
+  }) => Promise<unknown>;
+  acceptingCommission: boolean;
+  commissionSignError: string | null;
+  commissionVersionStale: boolean;
+  signedCommissionSignatureSide: "buyer" | "seller" | null;
+  commissionPdfDownloading: boolean;
+  onDownloadSignedCommission: () => void;
 };
-function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNda, ndaSignError, ndaVersionStale, signedNdaSignatureSide, ndaPdfDownloading, onDownloadSignedNda, participantMap, canSeeIdentities, commissionCheck, setCommissionCheck, signCommission, signingCommission }: LegalTabProps) {
+function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNda, ndaSignError, ndaVersionStale, signedNdaSignatureSide, ndaPdfDownloading, onDownloadSignedNda, participantMap, canSeeIdentities, signCommission, acceptingCommission, commissionSignError, commissionVersionStale, signedCommissionSignatureSide, commissionPdfDownloading, onDownloadSignedCommission }: LegalTabProps) {
   const myCommissionStatus = mySide === "buyer" ? room.buyer_commission_status : mySide === "seller" ? room.seller_commission_status : "n/a";
   const showCommissionForm = room.commission_status === "pending" && myCommissionStatus === "sent" && mySide !== "admin";
   return (
@@ -938,52 +999,58 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
             </div>
           )}
           {showCommissionForm && (
-            <div className="bg-[#0f1d33] border border-orange-500/20 p-6 mt-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Scale size={16} className="text-orange-400" />
-                <h3 className="font-display text-lg text-white">Commission Agreement</h3>
-              </div>
-              <div className="bg-black/30 border border-white/5 p-4 max-h-48 overflow-y-auto mb-4" style={{ scrollbarWidth: "thin" }}>
-                <pre className="text-white/60 text-xs font-sans whitespace-pre-wrap leading-relaxed">
-{`COMMISSION AGREEMENT
-
-This Commission Agreement ("Agreement") governs the brokerage commission structure for the transaction facilitated through the Private Distressed Yacht Exchange (PDYE).
-
-By signing below, both parties acknowledge and agree:
-
-1. PDYE acts as an intermediary facilitating this transaction.
-2. Commission rates as discussed and agreed upon apply.
-3. Upon signing, the identities of all parties will be revealed.
-4. The yacht name, location, and full vessel details will be disclosed.
-5. All parties agree to the non-circumvention terms previously accepted.
-
-This agreement is binding upon electronic signature.`}
-                </pre>
-              </div>
-              <label className="flex items-start gap-3 cursor-pointer group mb-4">
-                <input type="checkbox" checked={commissionCheck} onChange={e => setCommissionCheck(e.target.checked)} className="mt-1 accent-primary" />
-                <span className="text-white/70 text-sm font-sans group-hover:text-white transition-colors">I have read and agree to the Commission Agreement terms</span>
-              </label>
-              <button onClick={signCommission} disabled={!commissionCheck || signingCommission}
-                className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
-                {signingCommission ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><Scale size={14} /> Sign Commission Agreement</>}
-              </button>
+            <div className="mt-4">
+              <CommissionSigningForm
+                onAccept={signCommission}
+                accepting={acceptingCommission}
+                signError={commissionSignError}
+                versionStale={commissionVersionStale}
+                mySide={mySide as "buyer" | "seller"}
+                signedSide={signedCommissionSignatureSide}
+                pdfDownloading={commissionPdfDownloading}
+                onDownloadSignedCommission={onDownloadSignedCommission}
+              />
             </div>
           )}
           {myCommissionStatus === "signed" && room.commission_status !== "completed" && mySide !== "admin" && (
-            <div className="bg-cyan-500/5 border border-cyan-500/20 p-4 mt-4 text-center">
-              <Scale size={20} className="text-cyan-400 mx-auto mb-2" />
-              <p className="text-white text-sm font-bold">Commission Agreement Signed</p>
-              <p className="text-white/40 text-xs font-sans mt-1">Waiting for counterparty to sign. Identities will be revealed once both sign.</p>
+            <div className="bg-cyan-500/5 border border-cyan-500/20 p-6 mt-4 text-center space-y-3">
+              <Scale size={24} className="text-cyan-400 mx-auto" />
+              <h3 className="font-display text-lg text-white mb-1">Commission Agreement Signed — Awaiting Counterparty</h3>
+              <p className="text-white/50 text-sm font-sans">
+                Your Commission Agreement has been signed. Identities, vessel name, and location will be revealed once the other party also signs. A countersigned PDF was emailed to your registered address.
+              </p>
+              <button
+                type="button"
+                onClick={onDownloadSignedCommission}
+                disabled={commissionPdfDownloading}
+                className="inline-block border border-cyan-500/40 px-4 py-2 text-[10px] uppercase tracking-widest text-cyan-100 hover:bg-cyan-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {commissionPdfDownloading ? "Preparing PDF…" : "Download Signed Commission (PDF)"}
+              </button>
+              {commissionSignError && (
+                <p className="text-red-300 text-xs">{commissionSignError}</p>
+              )}
             </div>
           )}
           {room.commission_status === "completed" && (
-            <div className="bg-green-500/5 border border-green-500/20 p-4 mt-4 flex items-center gap-4">
-              <Eye size={20} className="text-green-400 flex-shrink-0" />
-              <div>
-                <p className="text-green-400 text-sm font-bold">Identities Revealed</p>
-                <p className="text-white/40 text-xs font-sans mt-0.5">Both parties signed. Full identities, yacht name, and location are now visible.</p>
+            <div className="space-y-3 mt-4">
+              <div className="bg-green-500/5 border border-green-500/20 p-4 flex items-center gap-4">
+                <Eye size={20} className="text-green-400 flex-shrink-0" />
+                <div>
+                  <p className="text-green-400 text-sm font-bold">Identities Revealed</p>
+                  <p className="text-white/40 text-xs font-sans mt-0.5">Both parties signed. Full identities, yacht name, and location are now visible.</p>
+                </div>
               </div>
+              {(mySide === "buyer" || mySide === "seller") && (
+                <button
+                  type="button"
+                  onClick={onDownloadSignedCommission}
+                  disabled={commissionPdfDownloading}
+                  className="w-full border border-green-500/30 px-4 py-3 text-[10px] uppercase tracking-widest text-green-100 hover:bg-green-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {commissionPdfDownloading ? "Preparing PDF…" : "Download Signed Commission Agreement (PDF)"}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1255,6 +1322,249 @@ function NdaSigningForm({
           <><CheckCircle size={14} /> Signed ✓</>
         ) : (
           <><CheckCircle size={14} /> Sign Agreement</>
+        )}
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   10b. COMMISSION SIGNING FORM
+   ═══════════════════════════════════════════════════ */
+function CommissionSigningForm({
+  onAccept, accepting, signError, versionStale,
+  mySide, signedSide, pdfDownloading, onDownloadSignedCommission,
+}: {
+  onAccept: (payload: {
+    signature_name: string;
+    accepted_read: boolean;
+    accepted_understand: boolean;
+    accepted_agree: boolean;
+    document_id: string;
+    content_hash: string;
+  }) => Promise<unknown>;
+  accepting: boolean;
+  signError: string | null;
+  versionStale: boolean;
+  mySide: "buyer" | "seller";
+  signedSide: "buyer" | "seller" | null;
+  pdfDownloading: boolean;
+  onDownloadSignedCommission: () => void;
+}) {
+  const [doc, setDoc] = useState<DealCommissionDocument | null>(null);
+  const [docLoading, setDocLoading] = useState(true);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  const [acceptedRead, setAcceptedRead] = useState(false);
+  const [acceptedUnderstand, setAcceptedUnderstand] = useState(false);
+  const [acceptedAgree, setAcceptedAgree] = useState(false);
+  const [signatureName, setSignatureName] = useState("");
+
+  // Inject Great Vibes calligraphic font once.
+  useEffect(() => {
+    const id = "google-font-great-vibes";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setDocLoading(true);
+      setDocError(null);
+      try {
+        const d = await dealCommissionApi.getDocument();
+        if (!cancelled) setDoc(d);
+      } catch (e: any) {
+        if (!cancelled) setDocError(e?.message || "Failed to load Commission Agreement");
+      } finally {
+        if (!cancelled) setDocLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const allAccepted = acceptedRead && acceptedUnderstand && acceptedAgree;
+  const nameValid = signatureName.trim().length >= 3;
+  const canSubmit = !!doc && allAccepted && nameValid && !accepting && !versionStale && !signedSide;
+
+  async function handleSign() {
+    if (!canSubmit || !doc) return;
+    try {
+      await onAccept({
+        signature_name: signatureName.trim(),
+        accepted_read: acceptedRead,
+        accepted_understand: acceptedUnderstand,
+        accepted_agree: acceptedAgree,
+        document_id: doc.id,
+        content_hash: doc.content_hash,
+      });
+    } catch {
+      // Parent component already captured the error message.
+    }
+  }
+
+  if (docLoading) {
+    return (
+      <div className="bg-[#0f1d33] border border-white/8 p-12 flex items-center justify-center text-white/40 text-xs uppercase tracking-widest gap-3">
+        <Loader2 size={14} className="animate-spin" /> Loading Commission Agreement…
+      </div>
+    );
+  }
+  if (docError || !doc) {
+    return (
+      <div className="bg-red-500/5 border border-red-500/20 p-6 text-red-300 text-sm">
+        {docError || "Could not load Commission Agreement document."}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-[#0f1d33] border border-orange-500/20 p-6">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <Scale size={16} className="text-orange-400" />
+            <h3 className="font-display text-lg text-white">{doc.title}</h3>
+          </div>
+          <span className="text-[10px] uppercase tracking-widest text-white/30 font-mono">
+            v{doc.version} · {doc.content_hash.slice(0, 10)}…
+          </span>
+        </div>
+        <div
+          className="bg-black/30 border border-white/5 p-4 max-h-72 overflow-y-auto mb-4"
+          style={{ scrollbarWidth: "thin" }}
+        >
+          <pre className="text-white/65 text-xs font-sans whitespace-pre-wrap leading-relaxed">
+            {doc.content}
+          </pre>
+        </div>
+
+        <div className="space-y-3 mb-5">
+          <label className="flex items-start gap-3 text-sm text-white/75 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedRead}
+              onChange={e => setAcceptedRead(e.target.checked)}
+              className="mt-0.5 accent-primary cursor-pointer"
+              disabled={accepting || !!signedSide}
+            />
+            <span>I confirm that I have read the full text of this Commission Agreement.</span>
+          </label>
+          <label className="flex items-start gap-3 text-sm text-white/75 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedUnderstand}
+              onChange={e => setAcceptedUnderstand(e.target.checked)}
+              className="mt-0.5 accent-primary cursor-pointer"
+              disabled={accepting || !!signedSide}
+            />
+            <span>I understand the commission structure, payment obligations, and non-circumvention terms.</span>
+          </label>
+          <label className="flex items-start gap-3 text-sm text-white/75 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedAgree}
+              onChange={e => setAcceptedAgree(e.target.checked)}
+              className="mt-0.5 accent-primary cursor-pointer"
+              disabled={accepting || !!signedSide}
+            />
+            <span>I agree to be legally bound by all terms of this Commission Agreement.</span>
+          </label>
+        </div>
+
+        <div className="mb-2">
+          <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">
+            Full Legal Name (Electronic Signature) — {mySide.toUpperCase()} party
+          </label>
+          <input
+            type="text"
+            value={signatureName}
+            onChange={e => setSignatureName(e.target.value)}
+            placeholder="Type your full legal name"
+            disabled={accepting || !!signedSide}
+            className="w-full bg-transparent border border-white/15 px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-primary/60 transition-colors"
+          />
+          {nameValid && (
+            <div className="mt-3 px-4 py-4 border border-primary/30 bg-[#070f1a]">
+              <div className="text-[9px] uppercase tracking-widest text-white/35 mb-2">
+                Signature preview
+              </div>
+              <div
+                className="text-primary"
+                style={{
+                  fontFamily: "'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive",
+                  fontSize: "44px",
+                  lineHeight: 1.1,
+                }}
+              >
+                {signatureName.trim()}
+              </div>
+              <div className="mt-2 border-t border-white/10 pt-2 text-[9px] uppercase tracking-widest text-white/30">
+                {mySide === "buyer" ? "Buyer" : "Seller"} — Electronic signature
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {signError && (
+        <div className="border border-red-500/30 bg-red-500/5 p-3 text-red-300 text-xs space-y-2">
+          <div>{signError}</div>
+          {versionStale && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-block border border-red-500/40 px-3 py-1.5 text-[10px] uppercase tracking-widest text-red-100 hover:bg-red-500/10 transition-colors"
+            >
+              Reload to view latest version
+            </button>
+          )}
+        </div>
+      )}
+
+      {signedSide && (
+        <div className="border border-green-500/30 bg-green-500/5 p-4 text-green-300 text-xs space-y-2">
+          <div className="font-semibold">Commission Agreement signed successfully.</div>
+          <div className="text-green-200/80">
+            A signed PDF copy is being emailed to your registered address. Identities, vessel name, and location will be revealed once the other party also signs.
+          </div>
+          <button
+            type="button"
+            onClick={onDownloadSignedCommission}
+            disabled={pdfDownloading}
+            className="inline-block mt-1 border border-green-500/40 px-3 py-1.5 text-[10px] uppercase tracking-widest text-green-100 hover:bg-green-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {pdfDownloading ? "Preparing PDF…" : "Download Signed Commission (PDF)"}
+          </button>
+        </div>
+      )}
+
+      <div className="bg-yellow-500/5 border border-yellow-500/20 p-3 flex items-start gap-3">
+        <AlertTriangle size={14} className="text-yellow-400/60 flex-shrink-0 mt-0.5" />
+        <p className="text-yellow-400/70 text-[10px] font-sans leading-relaxed">
+          By clicking <span className="font-bold">Sign Commission Agreement</span>, your full name, IP address,
+          browser, and the document hash will be recorded as your legally binding electronic signature.
+          A countersigned PDF will be emailed to you immediately.
+        </p>
+      </div>
+
+      <button
+        onClick={handleSign}
+        disabled={!canSubmit}
+        className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+      >
+        {accepting ? (
+          <><RefreshCw size={14} className="animate-spin" /> Signing…</>
+        ) : signedSide ? (
+          <><CheckCircle size={14} /> Signed ✓</>
+        ) : (
+          <><Scale size={14} /> Sign Commission Agreement</>
         )}
       </button>
     </div>

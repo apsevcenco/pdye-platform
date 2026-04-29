@@ -501,56 +501,8 @@ router.post("/deal-rooms/:id/commission/send", requireAdmin, async (req, res) =>
   }
 });
 
-router.post("/deal-rooms/:id/commission/sign", requireUser, requirePlatformNdaSigned, async (req, res) => {
-  const { side } = req.body;
-  if (!["buyer", "seller"].includes(side)) { res.status(400).json({ error: "Invalid side" }); return; }
-  const viewer = req.authUser!;
-  const now = new Date().toISOString();
-  try {
-    // Verify caller is the participant for the claimed side
-    const { rows: roomRows } = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
-    if (roomRows.length === 0) { res.status(404).json({ error: "Deal room not found" }); return; }
-    const room = roomRows[0];
-    const expectedUserId = side === "buyer" ? room.buyer_user_id : room.seller_user_id;
-    if (viewer.role !== "admin" && expectedUserId !== viewer.id) {
-      res.status(403).json({ error: "You may only sign as your own role in this deal room" });
-      return;
-    }
-    if (room.commission_status !== "pending") {
-      res.status(409).json({ error: `Commission is not pending (status: ${room.commission_status})` });
-      return;
-    }
-
-    const col = side === "buyer" ? "buyer_commission_status" : "seller_commission_status";
-    const tsCol = side === "buyer" ? "buyer_commission_signed_at" : "seller_commission_signed_at";
-    // Idempotent update — only flip if currently 'sent'
-    await db().query(
-      `UPDATE deal_rooms SET ${col} = 'signed', ${tsCol} = $2, updated_at = now()
-       WHERE id = $1 AND ${col} = 'sent'`,
-      [req.params.id, now]
-    );
-
-    const { rows } = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
-    const updated = rows[0];
-    if (updated && updated.buyer_commission_status === "signed" && updated.seller_commission_status === "signed" && !updated.commission_fully_signed_at) {
-      await db().query(
-        "UPDATE deal_rooms SET commission_status = 'completed', commission_fully_signed_at = $2, identities_revealed = true, updated_at = now() WHERE id = $1",
-        [req.params.id, now]
-      );
-      for (const bk of ["identities", "yacht_name", "location"]) {
-        await db().query(
-          `INSERT INTO deal_room_blocks (deal_room_id, block_key, is_unlocked, unlocked_by, unlocked_at)
-           VALUES ($1, $2, true, $3, now())
-           ON CONFLICT (deal_room_id, block_key) DO UPDATE SET is_unlocked = true, unlocked_by = $3, unlocked_at = now()`,
-          [req.params.id, bk, viewer.id]
-        );
-      }
-    }
-    const refreshed = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
-    res.json(applyPrivacyShape(refreshed.rows[0], viewer));
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
+// NOTE: POST /deal-rooms/:id/commission/sign is now served by dealCommission.ts —
+// it captures a versioned, content-hash-bound signature in deal_commission_signatures,
+// generates a signed PDF, and emails it to the signer.
 
 export default router;

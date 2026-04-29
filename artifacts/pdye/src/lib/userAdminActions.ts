@@ -24,10 +24,10 @@ async function apiRequest(path: string, options?: RequestInit) {
 }
 
 export const ARCHIVE_MIGRATION_MISSING_HINT =
-  "База данных не готова: в таблице users отсутствует колонка `archived`. " +
-  "Однократно выполните SQL-миграцию `artifacts/pdye/migrations/003_users_archived.sql` " +
-  "в Supabase SQL Editor (Project → SQL Editor → New query → вставить → Run). " +
-  "После этого Архивировать/Восстановить заработают.";
+  "Database is not ready: the `archived` column is missing from the `users` table. " +
+  "Run the SQL migration `artifacts/pdye/migrations/003_users_archived.sql` once " +
+  "in the Supabase SQL Editor (Project → SQL Editor → New query → paste → Run). " +
+  "Archive / Restore will start working after that.";
 
 function isMissingColumnError(err: { code?: string; message?: string } | null | undefined): boolean {
   if (!err) return false;
@@ -59,7 +59,7 @@ export async function archiveUserAction(userId: string, archive: boolean): Promi
     return {
       ok: false,
       errorKind: "other",
-      error: "Запись не была обновлена (0 строк). Возможно, политика RLS Supabase блокирует UPDATE для текущей роли — проверьте policies на public.users.",
+      error: "No row was updated (0 rows). The Supabase RLS policy may be blocking UPDATE for the current role — check policies on public.users.",
     };
   }
   return { ok: true };
@@ -68,8 +68,8 @@ export async function archiveUserAction(userId: string, archive: boolean): Promi
 /* ─────────────────── Reference checks ─────────────────── */
 // Only Supabase tables with verified columns. heliumdb tables are checked via api-server.
 const SUPABASE_REFS: Array<{ table: string; column: string; label: string }> = [
-  { table: "access_requests", column: "requester_id", label: "запрос(ов) доступа" },
-  { table: "yachts",          column: "owner_id",    label: "листинг(а/ов) яхт" },
+  { table: "access_requests", column: "requester_id", label: "access request(s)" },
+  { table: "yachts",          column: "owner_id",    label: "yacht listing(s)" },
 ];
 
 export type UserReference = { label: string; count: number; table?: string; column?: string };
@@ -134,7 +134,7 @@ export async function countHeliumdbReferences(userId: string): Promise<{
   } catch (e: any) {
     return {
       cascadeable: [], blocking: [], cascadeableTotal: 0, blockingTotal: 0,
-      error: e?.message || "Не удалось получить данные из базы сделок",
+      error: e?.message || "Could not fetch data from the deal-rooms database",
     };
   }
 }
@@ -178,7 +178,7 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
       return {
         ok: false,
         errorKind: "other",
-        error: "Нельзя удалить свой собственный аккаунт. Попросите другого администратора.",
+        error: "You cannot delete your own account. Ask another administrator.",
       };
     }
   } catch {
@@ -188,14 +188,14 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
   const all = await countAllUserReferences(userId);
 
   if (all.supabase.preflightFailed) {
-    const lines = all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n");
+    const lines = all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n");
     return {
       ok: false,
       errorKind: "preflight_failed",
       failures: all.supabase.failures,
       error:
-        "Удаление невозможно: проверка зависимостей в Supabase завершилась с ошибкой по одной или нескольким таблицам. " +
-        "Чтобы не оставить осиротевших записей, удаление отменено.\n\n" + lines,
+        "Cannot delete: the Supabase dependency check failed for one or more tables. " +
+        "To avoid orphaned records, deletion was cancelled.\n\n" + lines,
     };
   }
   if (all.blockingTotal > 0) {
@@ -208,10 +208,10 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
       supabaseRefs: all.supabase.counts,
       heliumdbRefs: all.heliumdb.blocking,
       error:
-        "Удаление невозможно: пользователь связан с записями, удаление которых сломает платформу " +
-        "(FK-ограничения Supabase или общие/админские шаблоны).\n\n" +
+        "Cannot delete: the user is linked to records whose removal would break the platform " +
+        "(Supabase FK constraints or shared/admin templates).\n\n" +
         allLines +
-        "\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.",
+        "\n\nUse Archive — it will hide the user from active lists while preserving all related history.",
     };
   }
   if (all.cascadeableTotal > 0 && !opts.cascadeHeliumdb) {
@@ -220,10 +220,10 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
       errorKind: "heliumdb_refs_present",
       heliumdbRefs: all.heliumdb.cascadeable,
       error:
-        "В базе сделок (heliumdb) у пользователя есть записи, которые не видны Supabase:\n\n" +
+        "The deal-rooms database (heliumdb) has records linked to this user that are not visible in Supabase:\n\n" +
         all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        "\n\nПри простом удалении они останутся «осиротевшими». " +
-        "Чтобы продолжить — нужно подтвердить каскадное удаление этих записей вместе с пользователем.",
+        "\n\nA plain delete would leave them orphaned. " +
+        "To proceed you must approve a cascade delete of these records together with the user.",
     };
   }
 
@@ -237,7 +237,7 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
       return {
         ok: false,
         errorKind: "cascade_failed",
-        error: "Каскадное удаление в базе сделок не удалось: " + (e?.message || "неизвестная ошибка"),
+        error: "Cascade delete in the deal-rooms database failed: " + (e?.message || "unknown error"),
       };
     }
   }
@@ -250,7 +250,7 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
       ok: false,
       errorKind: "other",
       cascadeDeleted,
-      error: "Запись не была удалена (0 строк). Возможно, политика RLS Supabase блокирует DELETE для текущей роли — проверьте policies на public.users.",
+      error: "No row was deleted (0 rows). The Supabase RLS policy may be blocking DELETE for the current role — check policies on public.users.",
     };
   }
   return { ok: true, cascadeDeleted };
