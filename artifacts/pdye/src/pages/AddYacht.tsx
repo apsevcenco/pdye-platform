@@ -88,12 +88,15 @@ export default function AddYacht() {
     let cancelled = false;
 
     function parseEditId(): string | null {
-      // window.location.hash is like "#/add-yacht?edit=abc-uuid".
+      // wouter v3 useHashLocation puts query params into window.location.search
+      // (not into the hash), so the URL becomes e.g. "https://host/?edit=ID#/add-yacht".
+      // We also fall back to scanning the hash itself in case the URL was crafted manually.
+      const fromSearch = new URLSearchParams(window.location.search).get("edit");
+      if (fromSearch) return fromSearch;
       const raw = window.location.hash || "";
       const qIdx = raw.indexOf("?");
       if (qIdx < 0) return null;
-      const params = new URLSearchParams(raw.slice(qIdx + 1));
-      return params.get("edit");
+      return new URLSearchParams(raw.slice(qIdx + 1)).get("edit");
     }
 
     async function syncFromUrl() {
@@ -138,9 +141,11 @@ export default function AddYacht() {
 
     syncFromUrl();
     window.addEventListener("hashchange", syncFromUrl);
+    window.addEventListener("popstate", syncFromUrl);
     return () => {
       cancelled = true;
       window.removeEventListener("hashchange", syncFromUrl);
+      window.removeEventListener("popstate", syncFromUrl);
     };
   }, [user, location]);
 
