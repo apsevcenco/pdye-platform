@@ -161,6 +161,17 @@ Express on port 8080. Routes:
   - Row clicks in `Admin.tsx` `InvestorsView` / `BrokersView` / `OwnersView` use `setLocation(\`/admin/users/${user.id}\`)`. Quick approval buttons keep `e.stopPropagation()` so they don't navigate.
 - **Note**: the legacy in-place sidebar code in those three views is now unreachable (kept temporarily for diff size — TODO: remove after the new flow is confirmed in production).
 
+### User Archive & Delete (admin)
+
+- **Schema**: migration `artifacts/pdye/migrations/003_users_archived.sql` adds `archived BOOLEAN DEFAULT false` + `archived_at TIMESTAMPTZ` + index on `users` table. **Must be run manually in Supabase SQL Editor** before the buttons work (DATABASE_URL is heliumdb, not supabase).
+- **Module-level helpers in `Admin.tsx`**: `archiveUserAction(userId, archive)` and `deleteUserAction(userId)` wrap the supabase update/delete calls and return `{ ok, error }`.
+- **Per-row buttons** (Investors / Brokers / Owners views): Approve · Archive/Restore · Delete sit next to each other; all use `e.stopPropagation()` so the row click still navigates to the dossier. Delete uses a strong confirm and surfaces FK-reference errors with a hint to archive instead.
+- **Show-archived toggle** in each view header (top-right). Default hidden; archived rows render at 50% opacity with an "Archived" badge.
+- **Filter chains**:
+  - Investors / Owners: `baseUsers = showArchived ? users : users.filter(u => !u.archived)` then existing `filter` (all/approved/pending) applies on top.
+  - Brokers: `visibleUsers = showArchived ? users : users.filter(u => !u.archived)` (no approve filter).
+- **Mirrored in `AdminUserDetail.tsx`**: identity header has Approve · Archive/Restore · Delete; "Archived" badge appears next to approval badge when applicable; Delete navigates back to `/admin` on success.
+
 ## Structure
 
 ```text

@@ -20,6 +20,9 @@ import {
   Pencil,
   X,
   Save,
+  Archive,
+  ArchiveRestore,
+  Trash2,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaSignature } from "@/lib/platformNdaApi";
@@ -37,6 +40,8 @@ type UserRecord = {
   budget?: string | null;
   yacht_type?: string | null;
   location?: string | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
 };
 
 function fmtDate(iso?: string | null) {
@@ -83,6 +88,36 @@ export default function AdminUserDetail() {
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", company: "", phone: "", location: "", notes: "" });
+  const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function toggleArchive() {
+    if (!user) return;
+    const next = !user.archived;
+    if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
+    setArchiving(true);
+    const archived_at = next ? new Date().toISOString() : null;
+    const { error: e } = await supabaseAdmin
+      .from("users")
+      .update({ archived: next, archived_at })
+      .eq("id", user.id);
+    if (e) alert("Failed: " + e.message);
+    else setUser({ ...user, archived: next, archived_at });
+    setArchiving(false);
+  }
+
+  async function deleteUser() {
+    if (!user) return;
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
+    setDeleting(true);
+    const { error: e } = await supabaseAdmin.from("users").delete().eq("id", user.id);
+    if (e) {
+      alert("Delete failed: " + e.message + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+      setDeleting(false);
+    } else {
+      setLocation("/admin");
+    }
+  }
 
   function startEdit() {
     if (!user) return;
@@ -245,17 +280,41 @@ export default function AdminUserDetail() {
               </div>
             </div>
             <div className="flex flex-col sm:items-end gap-3">
-              <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 border text-xs font-sans uppercase tracking-wider ${user.approved ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}`}>
-                {user.approved ? <CheckCircle size={11} /> : <Clock size={11} />}
-                {user.approved ? "Approved" : "Pending Approval"}
+              <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 border text-xs font-sans uppercase tracking-wider ${user.approved ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}`}>
+                  {user.approved ? <CheckCircle size={11} /> : <Clock size={11} />}
+                  {user.approved ? "Approved" : "Pending Approval"}
+                </div>
+                {user.archived && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 border bg-white/5 text-white/50 border-white/10 text-xs font-sans uppercase tracking-wider">
+                    <Archive size={11} /> Archived
+                  </div>
+                )}
               </div>
-              <button
-                onClick={toggleApproval}
-                disabled={savingApproval}
-                className={`px-4 py-2 text-xs font-sans uppercase tracking-wider transition-colors disabled:opacity-50 ${user.approved ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20" : "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20"}`}
-              >
-                {savingApproval ? "Saving…" : user.approved ? "Revoke Access" : "Approve Account"}
-              </button>
+              <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                <button
+                  onClick={toggleApproval}
+                  disabled={savingApproval}
+                  className={`px-4 py-2 text-xs font-sans uppercase tracking-wider transition-colors disabled:opacity-50 ${user.approved ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20" : "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20"}`}
+                >
+                  {savingApproval ? "Saving…" : user.approved ? "Revoke Access" : "Approve Account"}
+                </button>
+                <button
+                  onClick={toggleArchive}
+                  disabled={archiving || deleting}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-sans uppercase tracking-wider transition-colors disabled:opacity-50 bg-white/5 text-white/70 border border-white/10 hover:bg-white/10"
+                >
+                  {user.archived ? <ArchiveRestore size={12} /> : <Archive size={12} />}
+                  {archiving ? "…" : user.archived ? "Restore" : "Archive"}
+                </button>
+                <button
+                  onClick={deleteUser}
+                  disabled={archiving || deleting}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-sans uppercase tracking-wider transition-colors disabled:opacity-50 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
+                >
+                  <Trash2 size={12} /> {deleting ? "Deleting…" : "Delete"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

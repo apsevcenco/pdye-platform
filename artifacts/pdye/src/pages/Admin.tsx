@@ -94,7 +94,20 @@ const navItems = [
   { id: "platform-nda-link", label: "Platform NDA", icon: FileText, href: "/admin-platform-nda" },
 ];
 
-type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string; name?: string; budget?: string; yacht_type?: string; location?: string };
+type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string; name?: string; budget?: string; yacht_type?: string; location?: string; archived?: boolean; archived_at?: string | null };
+
+async function archiveUserAction(userId: string, archive: boolean): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabaseAdmin
+    .from("users")
+    .update({ archived: archive, archived_at: archive ? new Date().toISOString() : null })
+    .eq("id", userId);
+  return { ok: !error, error: error?.message };
+}
+
+async function deleteUserAction(userId: string): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabaseAdmin.from("users").delete().eq("id", userId);
+  return { ok: !error, error: error?.message };
+}
 type DealRoomDoc = { id: string; deal_room_id: string; uploaded_by: string; file_name: string; file_url: string; file_type?: string; file_size?: number; visible_to_roles?: string[]; created_at: string };
 type DealRoomMsg = { id: string; deal_room_id: string; sender_id: string; message: string; is_system: boolean; created_at: string };
 
@@ -2428,6 +2441,29 @@ function InvestorsView() {
   const [saving, setSaving] = useState(false);
   const [requestCounts, setRequestCounts] = useState<Record<string, number>>({});
   const [filter, setFilter] = useState<"all" | "approved" | "pending">("all");
+  const [showArchived, setShowArchived] = useState(false);
+  const [busyRow, setBusyRow] = useState<string | null>(null);
+
+  async function archiveRow(user: UserRecord, e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !user.archived;
+    if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
+    setBusyRow(user.id);
+    const r = await archiveUserAction(user.id, next);
+    if (!r.ok) alert("Failed: " + r.error);
+    else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
+    setBusyRow(null);
+  }
+
+  async function deleteRow(user: UserRecord, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
+    setBusyRow(user.id);
+    const r = await deleteUserAction(user.id);
+    if (!r.ok) alert("Delete failed: " + r.error + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+    else setUsers(prev => prev.filter(u => u.id !== user.id));
+    setBusyRow(null);
+  }
 
   useEffect(() => { load(); }, []);
 
@@ -2469,7 +2505,9 @@ function InvestorsView() {
     if (selected?.id === id) setSelected(null);
   }
 
-  const filtered = filter === "all" ? users : filter === "approved" ? users.filter(u => u.approved) : users.filter(u => !u.approved);
+  const baseUsers = showArchived ? users : users.filter(u => !u.archived);
+  const filtered = filter === "all" ? baseUsers : filter === "approved" ? baseUsers.filter(u => u.approved) : baseUsers.filter(u => !u.approved);
+  const archivedCount = users.filter(u => u.archived).length;
   const initials = (email: string) => email.split("@")[0].slice(0, 2).toUpperCase();
 
   if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
@@ -2480,14 +2518,17 @@ function InvestorsView() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-3xl text-white font-bold">Private Buyers</h1>
-            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered buyers</p>
+            <p className="text-white/50 text-sm font-sans mt-1">{baseUsers.length} {showArchived ? "total (incl. archived)" : "active"}{archivedCount > 0 && !showArchived ? ` · ${archivedCount} archived hidden` : ""}</p>
           </div>
+          <button onClick={() => setShowArchived(s => !s)} className={`text-[10px] px-3 py-1.5 font-bold uppercase tracking-wider transition-colors border ${showArchived ? "bg-primary/20 text-primary border-primary/40" : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10"}`}>
+            {showArchived ? "Hide archived" : `Show archived${archivedCount > 0 ? ` (${archivedCount})` : ""}`}
+          </button>
         </div>
 
         <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
           {(["all", "approved", "pending"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
-              {f === "all" ? `All (${users.length})` : f === "approved" ? `Approved (${users.filter(u => u.approved).length})` : `Pending (${users.filter(u => !u.approved).length})`}
+              {f === "all" ? `All (${baseUsers.length})` : f === "approved" ? `Approved (${baseUsers.filter(u => u.approved).length})` : `Pending (${baseUsers.filter(u => !u.approved).length})`}
             </button>
           ))}
         </div>
@@ -2512,13 +2553,16 @@ function InvestorsView() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filtered.map(user => (
-                  <tr key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`cursor-pointer transition-colors group ${selected?.id === user.id ? "bg-primary/8 border-l-2 border-primary" : "hover:bg-white/2"}`}>
+                  <tr key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`cursor-pointer transition-colors group ${user.archived ? "opacity-50" : ""} ${selected?.id === user.id ? "bg-primary/8 border-l-2 border-primary" : "hover:bg-white/2"}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
                           <span className="text-primary text-xs font-bold">{initials(user.email)}</span>
                         </div>
-                        <p className="text-white font-medium font-sans text-sm">{user.email}</p>
+                        <p className="text-white font-medium font-sans text-sm">
+                          {user.email}
+                          {user.archived && <span className="ml-2 text-[9px] text-white/40 uppercase tracking-widest">Archived</span>}
+                        </p>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-white/60 text-sm hidden md:table-cell">{user.company || "—"}</td>
@@ -2529,6 +2573,12 @@ function InvestorsView() {
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={e => { e.stopPropagation(); toggleApproval(user); }} className={`text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border ${user.approved ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20" : "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20"}`}>
                           {user.approved ? "Revoke" : "Approve"}
+                        </button>
+                        <button onClick={e => archiveRow(user, e)} disabled={busyRow === user.id} className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border bg-white/5 text-white/60 border-white/10 hover:bg-white/10 disabled:opacity-50">
+                          {user.archived ? "Restore" : "Archive"}
+                        </button>
+                        <button onClick={e => deleteRow(user, e)} disabled={busyRow === user.id} className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 disabled:opacity-50">
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -2611,6 +2661,29 @@ function BrokersView() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ company: "", phone: "", notes: "" });
   const [saving, setSaving] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [busyRow, setBusyRow] = useState<string | null>(null);
+
+  async function archiveRow(user: UserRecord, e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !user.archived;
+    if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
+    setBusyRow(user.id);
+    const r = await archiveUserAction(user.id, next);
+    if (!r.ok) alert("Failed: " + r.error);
+    else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
+    setBusyRow(null);
+  }
+
+  async function deleteRow(user: UserRecord, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
+    setBusyRow(user.id);
+    const r = await deleteUserAction(user.id);
+    if (!r.ok) alert("Delete failed: " + r.error + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+    else setUsers(prev => prev.filter(u => u.id !== user.id));
+    setBusyRow(null);
+  }
 
   useEffect(() => { load(); }, []);
 
@@ -2646,6 +2719,8 @@ function BrokersView() {
     if (selected?.id === id) setSelected(null);
   }
 
+  const visibleUsers = showArchived ? users : users.filter(u => !u.archived);
+  const archivedCount = users.filter(u => u.archived).length;
   const initials = (email: string) => email.split("@")[0].slice(0, 2).toUpperCase();
 
   if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
@@ -2656,32 +2731,44 @@ function BrokersView() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-3xl text-white font-bold">Brokers</h1>
-            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered brokers</p>
+            <p className="text-white/50 text-sm font-sans mt-1">{visibleUsers.length} {showArchived ? "total (incl. archived)" : "active"}{archivedCount > 0 && !showArchived ? ` · ${archivedCount} archived hidden` : ""}</p>
           </div>
+          <button onClick={() => setShowArchived(s => !s)} className={`text-[10px] px-3 py-1.5 font-bold uppercase tracking-wider transition-colors border ${showArchived ? "bg-primary/20 text-primary border-primary/40" : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10"}`}>
+            {showArchived ? "Hide archived" : `Show archived${archivedCount > 0 ? ` (${archivedCount})` : ""}`}
+          </button>
         </div>
 
-        {users.length === 0 ? (
+        {visibleUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-white/30">
             <Briefcase size={36} className="mb-3 opacity-30" />
             <p className="text-sm">No brokers registered</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {users.map(user => (
-              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+            {visibleUsers.map(user => (
+              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${user.archived ? "opacity-50" : ""} ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
                     <span className="text-primary text-xs font-bold">{initials(user.email)}</span>
                   </div>
                   <div>
-                    <p className="text-white font-medium font-sans text-sm">{user.email}</p>
+                    <p className="text-white font-medium font-sans text-sm">
+                      {user.email}
+                      {user.archived && <span className="ml-2 text-[9px] text-white/40 uppercase tracking-widest">Archived</span>}
+                    </p>
                     <p className="text-white/40 text-xs">{user.company || "No company"} · Registered {new Date(user.created_at).toLocaleDateString("ru-RU")}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 flex-wrap">
                   <StatusBadge status={user.approved ? "approved" : "pending"} />
                   <button onClick={e => { e.stopPropagation(); toggleApproval(user); }} className={`text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border ${user.approved ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : "bg-green-500/10 text-green-400 border-green-500/20"}`}>
                     {user.approved ? "Revoke" : "Approve"}
+                  </button>
+                  <button onClick={e => archiveRow(user, e)} disabled={busyRow === user.id} className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border bg-white/5 text-white/60 border-white/10 hover:bg-white/10 disabled:opacity-50">
+                    {user.archived ? "Restore" : "Archive"}
+                  </button>
+                  <button onClick={e => deleteRow(user, e)} disabled={busyRow === user.id} className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 disabled:opacity-50">
+                    Delete
                   </button>
                 </div>
               </div>
@@ -2755,6 +2842,29 @@ function OwnersView() {
   const [editForm, setEditForm] = useState({ name: "", company: "", phone: "", location: "", notes: "" });
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<"all" | "approved" | "pending">("all");
+  const [showArchived, setShowArchived] = useState(false);
+  const [busyRow, setBusyRow] = useState<string | null>(null);
+
+  async function archiveRow(user: UserRecord, e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !user.archived;
+    if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
+    setBusyRow(user.id);
+    const r = await archiveUserAction(user.id, next);
+    if (!r.ok) alert("Failed: " + r.error);
+    else setUsers(prev => prev.map(u => u.id === user.id ? { ...u, archived: next, archived_at: next ? new Date().toISOString() : null } : u));
+    setBusyRow(null);
+  }
+
+  async function deleteRow(user: UserRecord, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nClick OK only if you really want to remove this user record forever.`)) return;
+    setBusyRow(user.id);
+    const r = await deleteUserAction(user.id);
+    if (!r.ok) alert("Delete failed: " + r.error + "\n\n(If this user is referenced by deal rooms or other records you may need to archive instead.)");
+    else setUsers(prev => prev.filter(u => u.id !== user.id));
+    setBusyRow(null);
+  }
 
   useEffect(() => { load(); }, []);
 
@@ -2804,7 +2914,9 @@ function OwnersView() {
     if (selected?.id === id) setSelected(null);
   }
 
-  const filtered = filter === "all" ? users : filter === "approved" ? users.filter(u => u.approved) : users.filter(u => !u.approved);
+  const baseUsers = showArchived ? users : users.filter(u => !u.archived);
+  const filtered = filter === "all" ? baseUsers : filter === "approved" ? baseUsers.filter(u => u.approved) : baseUsers.filter(u => !u.approved);
+  const archivedCount = users.filter(u => u.archived).length;
   const initials = (rec: UserRecord) => (rec.name || rec.email).split(/[\s@]/)[0].slice(0, 2).toUpperCase();
 
   if (loading) return <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>;
@@ -2815,14 +2927,17 @@ function OwnersView() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-3xl text-white font-bold">Boat Owners</h1>
-            <p className="text-white/50 text-sm font-sans mt-1">{users.length} registered owners</p>
+            <p className="text-white/50 text-sm font-sans mt-1">{baseUsers.length} {showArchived ? "total (incl. archived)" : "active"}{archivedCount > 0 && !showArchived ? ` · ${archivedCount} archived hidden` : ""}</p>
           </div>
+          <button onClick={() => setShowArchived(s => !s)} className={`text-[10px] px-3 py-1.5 font-bold uppercase tracking-wider transition-colors border ${showArchived ? "bg-primary/20 text-primary border-primary/40" : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10"}`}>
+            {showArchived ? "Hide archived" : `Show archived${archivedCount > 0 ? ` (${archivedCount})` : ""}`}
+          </button>
         </div>
 
         <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
           {(["all", "approved", "pending"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
-              {f === "all" ? `All (${users.length})` : f === "approved" ? `Approved (${users.filter(u => u.approved).length})` : `Pending (${users.filter(u => !u.approved).length})`}
+              {f === "all" ? `All (${baseUsers.length})` : f === "approved" ? `Approved (${baseUsers.filter(u => u.approved).length})` : `Pending (${baseUsers.filter(u => !u.approved).length})`}
             </button>
           ))}
         </div>
@@ -2835,20 +2950,29 @@ function OwnersView() {
         ) : (
           <div className="space-y-3">
             {filtered.map(user => (
-              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${user.archived ? "opacity-50" : ""} ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
                     <span className="text-primary text-xs font-bold">{initials(user)}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-white font-medium font-sans text-sm truncate">{user.name || user.email}</p>
+                    <p className="text-white font-medium font-sans text-sm truncate">
+                      {user.name || user.email}
+                      {user.archived && <span className="ml-2 text-[9px] text-white/40 uppercase tracking-widest">Archived</span>}
+                    </p>
                     <p className="text-white/40 text-xs truncate">{[user.budget, user.location].filter(Boolean).join(" · ") || user.email} · Registered {new Date(user.created_at).toLocaleDateString("ru-RU")}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <StatusBadge status={user.approved ? "approved" : "pending"} />
                   <button onClick={e => { e.stopPropagation(); toggleApproval(user); }} className={`text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border ${user.approved ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : "bg-green-500/10 text-green-400 border-green-500/20"}`}>
                     {user.approved ? "Revoke" : "Approve"}
+                  </button>
+                  <button onClick={e => archiveRow(user, e)} disabled={busyRow === user.id} className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border bg-white/5 text-white/60 border-white/10 hover:bg-white/10 disabled:opacity-50">
+                    {user.archived ? "Restore" : "Archive"}
+                  </button>
+                  <button onClick={e => deleteRow(user, e)} disabled={busyRow === user.id} className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider transition-colors border bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 disabled:opacity-50">
+                    Delete
                   </button>
                 </div>
               </div>
