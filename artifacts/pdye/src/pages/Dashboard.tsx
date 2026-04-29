@@ -66,7 +66,7 @@ function Block({ title, children, action }: { title: string; children: React.Rea
 }
 
 /* ─── PRIVATE BUYER VIEW ─── */
-function BuyerDashboard({ userId }: { userId: string }) {
+export function BuyerDashboard({ userId }: { userId: string }) {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -312,7 +312,7 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
 }
 
 /* ─── BROKER / OWNER VIEW ─── */
-function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
+export function ListingsDashboard({ userId, role }: { userId: string; role: string }) {
   const [yachts, setYachts] = useState<MyYacht[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -590,7 +590,7 @@ function dealStatusToStep(dealStatus: string | null): number {
   return 0;
 }
 
-function OwnerDashboard({ userId }: { userId: string }) {
+export function OwnerDashboard({ userId }: { userId: string }) {
   const [yachts, setYachts] = useState<MyYacht[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -923,6 +923,9 @@ export default function Dashboard() {
   const approved = userProfile?.approved;
   const email = userProfile?.email || user.email || "";
 
+  // Dashboard is admin-only. All other roles see their workspace inside Profile.
+  if (role !== "admin") return <Redirect to="/profile" />;
+
   const ROLE_DISPLAY: Record<string, { label: string; style: string }> = {
     investor: { label: "Private Buyer", style: "text-blue-400 border-blue-400/30 bg-blue-400/8" },
     broker:   { label: "Broker",        style: "text-purple-400 border-purple-400/30 bg-purple-400/8" },
@@ -973,11 +976,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Role-based content */}
-          {role === "admin" && <AdminDashboard />}
-          {role === "broker" && <ListingsDashboard userId={user.id} role={role} />}
-          {(role === "investor" || role === "buyer") && <BuyerDashboard userId={user.id} />}
-          {role === "owner" && <OwnerDashboard userId={user.id} />}
+          {/* Admin content (other roles redirected to /profile above) */}
+          <AdminDashboard />
 
         </div>
       </div>

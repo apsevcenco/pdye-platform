@@ -21,7 +21,8 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, userProfile, logout } = useAuth();
+  const isAdmin = userProfile?.role === "admin";
 
   const isHome = location === "/";
 
@@ -115,16 +116,18 @@ export function Navbar() {
           <div className="h-5 w-[1px] bg-white/12" />
           {user ? (
             <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard"
-                className={`flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors px-3 py-1.5 border ${location === "/dashboard" ? "border-primary/50 text-primary bg-primary/8" : "border-white/8 bg-white/3 text-white/50 hover:text-primary hover:border-primary/30"}`}
-              >
-                <LayoutDashboard size={11} />
-                Dashboard
-              </Link>
+              {isAdmin && (
+                <Link
+                  href="/dashboard"
+                  className={`flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors px-3 py-1.5 border ${location === "/dashboard" ? "border-primary/50 text-primary bg-primary/8" : "border-white/8 bg-white/3 text-white/50 hover:text-primary hover:border-primary/30"}`}
+                >
+                  <LayoutDashboard size={11} />
+                  Dashboard
+                </Link>
+              )}
               <Link
                 href="/profile"
-                title="My Profile — change email or password"
+                title="My Profile"
                 data-testid="link-profile-desktop"
                 className={`flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors px-3 py-1.5 border ${location === "/profile" ? "border-primary/50 text-primary bg-primary/8" : "border-white/8 bg-white/3 text-white/50 hover:text-primary hover:border-primary/30"}`}
               >
@@ -218,11 +221,13 @@ export function Navbar() {
             {user ? (
               <div className="space-y-3">
                 <p className="text-white/30 text-xs font-sans truncate">{user.email}</p>
-                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-primary hover:text-white transition-colors">
-                  <LayoutDashboard size={14} />
-                  My Dashboard
-                </Link>
+                {isAdmin && (
+                  <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-primary hover:text-white transition-colors">
+                    <LayoutDashboard size={14} />
+                    My Dashboard
+                  </Link>
+                )}
                 <Link href="/profile" onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-white/70 hover:text-white transition-colors"
                   data-testid="link-profile">

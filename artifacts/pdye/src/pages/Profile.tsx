@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { User, Lock, Mail, Shield, Eye, EyeOff, CheckCircle2, AtSign, Loader2 } from "lucide-react";
+import { User, Lock, Mail, Shield, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { BuyerDashboard, ListingsDashboard, OwnerDashboard } from "./Dashboard";
 
 const ROLE_LABELS: Record<string, string> = {
   investor: "Private Buyer",
@@ -13,7 +14,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function Profile() {
-  const { user, userProfile, refreshProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,14 +24,6 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Email change
-  const [newEmail, setNewEmail] = useState("");
-  const [emailPassword, setEmailPassword] = useState("");
-  const [showEmailPassword, setShowEmailPassword] = useState(false);
-  const [emailSaving, setEmailSaving] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
-
   if (!user || !userProfile) {
     return (
       <Layout>
@@ -39,66 +32,6 @@ export default function Profile() {
         </div>
       </Layout>
     );
-  }
-
-  async function handleChangeEmail(e: React.FormEvent) {
-    e.preventDefault();
-    setEmailError(null);
-    setEmailSuccess(null);
-
-    const next = newEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) {
-      setEmailError("Please enter a valid email address.");
-      return;
-    }
-    if (next === user!.email!.toLowerCase()) {
-      setEmailError("New email is the same as the current one.");
-      return;
-    }
-    if (!emailPassword) {
-      setEmailError("Enter your current password to confirm.");
-      return;
-    }
-
-    setEmailSaving(true);
-
-    // Verify identity by re-auth with current password
-    const { error: signInErr } = await supabase.auth.signInWithPassword({
-      email: user!.email!,
-      password: emailPassword,
-    });
-    if (signInErr) {
-      setEmailError("Current password is incorrect.");
-      setEmailSaving(false);
-      return;
-    }
-
-    // Optional: pre-check that email is not already taken
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || "/api";
-      const r = await fetch(`${apiBase}/auth/check-email?email=${encodeURIComponent(next)}`);
-      if (r.ok) {
-        const body = await r.json();
-        if (body?.exists) {
-          setEmailError("This email is already registered to another account.");
-          setEmailSaving(false);
-          return;
-        }
-      }
-    } catch { /* non-fatal */ }
-
-    const { error: updErr } = await supabase.auth.updateUser({ email: next });
-    if (updErr) {
-      setEmailError(updErr.message);
-      setEmailSaving(false);
-      return;
-    }
-
-    setEmailSuccess(`Подтверждение отправлено на ${next}. Откройте письмо и перейдите по ссылке, чтобы завершить смену email. До этого вы продолжаете входить под прежним адресом.`);
-    setNewEmail("");
-    setEmailPassword("");
-    await refreshProfile();
-    setEmailSaving(false);
   }
 
   async function handleChangePassword(e: React.FormEvent) {
@@ -151,14 +84,26 @@ export default function Profile() {
   const role = userProfile.role || "";
   const roleLabel = ROLE_LABELS[role] || role || "Member";
 
+  const isAdmin = role === "admin";
+
   return (
     <Layout>
       <div className="min-h-screen bg-background pt-32 pb-20">
-        <div className="max-w-3xl mx-auto px-6">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6">
           <div className="mb-10">
             <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-2">Account</p>
             <h1 className="font-display text-4xl text-white font-normal">My Profile</h1>
+            <p className="text-white/50 font-sans text-sm mt-2">{user.email}</p>
           </div>
+
+          {/* Role-specific workspace (non-admin only — admin uses /dashboard) */}
+          {!isAdmin && (
+            <div className="mb-10">
+              {role === "broker" && <ListingsDashboard userId={user.id} role={role} />}
+              {(role === "investor" || role === "buyer") && <BuyerDashboard userId={user.id} />}
+              {role === "owner" && <OwnerDashboard userId={user.id} />}
+            </div>
+          )}
 
           {/* Account info */}
           <div className="bg-[#0f1d33] border border-white/8 p-8 mb-6">
@@ -190,77 +135,6 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Change email */}
-          <div className="bg-[#0f1d33] border border-white/8 p-8 mb-6">
-            <h2 className="font-display text-lg text-white mb-2 flex items-center gap-2">
-              <AtSign size={18} className="text-primary" /> Change Email
-            </h2>
-            <p className="text-white/50 text-xs font-sans mb-6">
-              We'll send a confirmation link to the new address. Until you click it, you'll continue signing in with the current email.
-            </p>
-
-            <form onSubmit={handleChangeEmail} className="space-y-5">
-              <div>
-                <label className="text-white/40 text-[10px] uppercase tracking-widest mb-2 block">New Email</label>
-                <input
-                  type="email"
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  placeholder="new@example.com"
-                  className="w-full bg-[#0a1426] border border-white/10 px-4 py-3 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
-                  data-testid="input-new-email"
-                />
-              </div>
-
-              <div>
-                <label className="text-white/40 text-[10px] uppercase tracking-widest mb-2 block">Current Password (to confirm)</label>
-                <div className="relative">
-                  <input
-                    type={showEmailPassword ? "text" : "password"}
-                    value={emailPassword}
-                    onChange={e => setEmailPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    className="w-full bg-[#0a1426] border border-white/10 px-4 py-3 pr-12 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
-                    data-testid="input-email-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowEmailPassword(s => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
-                    aria-label="Toggle password visibility"
-                  >
-                    {showEmailPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              {emailError && (
-                <div className="px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-sans" data-testid="text-email-error">
-                  {emailError}
-                </div>
-              )}
-              {emailSuccess && (
-                <div className="px-4 py-3 bg-green-500/10 border border-green-500/30 text-green-300 text-sm font-sans flex items-start gap-2" data-testid="text-email-success">
-                  <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5" />
-                  <span>{emailSuccess}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={emailSaving}
-                className="bg-primary text-[#070f1a] px-8 py-3 font-bold tracking-widest uppercase text-xs hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                data-testid="button-change-email"
-              >
-                {emailSaving && <Loader2 size={14} className="animate-spin" />}
-                {emailSaving ? "Sending…" : "Send Confirmation"}
-              </button>
-            </form>
           </div>
 
           {/* Change password */}
