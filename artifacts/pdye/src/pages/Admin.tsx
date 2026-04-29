@@ -41,6 +41,7 @@ import {
   Star,
   RefreshCw,
   Menu,
+  Type,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -85,7 +86,7 @@ const navItems = [
   { id: "documents", label: "Documents", icon: FileText },
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "content", label: "Page Content", icon: PenLine },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "fonts", label: "Fonts", icon: Type },
   { id: "requests-link", label: "Access Requests", icon: CheckCircle, href: "/admin-requests" },
   { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
 ];
@@ -2960,6 +2961,7 @@ function ContentView() {
       </div>
 
       <div className="space-y-4">
+        {activePage === "home" && <HomepageHeroEditor />}
         {currentPage?.sections.map((section: any) => {
           const isOpen = openSections[section.id] !== false;
           const isSaved = savedSections[section.id];
@@ -3035,19 +3037,16 @@ function ContentView() {
   );
 }
 
-function SettingsView() {
+function HomepageHeroEditor() {
   const init = getHeroContent();
   const [heroTitle, setHeroTitle] = useState(init.title);
   const [heroSubtitle, setHeroSubtitle] = useState(init.subtitle);
   const [titleFont, setTitleFont] = useState(init.titleFont);
   const [titleSize, setTitleSize] = useState(init.titleSize);
   const [saved, setSaved] = useState(false);
+  const [open, setOpen] = useState(true);
 
-  const [customFonts, setCustomFonts] = useState<CustomFont[]>(getCustomFonts);
-  const [newFontName, setNewFontName] = useState("");
-  const [fontError, setFontError] = useState("");
-  const [fontAdded, setFontAdded] = useState(false);
-
+  const customFonts = getCustomFonts();
   const fontOptions = [
     ...DEFAULT_FONT_OPTIONS,
     ...customFonts.map(f => ({ label: `${f.name} (Custom)`, value: f.family })),
@@ -3066,6 +3065,79 @@ function SettingsView() {
     setTitleSize(HERO_DEFAULTS.titleSize);
     saveHeroContent(HERO_DEFAULTS);
   };
+
+  return (
+    <div className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/2 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <ChevronRight
+            size={14}
+            className={`text-primary transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          />
+          <span className="font-display text-lg text-white">Hero — Headline & Style</span>
+          <span className="text-white/20 text-xs font-sans">title, subtitle, font, size</span>
+        </div>
+        {saved && (
+          <span className="text-green-400 text-xs font-bold uppercase tracking-wider font-sans flex items-center gap-1">
+            <CheckCircle size={12} /> Saved
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="px-6 pb-6 pt-2 border-t border-white/5">
+          <div className="space-y-4">
+            <RichTextInput label="Headline" value={heroTitle} onChange={setHeroTitle} />
+            <RichTextArea label="Subtitle" value={heroSubtitle} onChange={setHeroSubtitle} rows={3} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Headline Font</label>
+                <select
+                  value={titleFont}
+                  onChange={e => setTitleFont(e.target.value)}
+                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
+                >
+                  {fontOptions.map(f => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Headline Size</label>
+                <select
+                  value={titleSize}
+                  onChange={e => setTitleSize(e.target.value)}
+                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
+                >
+                  {SIZE_OPTIONS.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-5 mt-4 border-t border-white/5">
+            <button onClick={handleSave} className="bg-primary text-background px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
+              {saved ? "Saved ✓" : "Save Section"}
+            </button>
+            <button onClick={handleReset} className="border border-white/10 text-white/40 px-5 py-2 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/60 transition-colors">
+              Reset to Default
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FontsView() {
+  const [customFonts, setCustomFonts] = useState<CustomFont[]>(getCustomFonts);
+  const [newFontName, setNewFontName] = useState("");
+  const [fontError, setFontError] = useState("");
+  const [fontAdded, setFontAdded] = useState(false);
 
   const handleAddFont = () => {
     const name = newFontName.trim();
@@ -3088,130 +3160,62 @@ function SettingsView() {
     const updated = customFonts.filter(f => f.name !== name);
     saveCustomFonts(updated);
     setCustomFonts(updated);
-    if (titleFont === `'${name}', sans-serif`) setTitleFont(HERO_DEFAULTS.titleFont);
   };
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="font-display text-3xl text-white font-bold">Settings</h1>
-        <p className="text-white/50 text-sm font-sans mt-1">Platform configuration</p>
+        <h1 className="font-display text-3xl text-white font-bold">Fonts</h1>
+        <p className="text-white/50 text-sm font-sans mt-1">Manage custom Google Fonts available in Page Content editors.</p>
       </div>
 
-      <div className="space-y-6">
-        <div className="bg-[#0f1d33] border border-white/5 p-6">
-          <h2 className="font-display text-lg text-white mb-1">Homepage Hero</h2>
-          <p className="text-white/40 text-xs mb-6 font-sans">Edit the headline, subtitle, font, and size displayed on the homepage hero.</p>
-          <div className="space-y-4">
-            <RichTextInput label="Headline" value={heroTitle} onChange={setHeroTitle} />
-            <RichTextArea label="Subtitle" value={heroSubtitle} onChange={setHeroSubtitle} rows={3} />
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Font</label>
-                <select
-                  value={titleFont}
-                  onChange={e => setTitleFont(e.target.value)}
-                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
-                >
-                  {fontOptions.map(f => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-white/60 text-xs uppercase tracking-widest mb-2 font-sans">Size</label>
-                <select
-                  value={titleSize}
-                  onChange={e => setTitleSize(e.target.value)}
-                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors"
-                >
-                  {SIZE_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
+      <div className="bg-[#0f1d33] border border-white/5 p-6">
+        <h2 className="font-display text-lg text-white mb-1">Custom Fonts</h2>
+        <p className="text-white/40 text-xs mb-6 font-sans">Search from 1,400+ Google Fonts. Start typing to see suggestions, select one, then click Add Font. Added fonts appear in the Headline Font selector inside Page Content → Home.</p>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <input
+                list="google-fonts-list"
+                value={newFontName}
+                onChange={e => { setNewFontName(e.target.value); setFontError(""); }}
+                onKeyDown={e => e.key === "Enter" && handleAddFont()}
+                placeholder="Search Google Fonts… e.g. Playfair Display"
+                className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
+              />
+              <datalist id="google-fonts-list">
+                {GOOGLE_FONTS.map(f => <option key={f} value={f} />)}
+              </datalist>
             </div>
-            <div className="flex gap-3 pt-2">
-              <button onClick={handleSave} className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
-                {saved ? "Saved ✓" : "Save Changes"}
-              </button>
-              <button onClick={handleReset} className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors">
-                Reset to Default
-              </button>
-            </div>
+            <button
+              onClick={handleAddFont}
+              className="bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors whitespace-nowrap"
+            >
+              {fontAdded ? "Added ✓" : "Add Font"}
+            </button>
           </div>
-        </div>
-
-        <div className="bg-[#0f1d33] border border-white/5 p-6">
-          <h2 className="font-display text-lg text-white mb-1">Custom Fonts</h2>
-          <p className="text-white/40 text-xs mb-6 font-sans">Search from 1,400+ Google Fonts. Start typing to see suggestions, select one, then click Add Font. It becomes available in the Font selector above.</p>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <input
-                  list="google-fonts-list"
-                  value={newFontName}
-                  onChange={e => { setNewFontName(e.target.value); setFontError(""); }}
-                  onKeyDown={e => e.key === "Enter" && handleAddFont()}
-                  placeholder="Search Google Fonts… e.g. Playfair Display"
-                  className="w-full bg-background border border-white/10 text-white px-4 py-3 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
-                />
-                <datalist id="google-fonts-list">
-                  {GOOGLE_FONTS.map(f => <option key={f} value={f} />)}
-                </datalist>
-              </div>
-              <button
-                onClick={handleAddFont}
-                className="bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors whitespace-nowrap"
-              >
-                {fontAdded ? "Added ✓" : "Add Font"}
-              </button>
-            </div>
-            {fontError && <p className="text-red-400 text-xs font-sans">{fontError}</p>}
-            {customFonts.length > 0 && (
-              <div className="space-y-2 pt-1">
-                {customFonts.map(f => (
-                  <div key={f.name} className="flex items-center justify-between bg-background/50 border border-white/5 px-4 py-3">
-                    <div>
-                      <span className="text-white text-sm font-sans" style={{ fontFamily: f.family }}>{f.name}</span>
-                      <span className="text-white/30 text-xs font-sans ml-3">{f.family}</span>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveFont(f.name)}
-                      className="text-white/30 hover:text-red-400 text-xs uppercase tracking-widest font-bold font-sans transition-colors"
-                    >
-                      Remove
-                    </button>
+          {fontError && <p className="text-red-400 text-xs font-sans">{fontError}</p>}
+          {customFonts.length > 0 && (
+            <div className="space-y-2 pt-1">
+              {customFonts.map(f => (
+                <div key={f.name} className="flex items-center justify-between bg-background/50 border border-white/5 px-4 py-3">
+                  <div>
+                    <span className="text-white text-sm font-sans" style={{ fontFamily: f.family }}>{f.name}</span>
+                    <span className="text-white/30 text-xs font-sans ml-3">{f.family}</span>
                   </div>
-                ))}
-              </div>
-            )}
-            {customFonts.length === 0 && (
-              <p className="text-white/20 text-xs font-sans italic">No custom fonts added yet.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-[#0f1d33] border border-white/5 p-6">
-          <h2 className="font-display text-lg text-white mb-4">Platform</h2>
-          <div className="space-y-4">
-            {[
-              { label: "Admin Email", value: "admin@pdye.com", desc: "Used for system notifications" },
-              { label: "NDA Template", value: "PDYE_NDA_v3.pdf", desc: "Default NDA sent to investors" },
-              { label: "Access Mode", value: "Invitation Only", desc: "Controls who can register" },
-            ].map((setting, i) => (
-              <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-white/5 last:border-0">
-                <div>
-                  <p className="text-white font-medium font-sans text-sm">{setting.label}</p>
-                  <p className="text-white/40 text-xs mt-0.5">{setting.desc}</p>
+                  <button
+                    onClick={() => handleRemoveFont(f.name)}
+                    className="text-white/30 hover:text-red-400 text-xs uppercase tracking-widest font-bold font-sans transition-colors"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <div className="flex items-center gap-3">
-                  <p className="text-white/70 text-sm font-mono">{setting.value}</p>
-                  <button className="text-xs border border-white/10 text-white/50 px-3 py-1 hover:border-primary hover:text-primary transition-colors font-bold uppercase tracking-wider">Edit</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+          {customFonts.length === 0 && (
+            <p className="text-white/20 text-xs font-sans italic">No custom fonts added yet.</p>
+          )}
         </div>
       </div>
     </div>
@@ -3228,7 +3232,7 @@ const views: Record<string, React.ReactElement> = {
   documents: <DocumentsView />,
   messages: <MessagesView />,
   content: <ContentView />,
-  settings: <SettingsView />,
+  fonts: <FontsView />,
 };
 
 export default function Admin() {
