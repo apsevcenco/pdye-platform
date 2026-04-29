@@ -4,6 +4,7 @@ import uploadRouter from "./upload";
 import estimateRouter from "./estimate";
 import ndaRouter from "./nda";
 import dealRoomsRouter from "./dealRoomsApi";
+import leadsRouter from "./leads";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(uploadRouter);
 router.use(estimateRouter);
 router.use(ndaRouter);
 router.use(dealRoomsRouter);
+router.use(leadsRouter);
 
 export default router;

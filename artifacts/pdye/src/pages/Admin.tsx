@@ -2107,6 +2107,19 @@ const LEAD_TYPE_STYLES: Record<string, string> = {
   "Owner Submission":     "text-green-400 bg-green-500/10 border-green-500/20",
 };
 
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "investor", label: "Private Buyer" },
+  { value: "broker", label: "Broker" },
+  { value: "owner", label: "Yacht Owner" },
+];
+
+function inferRoleFromYachtType(yachtType?: string | null): string {
+  const t = (yachtType || "").toLowerCase();
+  if (t.includes("broker")) return "broker";
+  if (t.includes("owner")) return "owner";
+  return "investor";
+}
+
 function LeadsView() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2114,6 +2127,9 @@ function LeadsView() {
   const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Lead | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [approveResult, setApproveResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [chosenRole, setChosenRole] = useState<string>("investor");
 
   useEffect(() => {
     supabaseAdmin
@@ -2127,6 +2143,13 @@ function LeadsView() {
       });
   }, []);
 
+  useEffect(() => {
+    if (selected) {
+      setChosenRole(inferRoleFromYachtType(selected.yacht_type));
+      setApproveResult(null);
+    }
+  }, [selected]);
+
   async function deleteLead(id: number) {
     if (!window.confirm("Delete this lead? This cannot be undone.")) return;
     setDeletingId(id);
@@ -2139,6 +2162,42 @@ function LeadsView() {
     setLeads(prev => prev.filter(l => l.id !== id));
     if (selected?.id === id) setSelected(null);
     setDeletingId(null);
+  }
+
+  async function approveLead(lead: Lead, role: string) {
+    if (!lead.email) {
+      setApproveResult({ ok: false, message: "Lead has no email address." });
+      return;
+    }
+    if (!window.confirm(
+      `Create account for ${lead.email} as ${ROLE_OPTIONS.find(r => r.value === role)?.label || role} and email login credentials?`
+    )) return;
+    setApprovingId(lead.id);
+    setApproveResult(null);
+    try {
+      const baseUrl = (import.meta.env.VITE_API_URL as string | undefined) || "";
+      const { data: { session } } = await supabaseAdmin.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch(`${baseUrl}/api/leads/${lead.id}/approve`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ role, siteUrl: window.location.origin }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setApproveResult({ ok: false, message: data.error || `Request failed (${res.status})` });
+      } else {
+        setApproveResult({ ok: true, message: `Account created and credentials emailed to ${data.email}.` });
+        setLeads(prev => prev.filter(l => l.id !== lead.id));
+        if (selected?.id === lead.id) setSelected(null);
+      }
+    } catch (e: any) {
+      setApproveResult({ ok: false, message: e?.message || "Network error" });
+    } finally {
+      setApprovingId(null);
+      setTimeout(() => setApproveResult(null), 8000);
+    }
   }
 
   const types = ["all", "Private Buyer Application", "Broker Application", "Owner Submission"];
@@ -2309,6 +2368,45 @@ function LeadsView() {
             <div className="mt-5 pt-5 border-t border-white/8">
               <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2">Message</p>
               <p className="text-white/60 text-sm leading-relaxed">{selected.message}</p>
+            </div>
+          )}
+
+          {/* Approve & send credentials */}
+          {selected.email && (
+            <div className="mt-6 pt-5 border-t border-white/8">
+              <p className="text-white/40 text-[10px] uppercase tracking-widest mb-3">Grant Access</p>
+              <label className="text-white/50 text-[11px] block mb-1.5">Assign Role</label>
+              <select
+                value={chosenRole}
+                onChange={e => setChosenRole(e.target.value)}
+                className="w-full bg-[#0a1426] border border-white/10 px-3 py-2 text-white text-xs font-sans mb-3 focus:border-primary/50 focus:outline-none"
+                data-testid="select-approve-role"
+              >
+                {ROLE_OPTIONS.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => approveLead(selected, chosenRole)}
+                disabled={approvingId === selected.id}
+                className="w-full bg-primary text-[#070f1a] py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                data-testid="button-approve-lead"
+              >
+                <Mail size={13} />
+                {approvingId === selected.id ? "Sending…" : "Approve & Send Credentials"}
+              </button>
+              <p className="text-white/30 text-[10px] mt-2 leading-relaxed">
+                Generates a temporary password and emails sign-in details. The lead will be removed once delivered.
+              </p>
+              {approveResult && (
+                <div className={`mt-3 px-3 py-2 text-xs font-sans border ${
+                  approveResult.ok
+                    ? "bg-green-500/10 border-green-500/30 text-green-400"
+                    : "bg-red-500/10 border-red-500/30 text-red-400"
+                }`} data-testid="text-approve-result">
+                  {approveResult.message}
+                </div>
+              )}
             </div>
           )}
         </div>

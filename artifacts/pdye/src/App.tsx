@@ -26,6 +26,7 @@ const DealDetails = lazy(() => import("./pages/DealDetails"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AdminRequests = lazy(() => import("./pages/AdminRequests"));
+const Profile = lazy(() => import("./pages/Profile"));
 
 function FontLoader() {
   useEffect(() => { loadAllCustomFonts(); }, []);
@@ -112,6 +113,7 @@ function Router() {
 
         {/* Protected */}
         <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
+        <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
         <Route path="/add-yacht" component={() => <ProtectedRoute component={AddYacht} />} />
         <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
         <Route path="/yacht/:id" component={() => <ProtectedRoute component={YachtDetail} />} />

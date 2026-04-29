@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Anchor, LogIn, LogOut, Ship, Briefcase, Users, TrendingUp, Calculator, LayoutDashboard } from "lucide-react";
+import { Menu, X, Anchor, LogIn, LogOut, Ship, Briefcase, Users, TrendingUp, Calculator, LayoutDashboard, User } from "lucide-react";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
 import { useAuth } from "@/context/AuthContext";
 
@@ -213,6 +213,12 @@ export function Navbar() {
                   className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-primary hover:text-white transition-colors">
                   <LayoutDashboard size={14} />
                   My Dashboard
+                </Link>
+                <Link href="/profile" onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-white/70 hover:text-white transition-colors"
+                  data-testid="link-profile">
+                  <User size={14} />
+                  My Profile
                 </Link>
                 <button onClick={handleLogout}
                   className="flex items-center gap-2 text-sm font-bold tracking-wide uppercase text-white/60 hover:text-white">
