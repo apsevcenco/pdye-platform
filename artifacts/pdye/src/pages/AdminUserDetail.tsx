@@ -155,10 +155,16 @@ export default function AdminUserDetail() {
       alert("Delete failed: " + r.error);
       setDeleting(false);
     } else {
+      const lines: string[] = [];
       if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        alert(`User ${user.email} deleted.\n\nRemoved from the deal-rooms database:\n` +
-          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
+        lines.push(`User ${user.email} deleted.`, "", "Removed from the deal-rooms database:");
+        lines.push(...r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`));
       }
+      if (r.authUserWarning) {
+        if (lines.length === 0) lines.push(`User ${user.email} deleted.`);
+        lines.push("", "⚠ " + r.authUserWarning);
+      }
+      if (lines.length > 0) alert(lines.join("\n"));
       setLocation("/admin");
     }
   }

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import pg from "pg";
-import { requireAdmin } from "../middlewares/auth";
+import { getSupabaseAdmin, requireAdmin } from "../middlewares/auth";
 
 const router: Router = Router();
 
@@ -19,9 +19,10 @@ type HeliumRef = { table: string; column: string; label: string };
 // USER-OWNED data: safe to cascade-delete when the user is removed.
 // These rows belong to the specific user and have no shared usage.
 const CASCADE_USER_REFS: HeliumRef[] = [
-  { table: "platform_nda_signatures",  column: "user_id",        label: "Platform NDA signature(s)" },
-  { table: "deal_nda_signatures",      column: "user_id",        label: "Deal Room NDA signature(s)" },
-  { table: "nda_envelopes",            column: "user_id",        label: "legacy NDA envelope(s)" },
+  { table: "platform_nda_signatures",   column: "user_id",        label: "Platform NDA signature(s)" },
+  { table: "deal_nda_signatures",       column: "user_id",        label: "Deal Room NDA signature(s)" },
+  { table: "deal_commission_signatures", column: "user_id",       label: "Commission Agreement signature(s)" },
+  { table: "nda_envelopes",             column: "user_id",        label: "legacy NDA envelope(s)" },
   { table: "deal_room_participants",   column: "user_id",        label: "deal room participation(s)" },
   { table: "deal_rooms",               column: "buyer_user_id",  label: "deal room(s) as buyer" },
   { table: "deal_rooms",               column: "seller_user_id", label: "deal room(s) as seller" },
@@ -173,6 +174,46 @@ router.post("/admin/users/:userId/cascade-delete", requireAdmin, async (req: Req
     res.status(500).json({ error: e?.message || "Cascade delete failed" });
   } finally {
     client.release();
+  }
+});
+
+/* ─────────────────── POST /admin/users/:userId/delete-auth-user ─────────────────── */
+// Removes the Supabase Auth user so the email cannot be silently reused on a later
+// signup/lead-approval (which would recycle the same UUID and re-attach any
+// surviving signature/profile rows). Idempotent: a missing auth user is success.
+router.post("/admin/users/:userId/delete-auth-user", requireAdmin, async (req: Request, res: Response) => {
+  const userId = String(req.params.userId || "");
+  if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  if (req.authUser && req.authUser.id === userId) {
+    res.status(400).json({ error: "You cannot delete your own auth account" });
+    return;
+  }
+
+  try {
+    const sb = getSupabaseAdmin();
+    const { error } = await sb.auth.admin.deleteUser(userId);
+    if (error) {
+      const msg = error.message || "";
+      const status = (error as any).status as number | undefined;
+      const code = (error as any).code as string | undefined;
+      // Idempotent: if the auth user is already gone, treat as success.
+      // Prefer structured signals (HTTP status / error code), fall back to message regex.
+      const isNotFound =
+        status === 404 ||
+        code === "user_not_found" ||
+        /not\s*found|user_not_found|no rows|user does not exist/i.test(msg);
+      if (isNotFound) {
+        res.json({ ok: true, alreadyAbsent: true });
+        return;
+      }
+      console.error("[user-admin] delete-auth-user error:", msg, { status, code });
+      res.status(500).json({ error: msg });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (e: any) {
+    console.error("[user-admin] delete-auth-user exception:", e?.message);
+    res.status(500).json({ error: e?.message || "Failed to delete auth user" });
   }
 });
 

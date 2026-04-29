@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { archiveUserAction, deleteUserAction, countAllUserReferences } from "@/lib/userAdminActions";
+import { archiveUserAction, deleteUserAction, countAllUserReferences, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
 import { useAuth } from "@/context/AuthContext";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
@@ -2535,8 +2535,9 @@ function InvestorsView() {
   }
 
   async function deleteUser(id: string) {
-    if (!window.confirm("Remove this user? This cannot be undone.")) return;
-    await supabaseAdmin.from("users").delete().eq("id", id);
+    const target = users.find(u => u.id === id);
+    const ok = await confirmAndDeleteUserInteractive(id, target?.email || "(unknown)");
+    if (!ok) return;
     setUsers(prev => prev.filter(u => u.id !== id));
     if (selected?.id === id) setSelected(null);
   }
@@ -2796,8 +2797,9 @@ function BrokersView() {
   }
 
   async function deleteUser(id: string) {
-    if (!window.confirm("Remove this broker? This cannot be undone.")) return;
-    await supabaseAdmin.from("users").delete().eq("id", id);
+    const target = users.find(u => u.id === id);
+    const ok = await confirmAndDeleteUserInteractive(id, target?.email || "(unknown)");
+    if (!ok) return;
     setUsers(prev => prev.filter(u => u.id !== id));
     if (selected?.id === id) setSelected(null);
   }
@@ -3038,8 +3040,9 @@ function OwnersView() {
   }
 
   async function deleteUser(id: string) {
-    if (!window.confirm("Remove this owner? This cannot be undone.")) return;
-    await supabaseAdmin.from("users").delete().eq("id", id);
+    const target = users.find(u => u.id === id);
+    const ok = await confirmAndDeleteUserInteractive(id, target?.email || "(unknown)");
+    if (!ok) return;
     setUsers(prev => prev.filter(u => u.id !== id));
     if (selected?.id === id) setSelected(null);
   }

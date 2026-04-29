@@ -168,6 +168,8 @@ export type DeleteResult = {
   heliumdbRefs?: UserReference[];
   cascadeDeleted?: UserReference[];
   failures?: PreflightFailure[];
+  authUserDeleted?: boolean;        // true if the Supabase Auth account was removed (or already absent)
+  authUserWarning?: string;         // non-fatal warning if auth-user deletion failed
 };
 
 export async function deleteUserAction(userId: string, opts: DeleteOptions = {}): Promise<DeleteResult> {
@@ -253,5 +255,86 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
       error: "No row was deleted (0 rows). The Supabase RLS policy may be blocking DELETE for the current role — check policies on public.users.",
     };
   }
-  return { ok: true, cascadeDeleted };
+
+  // Finally remove the Supabase Auth user. If we skip this, the orphan auth account
+  // can be silently recycled by `/leads/:id/approve` for a future signup with the same
+  // email, recycling the same UUID and bypassing the Platform NDA gate.
+  let authUserDeleted = false;
+  let authUserWarning: string | undefined;
+  try {
+    const r = await apiRequest(`/admin/users/${encodeURIComponent(userId)}/delete-auth-user`, { method: "POST" });
+    authUserDeleted = !!r?.ok;
+  } catch (e: any) {
+    authUserWarning =
+      "User profile and related records were deleted, but the Supabase Auth account could not be removed: " +
+      (e?.message || "unknown error") +
+      ". Delete it manually from the Supabase dashboard to prevent the email from being reused.";
+  }
+
+  return { ok: true, cascadeDeleted, authUserDeleted, authUserWarning };
+}
+
+/* ─────────────────── Interactive helper used by Admin list panels ─────────────────── */
+// Drop-in replacement for the legacy raw `supabaseAdmin.from("users").delete()` calls
+// in Admin.tsx (Buyers / Brokers / Owners panels). Mirrors the safe flow used in
+// AdminUserDetail: preflight refs → block on shared content → confirm cascade →
+// delete profile → delete auth user. Returns true if the user was removed.
+export async function confirmAndDeleteUserInteractive(userId: string, email: string): Promise<boolean> {
+  const all = await countAllUserReferences(userId);
+
+  if (all.supabase.preflightFailed) {
+    window.alert(
+      `Cannot delete ${email}: the Supabase dependency check failed.\n\n` +
+      all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
+    );
+    return false;
+  }
+  if (all.heliumdb.error) {
+    window.alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
+    return false;
+  }
+  if (all.blockingTotal > 0) {
+    const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
+    const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
+    const allLines = [supLines, hdLines].filter(Boolean).join("\n");
+    window.alert(
+      `Cannot delete ${email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
+      allLines +
+      `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
+    );
+    return false;
+  }
+
+  let cascadeFlag = false;
+  if (all.cascadeableTotal > 0) {
+    const ok = window.confirm(
+      `${email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
+      all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
+      `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
+    );
+    if (!ok) return false;
+    cascadeFlag = true;
+  } else {
+    if (!window.confirm(`PERMANENTLY DELETE ${email}? This action cannot be undone.\n\nNo linked records found.`)) {
+      return false;
+    }
+  }
+
+  const r = await deleteUserAction(userId, { cascadeHeliumdb: cascadeFlag });
+  if (!r.ok) {
+    window.alert("Delete failed: " + r.error);
+    return false;
+  }
+
+  const lines: string[] = [`User ${email} deleted.`];
+  if (r.cascadeDeleted && r.cascadeDeleted.length) {
+    lines.push("", "Removed from the deal-rooms database:");
+    lines.push(...r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`));
+  }
+  if (r.authUserWarning) {
+    lines.push("", "⚠ " + r.authUserWarning);
+  }
+  // Only show a notification if there's something noteworthy beyond the bare "deleted" line
+  if (lines.length > 1) window.alert(lines.join("\n"));
+  return true;
 }
