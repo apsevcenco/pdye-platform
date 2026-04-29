@@ -646,7 +646,7 @@ export const SITE_DEFAULTS: Record<string, Record<string, Record<string, string>
     form: {
       submit_btn: "Get AI Valuation",
       loading_text: "Analysing Global Market...",
-      loading_desc: "Searching and verifying real listings on YachtWorld, RightBoat, Boat24, Apollo Duck and more — visiting individual pages to check specs... (1–2 min)",
+      loading_desc: "Searching and verifying real listings on YachtWorld, RightBoat, Boat24, Apollo Duck and more — visiting individual pages to check specs and refining queries as the AI learns more about this segment. Please wait 2–3 minutes.",
       result_label: "Market Value Estimate",
       comparables_title: "Market Comparables",
       new_btn: "New Valuation",
