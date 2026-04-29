@@ -2419,6 +2419,7 @@ function LeadsView() {
 }
 
 function InvestorsView() {
+  const [, setLocation] = useLocation();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<UserRecord | null>(null);
@@ -2511,7 +2512,7 @@ function InvestorsView() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filtered.map(user => (
-                  <tr key={user.id} onClick={() => { setSelected(user); setEditing(false); }} className={`cursor-pointer transition-colors group ${selected?.id === user.id ? "bg-primary/8 border-l-2 border-primary" : "hover:bg-white/2"}`}>
+                  <tr key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`cursor-pointer transition-colors group ${selected?.id === user.id ? "bg-primary/8 border-l-2 border-primary" : "hover:bg-white/2"}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
@@ -2603,6 +2604,7 @@ function InvestorsView() {
 }
 
 function BrokersView() {
+  const [, setLocation] = useLocation();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<UserRecord | null>(null);
@@ -2666,7 +2668,7 @@ function BrokersView() {
         ) : (
           <div className="space-y-3">
             {users.map(user => (
-              <div key={user.id} onClick={() => { setSelected(user); setEditing(false); }} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
                     <span className="text-primary text-xs font-bold">{initials(user.email)}</span>
@@ -2745,6 +2747,7 @@ function BrokersView() {
 }
 
 function OwnersView() {
+  const [, setLocation] = useLocation();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<UserRecord | null>(null);
@@ -2832,7 +2835,7 @@ function OwnersView() {
         ) : (
           <div className="space-y-3">
             {filtered.map(user => (
-              <div key={user.id} onClick={() => { setSelected(user); setEditing(false); }} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
                     <span className="text-primary text-xs font-bold">{initials(user)}</span>

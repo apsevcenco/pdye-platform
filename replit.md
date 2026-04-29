@@ -146,6 +146,21 @@ Express on port 8080. Routes:
   - Frontend: `PlatformNda.tsx` injects Google Fonts `Great Vibes` for live signature preview + post-sign download button via `platformNdaApi.downloadSignedPdf()` (authenticated `fetch` → blob → `URL.createObjectURL`). `AdminPlatformNda.tsx` audit log shows signed names in Great Vibes + per-row authenticated PDF download. Helper `triggerBlobDownload()` in `platformNdaApi.ts`.
   - Important: `<a href>` cannot pass bearer tokens to the API; ALL signed-PDF downloads MUST use `platformNdaApi.downloadSignedPdf()` + `triggerBlobDownload()`.
 
+### Admin Client Dossier (`/admin/users/:id`)
+
+- **Goal**: in the admin panel each user-category row (Investors / Brokers / Owners) acts as the master client card. Clicking the row opens a dedicated full-page dossier that aggregates everything known about the client.
+- **Page**: `pages/AdminUserDetail.tsx` — admin-only route; hash-based path `/#/admin/users/:id`.
+- **Sections**:
+  1. Identity header — avatar, name, email, role badge (broker/owner/buyer), approval status, Approve/Revoke action.
+  2. Contact & Profile — name, email (read-only), phone, company, location, registered. Inline Edit/Save/Cancel writes back to `users` table via `supabaseAdmin`.
+  3. Application Profile — `yacht_type`, `budget`, notes (read-only mirror).
+  4. Platform NDA — signed/not-signed badge, version, signed_at (UTC, RU locale), printed name, IP, document hash, UA. Per-signature **Download PDF** button using `platformNdaApi.downloadSignedPdf()` + `triggerBlobDownload()`. Pulls all signatures via `platformNdaApi.adminListSignatures()` and filters by `user_id` OR case-insensitive `user_email`.
+  5. Placeholder card for upcoming sections: deal rooms, deal-level NDAs, commission agreements, activity history.
+- **Navigation**:
+  - Top bar with **Back** button → `/admin`, plus a refresh button.
+  - Row clicks in `Admin.tsx` `InvestorsView` / `BrokersView` / `OwnersView` use `setLocation(\`/admin/users/${user.id}\`)`. Quick approval buttons keep `e.stopPropagation()` so they don't navigate.
+- **Note**: the legacy in-place sidebar code in those three views is now unreachable (kept temporarily for diff size — TODO: remove after the new flow is confirmed in production).
+
 ## Structure
 
 ```text

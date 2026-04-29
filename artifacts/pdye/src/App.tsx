@@ -27,6 +27,7 @@ const DealRoom = lazy(() => import("./pages/DealRoom"));
 const DealDetails = lazy(() => import("./pages/DealDetails"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AdminUserDetail = lazy(() => import("./pages/AdminUserDetail"));
 const AdminRequests = lazy(() => import("./pages/AdminRequests"));
 const AdminPlatformNda = lazy(() => import("./pages/AdminPlatformNda"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -138,6 +139,7 @@ function Router() {
         {/* Admin only */}
         <Route path="/admin" component={() => <ProtectedRoute component={Admin} adminOnly />} />
         <Route path="/admin-users" component={() => <ProtectedRoute component={AdminUsers} adminOnly />} />
+        <Route path="/admin/users/:id" component={() => <ProtectedRoute component={AdminUserDetail} adminOnly />} />
         <Route path="/admin-requests" component={() => <ProtectedRoute component={AdminRequests} adminOnly />} />
         <Route path="/admin-platform-nda" component={() => <ProtectedRoute component={AdminPlatformNda} adminOnly />} />
 
