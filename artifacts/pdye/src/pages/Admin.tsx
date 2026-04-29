@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment, useCallback } from "react";
+import React, { useState, useRef, useEffect, Fragment, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
@@ -101,7 +101,7 @@ function StatusBadge({ status }: { status: string }) {
     review: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     active: "bg-green-500/10 text-green-400 border-green-500/20",
   };
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, React.ReactElement> = {
     pending: <Clock size={10} />,
     approved: <CheckCircle size={10} />,
     review: <AlertCircle size={10} />,
@@ -3218,7 +3218,7 @@ function SettingsView() {
   );
 }
 
-const views: Record<string, JSX.Element> = {
+const views: Record<string, React.ReactElement> = {
   dashboard: <Dashboard />,
   yachts: <YachtsView />,
   dealroom: <DealsManageView />,

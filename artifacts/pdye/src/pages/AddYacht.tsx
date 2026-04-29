@@ -149,6 +149,7 @@ export default function AddYacht() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { setErr("Yacht name is required."); return; }
+    if (!user) { setErr("You must be signed in to save a yacht."); return; }
     setSaving(true); setErr("");
 
     const payload: Record<string, any> = {

@@ -308,7 +308,7 @@ function ApprovedSpecView({ yacht, units, setUnits }: {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <p className="text-white/30 text-[10px] uppercase tracking-widest font-sans">Full Technical Specifications</p>
-                <button onClick={() => setUnits(u => u === "metric" ? "imperial" : "metric" as any)} className="flex items-center gap-0 border border-white/10 overflow-hidden hover:border-primary/30 transition-colors">
+                <button onClick={() => setUnits(units === "metric" ? "imperial" : "metric")} className="flex items-center gap-0 border border-white/10 overflow-hidden hover:border-primary/30 transition-colors">
                   <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>Metric</span>
                   <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${!M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>Imperial</span>
                 </button>

@@ -101,7 +101,7 @@ router.get("/deal-rooms/by-user/:userId", async (req, res) => {
 router.get("/deal-rooms/:id", async (req, res) => {
   try {
     const { rows } = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({ error: "Not found" });
+    if (rows.length === 0) { res.status(404).json({ error: "Not found" }); return; }
     res.json(rows[0]);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -126,7 +126,7 @@ router.post("/deal-rooms", async (req, res) => {
 router.patch("/deal-rooms/:id", async (req, res) => {
   const fields = req.body;
   const keys = Object.keys(fields);
-  if (keys.length === 0) return res.status(400).json({ error: "No fields" });
+  if (keys.length === 0) { res.status(400).json({ error: "No fields" }); return; }
   const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(", ");
   const vals = keys.map(k => fields[k]);
   try {
@@ -181,7 +181,7 @@ router.post("/deal-rooms/:id/participants", async (req, res) => {
 router.patch("/deal-rooms/:roomId/participants", async (req, res) => {
   const fields = req.body;
   const keys = Object.keys(fields).filter(k => k !== 'deal_room_id');
-  if (keys.length === 0) return res.status(400).json({ error: "No fields" });
+  if (keys.length === 0) { res.status(400).json({ error: "No fields" }); return; }
   const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(", ");
   const vals = keys.map(k => fields[k]);
   try {
@@ -320,7 +320,7 @@ router.get("/deal-rooms/:id/blocks", async (req, res) => {
 router.put("/deal-rooms/:id/blocks/:blockKey", async (req, res) => {
   const { blockKey } = req.params;
   const { is_unlocked, admin_id } = req.body;
-  if (!BLOCK_KEYS.includes(blockKey)) return res.status(400).json({ error: "Invalid block key" });
+  if (!BLOCK_KEYS.includes(blockKey)) { res.status(400).json({ error: "Invalid block key" }); return; }
   try {
     const { rows } = await db().query(
       `INSERT INTO deal_room_blocks (deal_room_id, block_key, is_unlocked, unlocked_by, unlocked_at)
@@ -369,7 +369,7 @@ router.post("/deal-rooms/:id/commission/send", async (req, res) => {
 
 router.post("/deal-rooms/:id/commission/sign", async (req, res) => {
   const { side, user_id } = req.body;
-  if (!["buyer", "seller"].includes(side)) return res.status(400).json({ error: "Invalid side" });
+  if (!["buyer", "seller"].includes(side)) { res.status(400).json({ error: "Invalid side" }); return; }
   const now = new Date().toISOString();
   try {
     const col = side === "buyer" ? "buyer_commission_status" : "seller_commission_status";
@@ -392,7 +392,7 @@ router.post("/deal-rooms/:id/commission/sign", async (req, res) => {
         );
       }
       const updated = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
-      return res.json(updated.rows[0]);
+      res.json(updated.rows[0]); return;
     }
     const refreshed = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
     res.json(refreshed.rows[0]);

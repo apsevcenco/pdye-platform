@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { Shield, TrendingUp, Anchor, FileCheck } from "lucide-react";
 import { YachtCard } from "@/components/ui/YachtCard";
 import { FEATURED_YACHTS, type Yacht } from "@/lib/data";
@@ -9,9 +9,9 @@ import { getHeroContent, type HeroContent } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
 import { getSiteSectionData } from "@/lib/siteContent";
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" as const } }
 };
 
 const ICONS = [Anchor, Shield, FileCheck, TrendingUp];
