@@ -8,7 +8,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { dealRoomApi } from "@/lib/dealRoomApi";
-import { Yacht, FEATURED_YACHTS } from "@/lib/data";
+import { Yacht } from "@/lib/data";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/context/AuthContext";
 import type { DealRoom } from "@/lib/dealTypes";
@@ -58,8 +58,6 @@ function cvtDisp(raw: string | number | null | undefined, sys: UnitSystem): stri
   return `${(tonnes * 0.984207).toFixed(1)} LT`;
 }
 
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80";
-
 function SpecRow({ label, value }: { label: string; value?: string | number | null }) {
   if (!value && value !== 0) return null;
   return (
@@ -88,7 +86,7 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
   introSent: boolean;
   onIntro: () => void;
 }) {
-  const image = (yacht as any).main_image || yacht.image || DEFAULT_IMAGE;
+  const image = (yacht as any).main_image || yacht.image || "";
 
   const statusBlock = {
     none: {
@@ -137,8 +135,14 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
         </Link>
       </div>
 
-      <div className="relative h-[55vh] min-h-[400px] overflow-hidden">
-        <img src={image} alt="Confidential Listing" className="w-full h-full object-cover" />
+      <div className="relative h-[55vh] min-h-[400px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
+        {image ? (
+          <img src={image} alt="Confidential Listing" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Anchor size={64} className="text-primary/15" strokeWidth={1.2} />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
@@ -240,7 +244,7 @@ function ApprovedSpecView({ yacht, units, setUnits }: {
   setUnits: (u: UnitSystem) => void;
 }) {
   const M = units === "metric";
-  const image = (yacht as any).main_image || yacht.image || DEFAULT_IMAGE;
+  const image = (yacht as any).main_image || yacht.image || "";
 
   return (
     <div className="min-h-screen bg-background">
@@ -256,8 +260,14 @@ function ApprovedSpecView({ yacht, units, setUnits }: {
         </div>
       </div>
 
-      <div className="relative h-[45vh] min-h-[350px] overflow-hidden">
-        <img src={image} alt="Confidential Listing" className="w-full h-full object-cover filter blur-[2px]" />
+      <div className="relative h-[45vh] min-h-[350px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
+        {image ? (
+          <img src={image} alt="Confidential Listing" className="w-full h-full object-cover filter blur-[2px]" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Anchor size={56} className="text-primary/15" strokeWidth={1.2} />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background/20" />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
@@ -413,7 +423,7 @@ export default function YachtDetail() {
       setLoading(true);
       const { data, error } = await supabase.from("yachts").select("*").eq("id", id).single();
       if (data && !error) { setYacht(data as Yacht); }
-      else { const found = FEATURED_YACHTS.find(y => y.id === id); setYacht(found || null); }
+      else { setYacht(null); }
       setLoading(false);
     }
     load();
@@ -552,7 +562,7 @@ export default function YachtDetail() {
     if (yacht.photos && yacht.photos.length > 0) pool.push(...yacht.photos);
     if (yacht.image && !pool.includes(yacht.image)) pool.unshift(yacht.image);
     if ((yacht as any).main_image && !pool.includes((yacht as any).main_image)) pool.unshift((yacht as any).main_image);
-    return pool.length > 0 ? pool : [DEFAULT_IMAGE];
+    return pool;
   })();
 
   const hasDistressed = yacht.distressed_price && yacht.market_price;
@@ -573,8 +583,15 @@ export default function YachtDetail() {
         </div>
       </div>
 
-      <div className="relative h-[70vh] min-h-[480px] overflow-hidden">
-        <img key={allPhotos[idx]} src={allPhotos[idx]} alt={`${yacht.name} — ${idx + 1}`} className="w-full h-full object-cover transition-all duration-500" onClick={() => setLightbox(idx)} style={{ cursor: "zoom-in" }} />
+      <div className="relative h-[70vh] min-h-[480px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
+        {allPhotos.length > 0 ? (
+          <img key={allPhotos[idx]} src={allPhotos[idx]} alt={`${yacht.name} — ${idx + 1}`} className="w-full h-full object-cover transition-all duration-500" onClick={() => setLightbox(idx)} style={{ cursor: "zoom-in" }} />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+            <Anchor size={72} className="text-primary/20" strokeWidth={1.2} />
+            <p className="text-white/40 text-sm font-sans tracking-widest uppercase">Media will be available soon</p>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent pointer-events-none" />
 
         {allPhotos.length > 1 && (

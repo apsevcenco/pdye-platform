@@ -1,9 +1,7 @@
 import { Link } from "wouter";
-import { Ruler, Calendar, Building2, Lock, Clock, CheckCircle, XCircle, ChevronRight } from "lucide-react";
+import { Ruler, Calendar, Building2, Lock, Clock, CheckCircle, XCircle, ChevronRight, Anchor } from "lucide-react";
 import { Yacht } from "@/lib/data";
 import { useCurrency } from "@/lib/currency";
-
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80";
 
 export type RequestStatus = "none" | "pending" | "approved" | "rejected";
 
@@ -42,7 +40,7 @@ const STATUS_CONFIG: Record<RequestStatus, { label: string; icon: React.ReactNod
 };
 
 export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting = false }: YachtCardProps) {
-  const image = (yacht as any).main_image || yacht.image || DEFAULT_IMAGE;
+  const image = (yacht as any).main_image || yacht.image || "";
   const cfg = STATUS_CONFIG[requestStatus];
   const { formatPrice } = useCurrency();
 
@@ -50,12 +48,18 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
     <div className="group bg-card border border-white/5 hover:border-primary/30 transition-all duration-500 overflow-hidden flex flex-col">
 
       {/* Photo */}
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          src={image}
-          alt={yacht.name}
-          className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
-        />
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
+        {image ? (
+          <img
+            src={image}
+            alt={yacht.name}
+            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Anchor size={48} className="text-primary/20" strokeWidth={1.2} />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
 
         {/* Locked overlay — only when not approved */}

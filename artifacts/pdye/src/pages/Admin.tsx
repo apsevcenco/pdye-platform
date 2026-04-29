@@ -479,7 +479,7 @@ function YachtsView() {
       price: form.price,
       market_price: str(form.market_price),
       distressed_price: str(form.distressed_price),
-      image: str(form.image) || (formPhotos[0] ?? "https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=800&q=80"),
+      image: str(form.image) || (formPhotos[0] ?? ""),
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
       is_private: formIsPrivate,

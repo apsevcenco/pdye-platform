@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { YachtCard, type RequestStatus } from "@/components/ui/YachtCard";
-import { ALL_YACHTS, type Yacht } from "@/lib/data";
+import { type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { useAuth } from "@/context/AuthContext";
@@ -54,12 +54,11 @@ export default function Yachts() {
     async function fetchYachts() {
       setLoading(true);
       const { data, error } = await supabase.from("yachts").select("*");
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         const visible = user ? (data as Yacht[]) : (data as Yacht[]).filter(y => !y.is_private);
         setYachts(visible);
       } else {
-        const fallback = user ? ALL_YACHTS : ALL_YACHTS.filter(y => !y.is_private);
-        setYachts(fallback);
+        setYachts([]);
       }
       setLoading(false);
     }

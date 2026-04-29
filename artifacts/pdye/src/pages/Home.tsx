@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { motion, type Variants } from "framer-motion";
 import { Shield, TrendingUp, Anchor, FileCheck } from "lucide-react";
 import { YachtCard } from "@/components/ui/YachtCard";
-import { FEATURED_YACHTS, type Yacht } from "@/lib/data";
+import { type Yacht } from "@/lib/data";
 import { useState, useEffect } from "react";
 import { getHeroContent, type HeroContent } from "@/lib/content";
 import { supabase } from "@/lib/supabase";
@@ -18,7 +18,7 @@ const ICONS = [Anchor, Shield, FileCheck, TrendingUp];
 
 export default function Home() {
   const [hero, setHero] = useState<HeroContent>(getHeroContent());
-  const [featuredYachts, setFeaturedYachts] = useState<Yacht[]>(FEATURED_YACHTS);
+  const [featuredYachts, setFeaturedYachts] = useState<Yacht[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [t, setT] = useState({
     heroSection: getSiteSectionData("home", "hero"),
@@ -200,34 +200,42 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredLoading
-              ? Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="bg-[#0f1d33] border border-white/5 animate-pulse" style={{ height: 340 }}>
-                    <div className="w-full h-52 bg-white/5" />
-                    <div className="p-5 space-y-3">
-                      <div className="h-3 bg-white/5 rounded w-1/3" />
-                      <div className="h-5 bg-white/8 rounded w-2/3" />
-                      <div className="h-3 bg-white/5 rounded w-1/2" />
-                    </div>
+          {featuredLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-[#0f1d33] border border-white/5 animate-pulse" style={{ height: 340 }}>
+                  <div className="w-full h-52 bg-white/5" />
+                  <div className="p-5 space-y-3">
+                    <div className="h-3 bg-white/5 rounded w-1/3" />
+                    <div className="h-5 bg-white/8 rounded w-2/3" />
+                    <div className="h-3 bg-white/5 rounded w-1/2" />
                   </div>
-                ))
-              : featuredYachts.map((yacht, idx) => (
-                  <motion.div
-                    key={yacht.id}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true }}
-                    variants={{
-                      hidden: { opacity: 0, y: 30 },
-                      visible: { opacity: 1, y: 0, transition: { delay: idx * 0.15, duration: 0.7 } }
-                    }}
-                  >
-                    <YachtCard yacht={yacht} />
-                  </motion.div>
-                ))
-            }
-          </div>
+                </div>
+              ))}
+            </div>
+          ) : featuredYachts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredYachts.map((yacht, idx) => (
+                <motion.div
+                  key={yacht.id}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={{
+                    hidden: { opacity: 0, y: 30 },
+                    visible: { opacity: 1, y: 0, transition: { delay: idx * 0.15, duration: 0.7 } }
+                  }}
+                >
+                  <YachtCard yacht={yacht} />
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-[#0f1d33] border border-white/5 px-8 py-20 text-center">
+              <Anchor size={32} className="text-primary/40 mx-auto mb-4" strokeWidth={1.5} />
+              <p className="text-white/40 text-sm font-sans tracking-wide">Featured listings will appear here once published.</p>
+            </div>
+          )}
         </div>
       </section>
     </Layout>
