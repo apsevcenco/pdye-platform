@@ -86,6 +86,7 @@ export default function AdminUserDetail() {
   const [ndaLoading, setNdaLoading] = useState(true);
   const [savingApproval, setSavingApproval] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingSigId, setDeletingSigId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", company: "", phone: "", location: "", notes: "" });
@@ -258,6 +259,31 @@ export default function AdminUserDetail() {
       alert("Failed to download PDF: " + (e.message || e));
     }
     setDownloadingId(null);
+  }
+
+  async function deleteNdaSignature(sig: PlatformNdaSignature) {
+    const isOrphan = !!(user && sig.user_id && sig.user_id !== user.id);
+    const ok = window.confirm(
+      `Permanently delete this NDA signature?\n\n` +
+      `User:    ${sig.user_email || "(unknown email)"}\n` +
+      `Signed:  ${sig.signature_name}\n` +
+      `Version: ${sig.document_version}\n` +
+      `Date:    ${fmtDate(sig.signed_at)}\n` +
+      (isOrphan
+        ? `\nThis appears to be a "ghost" signature left over from a previously deleted account that used the same email. Removing it is safe.\n`
+        : `\nThis is the active user's signature. They will be required to sign the NDA again on next login.\n`) +
+      `\nThis cannot be undone.`
+    );
+    if (!ok) return;
+    setDeletingSigId(sig.id);
+    try {
+      await platformNdaApi.adminDeleteSignature(sig.id);
+      setSignatures(prev => prev.filter(x => x.id !== sig.id));
+    } catch (e: any) {
+      alert("Failed to delete signature: " + (e.message || e));
+    } finally {
+      setDeletingSigId(null);
+    }
   }
 
   if (loading) {
@@ -485,14 +511,31 @@ export default function AdminUserDetail() {
                         <div className="text-white/30 text-[11px] font-sans truncate">UA: {sig.user_agent}</div>
                       )}
                     </div>
-                    <button
-                      onClick={() => downloadNdaPdf(sig)}
-                      disabled={downloadingId === sig.id}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors text-xs font-sans uppercase tracking-wider disabled:opacity-50 flex-shrink-0"
-                    >
-                      <Download size={12} />
-                      {downloadingId === sig.id ? "Preparing…" : "Download PDF"}
-                    </button>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => downloadNdaPdf(sig)}
+                        disabled={downloadingId === sig.id}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors text-xs font-sans uppercase tracking-wider disabled:opacity-50"
+                        data-testid={`button-download-signature-${sig.id}`}
+                      >
+                        <Download size={12} />
+                        {downloadingId === sig.id ? "Preparing…" : "Download PDF"}
+                      </button>
+                      <button
+                        onClick={() => deleteNdaSignature(sig)}
+                        disabled={deletingSigId === sig.id}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors text-xs font-sans uppercase tracking-wider disabled:opacity-50"
+                        title={
+                          user && sig.user_id && sig.user_id !== user.id
+                            ? "Delete this ghost signature (left over from a deleted account that re-used this email)"
+                            : "Permanently delete this signature — the user will need to sign again"
+                        }
+                        data-testid={`button-delete-signature-${sig.id}`}
+                      >
+                        <Trash2 size={12} />
+                        {deletingSigId === sig.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
