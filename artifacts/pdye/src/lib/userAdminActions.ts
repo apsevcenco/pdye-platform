@@ -1,12 +1,16 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const ARCHIVE_MIGRATION_MISSING_HINT =
-  "Database migration not yet applied. Please run artifacts/pdye/migrations/003_users_archived.sql in the Supabase SQL Editor before using Archive/Restore.";
+  "База данных не готова: в таблице users отсутствует колонка `archived`. " +
+  "Однократно выполните SQL-миграцию `artifacts/pdye/migrations/003_users_archived.sql` " +
+  "в Supabase SQL Editor (Project → SQL Editor → New query → вставить → Run). " +
+  "После этого Архивировать/Восстановить заработают.";
 
 function isMissingColumnError(err: { code?: string; message?: string } | null | undefined): boolean {
   if (!err) return false;
-  if (err.code === "42703") return true;
+  if (err.code === "42703" || err.code === "PGRST204") return true;
   if (err.message && /column .* does not exist/i.test(err.message)) return true;
+  if (err.message && /could not find the .* column/i.test(err.message)) return true;
   return false;
 }
 
@@ -17,28 +21,37 @@ export type ArchiveResult = {
 };
 
 export async function archiveUserAction(userId: string, archive: boolean): Promise<ArchiveResult> {
-  const { error } = await supabaseAdmin
+  const { error, data } = await supabaseAdmin
     .from("users")
     .update({ archived: archive, archived_at: archive ? new Date().toISOString() : null })
-    .eq("id", userId);
+    .eq("id", userId)
+    .select("id");
   if (error) {
     if (isMissingColumnError(error)) {
       return { ok: false, error: ARCHIVE_MIGRATION_MISSING_HINT, errorKind: "migration_missing" };
     }
     return { ok: false, error: error.message, errorKind: "other" };
   }
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      errorKind: "other",
+      error: "Запись не была обновлена (0 строк). Возможно, политика RLS Supabase блокирует UPDATE для текущей роли — проверьте policies на public.users.",
+    };
+  }
   return { ok: true };
 }
 
 const REFERENCING_TABLES: Array<{ table: string; column: string; label: string }> = [
-  { table: "access_requests",        column: "user_id",              label: "access request(s)" },
-  { table: "deal_participants",      column: "user_id",              label: "deal participation(s)" },
-  { table: "deal_room_participants", column: "user_id",              label: "deal room participation(s)" },
-  { table: "deal_rooms",             column: "buyer_user_id",        label: "deal room(s) as buyer" },
-  { table: "deal_rooms",             column: "seller_user_id",       label: "deal room(s) as seller" },
-  { table: "deal_rooms",             column: "listing_owner_user_id", label: "deal room(s) as listing owner" },
-  { table: "nda_envelopes",          column: "user_id",              label: "NDA envelope(s)" },
-  { table: "audit_logs",             column: "user_id",              label: "audit log entry(ies)" },
+  { table: "access_requests",        column: "user_id",              label: "запрос(ов) доступа" },
+  { table: "deal_participants",      column: "user_id",              label: "участи(е/й) в сделке" },
+  { table: "deal_room_participants", column: "user_id",              label: "участи(е/й) в комнате сделки" },
+  { table: "deal_rooms",             column: "buyer_user_id",        label: "комнат(ы) сделок как покупатель" },
+  { table: "deal_rooms",             column: "seller_user_id",       label: "комнат(ы) сделок как продавец" },
+  { table: "deal_rooms",             column: "listing_owner_user_id", label: "комнат(ы) сделок как владелец листинга" },
+  { table: "nda_envelopes",          column: "user_id",              label: "NDA-конверт(а/ов)" },
+  { table: "audit_logs",             column: "user_id",              label: "запис(ь/и) аудита" },
+  { table: "yachts",                 column: "owner_id",             label: "листинг(а/ов) яхт" },
 ];
 
 export type UserReference = { label: string; count: number };
@@ -58,6 +71,7 @@ function isExpectedSchemaMissing(err: { code?: string; message?: string } | null
   if (err.code === "42P01" || err.code === "42703") return true;
   if (err.message && /(relation|table) .* does not exist/i.test(err.message)) return true;
   if (err.message && /column .* does not exist/i.test(err.message)) return true;
+  if (err.message && /could not find the (table|column)/i.test(err.message)) return true;
   return false;
 }
 
@@ -103,8 +117,8 @@ export async function deleteUserAction(userId: string): Promise<DeleteResult> {
       errorKind: "preflight_failed",
       failures: refs.failures,
       error:
-        "Cannot permanently delete: dependency preflight check failed for one or more tables. " +
-        "Refusing to delete to avoid orphaning records.\n\n" + lines,
+        "Удаление невозможно: проверка зависимостей завершилась с ошибкой по одной или нескольким таблицам. " +
+        "Чтобы не оставить осиротевших записей, удаление отменено.\n\n" + lines,
     };
   }
   if (refs.total > 0) {
@@ -114,12 +128,19 @@ export async function deleteUserAction(userId: string): Promise<DeleteResult> {
       errorKind: "has_references",
       references: refs.counts,
       error:
-        "Cannot permanently delete: this user is linked to existing records.\n\n" +
+        "Удаление невозможно: пользователь связан с существующими записями.\n\n" +
         lines +
-        "\n\nArchive the user instead — this hides them from active lists while preserving the linked history.",
+        "\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.",
     };
   }
-  const { error } = await supabaseAdmin.from("users").delete().eq("id", userId);
+  const { error, data } = await supabaseAdmin.from("users").delete().eq("id", userId).select("id");
   if (error) return { ok: false, error: error.message, errorKind: "other" };
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      errorKind: "other",
+      error: "Запись не была удалена (0 строк). Возможно, политика RLS Supabase блокирует DELETE для текущей роли — проверьте policies на public.users.",
+    };
+  }
   return { ok: true };
 }

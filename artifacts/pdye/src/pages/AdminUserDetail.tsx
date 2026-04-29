@@ -95,11 +95,11 @@ export default function AdminUserDetail() {
   async function toggleArchive() {
     if (!user) return;
     const next = !user.archived;
-    if (!confirm(next ? `Archive ${user.email}? They can be restored later.` : `Restore ${user.email} from archive?`)) return;
+    if (!confirm(next ? `Архивировать ${user.email}? Пользователя можно будет восстановить позже.` : `Восстановить ${user.email} из архива?`)) return;
     setArchiving(true);
     const r = await archiveUserAction(user.id, next);
     if (!r.ok) {
-      alert(r.errorKind === "migration_missing" ? r.error : "Failed: " + r.error);
+      alert(r.errorKind === "migration_missing" ? r.error : "Не удалось: " + r.error);
     } else {
       setUser({ ...user, archived: next, archived_at: next ? new Date().toISOString() : null });
     }
@@ -112,7 +112,7 @@ export default function AdminUserDetail() {
     const refs = await countUserReferences(user.id);
     if (refs.preflightFailed) {
       alert(
-        `Cannot delete ${user.email}: dependency check failed for one or more tables. Refusing to delete to avoid orphaning records.\n\n` +
+        `Не удаётся удалить ${user.email}: проверка зависимостей завершилась с ошибкой по одной или нескольким таблицам. Чтобы не оставить осиротевших записей, удаление отменено.\n\n` +
         refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
       );
       setDeleting(false);
@@ -120,20 +120,20 @@ export default function AdminUserDetail() {
     }
     if (refs.total > 0) {
       alert(
-        `Cannot delete ${user.email}: linked to existing records.\n\n` +
+        `Не удаётся удалить ${user.email}: пользователь связан с существующими записями.\n\n` +
         refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nUse Archive instead — it hides the user from active lists while preserving the linked history.`
+        `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
       );
       setDeleting(false);
       return;
     }
-    if (!confirm(`PERMANENTLY DELETE ${user.email}? This cannot be undone.\n\nNo dependent records were found.`)) {
+    if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
       setDeleting(false);
       return;
     }
     const r = await deleteUserAction(user.id);
     if (!r.ok) {
-      alert("Delete failed: " + r.error);
+      alert("Удаление не удалось: " + r.error);
       setDeleting(false);
     } else {
       setLocation("/admin");
