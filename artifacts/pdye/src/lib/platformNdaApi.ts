@@ -68,4 +68,29 @@ export const platformNdaApi = {
 
   adminListSignatures: (): Promise<PlatformNdaSignature[]> =>
     authFetch("/admin/platform-nda/signatures"),
+
+  // Download the signed NDA as a PDF. Returns a Blob; caller is responsible for triggering the download.
+  downloadSignedPdf: async (signatureId: string): Promise<Blob> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const res = await fetch(`${API_BASE}/platform-nda/signature/${signatureId}/pdf`, { headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || "Failed to download PDF");
+    }
+    return res.blob();
+  },
 };
+
+/** Trigger a browser download for a Blob with the given filename. */
+export function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

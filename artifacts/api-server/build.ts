@@ -1,7 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as esbuild } from "esbuild";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, mkdir, cp } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,6 +67,13 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // Copy runtime assets (fonts used by the NDA PDF generator).
+  const assetsSrc = path.resolve(__dirname, "src/assets");
+  const assetsDst = path.resolve(distDir, "assets");
+  await mkdir(assetsDst, { recursive: true });
+  await cp(assetsSrc, assetsDst, { recursive: true });
+  console.log("copied assets:", path.relative(__dirname, assetsDst));
 }
 
 buildAll().catch((err) => {

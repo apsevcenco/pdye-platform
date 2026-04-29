@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Anchor, ArrowLeft, FileText, Loader2, Save, History } from "lucide-react";
-import { platformNdaApi, type PlatformNdaDocument, type PlatformNdaSignature } from "@/lib/platformNdaApi";
+import { Anchor, ArrowLeft, FileText, Loader2, Save, History, Download } from "lucide-react";
+import { platformNdaApi, triggerBlobDownload, type PlatformNdaDocument, type PlatformNdaSignature } from "@/lib/platformNdaApi";
 
 export default function AdminPlatformNda() {
   const [active, setActive] = useState<PlatformNdaDocument | null>(null);
@@ -15,6 +15,20 @@ export default function AdminPlatformNda() {
   const [editContent, setEditContent] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function handleDownloadSig(sig: PlatformNdaSignature) {
+    setDownloadingId(sig.id);
+    try {
+      const blob = await platformNdaApi.downloadSignedPdf(sig.id);
+      const safeName = sig.signature_name.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
+      triggerBlobDownload(blob, `PDYE-NDA-${sig.document_version}-${safeName}.pdf`);
+    } catch (e: any) {
+      alert(`Could not download PDF: ${e?.message || e}`);
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -39,6 +53,17 @@ export default function AdminPlatformNda() {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Inject Great Vibes for the signed-name column.
+  useEffect(() => {
+    const id = "google-font-great-vibes";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap";
+    document.head.appendChild(link);
+  }, []);
 
   async function handlePublish() {
     if (!editVersion.trim()) {
@@ -238,7 +263,7 @@ export default function AdminPlatformNda() {
                 <h2 className="font-display text-xl">Signature Log ({signatures.length})</h2>
               </div>
               <div className="border border-white/10 bg-[#0a1426] overflow-x-auto">
-                <table className="w-full text-sm min-w-[900px]">
+                <table className="w-full text-sm min-w-[1000px]">
                   <thead className="text-[10px] uppercase tracking-widest text-white/40 border-b border-white/5">
                     <tr>
                       <th className="text-left p-3">User</th>
@@ -248,22 +273,39 @@ export default function AdminPlatformNda() {
                       <th className="text-left p-3">Hash</th>
                       <th className="text-left p-3">IP</th>
                       <th className="text-left p-3">Signed At</th>
+                      <th className="text-left p-3">PDF</th>
                     </tr>
                   </thead>
                   <tbody>
                     {signatures.map(s => (
                       <tr key={s.id} className="border-b border-white/5 last:border-b-0">
                         <td className="p-3 text-white/80">{s.user_email}</td>
-                        <td className="p-3 italic text-[#c8a46b]" style={{ fontFamily: "Georgia, serif" }}>{s.signature_name}</td>
+                        <td
+                          className="p-3 text-[#c8a46b]"
+                          style={{ fontFamily: "'Great Vibes', 'Snell Roundhand', cursive", fontSize: "22px", lineHeight: 1.1 }}
+                        >
+                          {s.signature_name}
+                        </td>
                         <td className="p-3 text-white/60">{s.role || "—"}</td>
                         <td className="p-3 font-mono text-white/70">{s.document_version}</td>
                         <td className="p-3 font-mono text-[10px] text-white/40" title={s.document_hash}>{s.document_hash.slice(0, 12)}…</td>
                         <td className="p-3 font-mono text-white/60">{s.ip || "—"}</td>
                         <td className="p-3 text-white/60">{fmtDate(s.signed_at)}</td>
+                        <td className="p-3">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadSig(s)}
+                            disabled={downloadingId === s.id}
+                            className="inline-flex items-center gap-1.5 border border-[#c8a46b]/40 px-2.5 py-1 text-[10px] uppercase tracking-widest text-[#c8a46b] hover:bg-[#c8a46b]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Download signed NDA PDF"
+                          >
+                            <Download size={11} /> {downloadingId === s.id ? "…" : "PDF"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {signatures.length === 0 && (
-                      <tr><td colSpan={7} className="p-6 text-center text-white/40 text-xs">No signatures yet</td></tr>
+                      <tr><td colSpan={8} className="p-6 text-center text-white/40 text-xs">No signatures yet</td></tr>
                     )}
                   </tbody>
                 </table>

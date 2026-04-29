@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Anchor, Loader2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { platformNdaApi, type PlatformNdaDocument } from "@/lib/platformNdaApi";
+import { platformNdaApi, triggerBlobDownload, type PlatformNdaDocument } from "@/lib/platformNdaApi";
 
 export default function PlatformNda() {
   const { user, userProfile, logout, refreshNdaStatus } = useAuth();
@@ -20,6 +20,35 @@ export default function PlatformNda() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [signedSignatureId, setSignedSignatureId] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function handleDownloadPdf() {
+    if (!signedSignatureId) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const blob = await platformNdaApi.downloadSignedPdf(signedSignatureId);
+      const safeName = signatureName.trim().replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
+      triggerBlobDownload(blob, `PDYE-NDA-${doc?.version || "signed"}-${safeName}.pdf`);
+    } catch (e: any) {
+      setDownloadError(e?.message || "Failed to download PDF");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  // Inject the Great Vibes calligraphic font for the signature preview.
+  useEffect(() => {
+    const id = "google-font-great-vibes";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap";
+    document.head.appendChild(link);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +82,7 @@ export default function PlatformNda() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await platformNdaApi.sign({
+      const result = await platformNdaApi.sign({
         signature_name: signatureName.trim(),
         accepted_read: acceptedRead,
         accepted_understand: acceptedUnderstand,
@@ -61,9 +90,11 @@ export default function PlatformNda() {
         document_id: doc.id,
         content_hash: doc.content_hash,
       });
+      setSignedSignatureId(result?.signature_id || null);
       await refreshNdaStatus();
       setSuccess(true);
-      setTimeout(() => setLocation("/profile"), 1400);
+      // Give the user a moment to see the success state and download link.
+      setTimeout(() => setLocation("/profile"), 6000);
     } catch (e: any) {
       setSubmitError(e?.message || "Failed to sign agreement");
     } finally {
@@ -175,10 +206,20 @@ export default function PlatformNda() {
                   className="w-full bg-transparent border border-white/15 px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a46b]/60 transition-colors"
                 />
                 {nameValid && (
-                  <div className="mt-3 px-4 py-3 border border-[#c8a46b]/30 bg-[#070f1a]">
-                    <div className="text-[9px] uppercase tracking-widest text-white/35 mb-1">Signature preview</div>
-                    <div className="text-2xl text-[#c8a46b] italic" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                  <div className="mt-3 px-4 py-4 border border-[#c8a46b]/30 bg-[#070f1a]">
+                    <div className="text-[9px] uppercase tracking-widest text-white/35 mb-2">Signature preview</div>
+                    <div
+                      className="text-[#c8a46b]"
+                      style={{
+                        fontFamily: "'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive",
+                        fontSize: "44px",
+                        lineHeight: 1.1,
+                      }}
+                    >
                       {signatureName.trim()}
+                    </div>
+                    <div className="mt-2 border-t border-white/10 pt-2 text-[9px] uppercase tracking-widest text-white/30">
+                      Recipient — Electronic signature
                     </div>
                   </div>
                 )}
@@ -191,8 +232,23 @@ export default function PlatformNda() {
               )}
 
               {success && (
-                <div className="mb-4 border border-green-500/30 bg-green-500/5 p-3 text-green-300 text-xs">
-                  Signed successfully. Redirecting to your account…
+                <div className="mb-4 border border-green-500/30 bg-green-500/5 p-4 text-green-300 text-xs space-y-2">
+                  <div className="font-semibold">Signed successfully.</div>
+                  <div className="text-green-200/80">
+                    A signed PDF copy is being emailed to <span className="font-mono">{userProfile?.email || user?.email}</span>.
+                  </div>
+                  {signedSignatureId && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadPdf}
+                      disabled={downloading}
+                      className="inline-block mt-1 border border-green-500/40 px-3 py-1.5 text-[10px] uppercase tracking-widest text-green-100 hover:bg-green-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {downloading ? "Preparing PDF…" : "Download Signed NDA (PDF)"}
+                    </button>
+                  )}
+                  {downloadError && <div className="text-red-300">{downloadError}</div>}
+                  <div className="text-green-200/60">Redirecting to your account in a few seconds…</div>
                 </div>
               )}
 

@@ -139,7 +139,12 @@ Express on port 8080. Routes:
   - `pages/PlatformNda.tsx`: shows NDA text in scrollable preview, 3 acknowledgement checkboxes, full-name signature input with Georgia italic preview; sends `document_id` + `content_hash` on submit
   - `pages/AdminPlatformNda.tsx`: edit/publish new versions + version history + signature audit log
   - Admin nav link in `Admin.tsx`
-- **Phase 2 (deferred)**: calligraphic signature font, PDF generation, Resend email of signed PDF (RESEND_API_KEY available, no integration)
+- **Phase 2 (DONE)**: calligraphic Great Vibes signature font + PDF generation + Resend email of signed PDF
+  - PDF: `src/lib/ndaPdf.ts` uses `pdfkit` with Great Vibes TTF (`src/assets/fonts/GreatVibes-Regular.ttf`, copied to `dist/assets/fonts/` by `build.ts`); `bufferPages: true` for consistent footers; full NDA body rendered with bold section headers + audit block (printed name, email, UTC time, IP, UA, doc version, doc hash) + pre-signed PDYE Holdings counterparty block.
+  - Endpoint: `GET /api/platform-nda/signature/:id/pdf` (auth: signer or admin); streams `application/pdf` with `Content-Disposition: attachment` and proper `Content-Length`.
+  - Email: `POST /platform-nda/sign` fires-and-forgets `sendSignedNdaEmail()` which builds the PDF and sends via Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL` default `PDYE <onboarding@resend.dev>`); HTML body matches PDYE branding (navy + gold); attaches PDF as base64; **email failure does NOT fail the sign request** (logged-only).
+  - Frontend: `PlatformNda.tsx` injects Google Fonts `Great Vibes` for live signature preview + post-sign download button via `platformNdaApi.downloadSignedPdf()` (authenticated `fetch` → blob → `URL.createObjectURL`). `AdminPlatformNda.tsx` audit log shows signed names in Great Vibes + per-row authenticated PDF download. Helper `triggerBlobDownload()` in `platformNdaApi.ts`.
+  - Important: `<a href>` cannot pass bearer tokens to the API; ALL signed-PDF downloads MUST use `platformNdaApi.downloadSignedPdf()` + `triggerBlobDownload()`.
 
 ## Structure
 

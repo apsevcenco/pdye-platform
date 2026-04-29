@@ -1,7 +1,9 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import pg from "pg";
 import { createHash } from "crypto";
+import { Resend } from "resend";
 import { requireUser, requireAdmin } from "../middlewares/auth";
+import { generateNdaPdf } from "../lib/ndaPdf";
 
 const router = Router();
 
@@ -297,6 +299,21 @@ router.post("/platform-nda/sign", requireUser, async (req, res) => {
 
     console.log(`[platform-nda] User ${u.email} signed v${doc.version} from ${ip}`);
 
+    // Fire-and-forget: generate PDF + email it. Failure must not break signing.
+    sendSignedNdaEmail({
+      signatureId: sig.id,
+      signatureName: signature_name.trim(),
+      userEmail: u.email,
+      signedAt: sig.signed_at,
+      ip,
+      userAgent: ua,
+      documentId: doc.id,
+      documentVersion: doc.version,
+      documentHash: doc.content_hash,
+    }).catch(err => {
+      console.error(`[platform-nda] Email delivery failed for signature ${sig.id}:`, err?.message || err);
+    });
+
     res.json({
       success: true,
       signature_id: sig.id,
@@ -371,6 +388,156 @@ router.put("/admin/platform-nda", requireAdmin, async (req, res) => {
     }
   } catch (e: any) {
     console.error("[admin/platform-nda PUT] error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Build the signed-NDA payload (document + signature) used by both the PDF endpoint
+// and the email sender.
+async function fetchSignedPdfBuffer(signatureId: string): Promise<{ pdf: Buffer; userEmail: string; signatureName: string; documentVersion: string } | null> {
+  const { rows: sigRows } = await db().query(
+    `SELECT s.id, s.user_id, s.user_email, s.signature_name, s.document_id, s.document_version, s.document_hash,
+            s.ip, s.user_agent, s.signed_at
+     FROM platform_nda_signatures s WHERE s.id = $1`,
+    [signatureId]
+  );
+  if (sigRows.length === 0) return null;
+  const sig = sigRows[0];
+
+  const { rows: docRows } = await db().query(
+    `SELECT id, version, title, content, content_hash FROM platform_nda_documents WHERE id = $1`,
+    [sig.document_id]
+  );
+  if (docRows.length === 0) return null;
+  const doc = docRows[0];
+
+  const pdf = await generateNdaPdf({
+    document: {
+      title: doc.title,
+      version: doc.version,
+      content: doc.content,
+      content_hash: doc.content_hash,
+    },
+    signature: {
+      signature_name: sig.signature_name,
+      user_email: sig.user_email,
+      signed_at: sig.signed_at,
+      ip: sig.ip,
+      user_agent: sig.user_agent,
+      document_version: sig.document_version,
+      document_hash: sig.document_hash,
+    },
+  });
+
+  return {
+    pdf,
+    userEmail: sig.user_email,
+    signatureName: sig.signature_name,
+    documentVersion: sig.document_version,
+  };
+}
+
+interface SignedNdaEmailInput {
+  signatureId: string;
+  signatureName: string;
+  userEmail: string;
+  signedAt: Date | string;
+  ip: string;
+  userAgent: string;
+  documentId: string;
+  documentVersion: string;
+  documentHash: string;
+}
+
+async function sendSignedNdaEmail(input: SignedNdaEmailInput): Promise<void> {
+  const resendKey = process.env["RESEND_API_KEY"];
+  if (!resendKey) {
+    console.warn("[platform-nda] RESEND_API_KEY not set — skipping email send for signature", input.signatureId);
+    return;
+  }
+  const result = await fetchSignedPdfBuffer(input.signatureId);
+  if (!result) {
+    console.warn("[platform-nda] Could not build PDF for signature", input.signatureId);
+    return;
+  }
+
+  const fromAddress = process.env["RESEND_FROM_EMAIL"] || "PDYE <onboarding@resend.dev>";
+  const resend = new Resend(resendKey);
+  const filename = `PDYE-NDA-${result.documentVersion}-${result.signatureName.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40)}.pdf`;
+
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#0a1426;color:#ffffff;font-family:Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1426;padding:32px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#070f1a;border:1px solid rgba(200,164,107,0.25);">
+        <tr><td style="padding:32px 32px 16px 32px;">
+          <div style="font-size:11px;letter-spacing:3px;color:#c8a46b;text-transform:uppercase;">Private Distressed Yacht Exchange</div>
+          <div style="margin-top:14px;font-size:22px;color:#ffffff;font-weight:300;">Your signed Non-Disclosure Agreement</div>
+        </td></tr>
+        <tr><td style="padding:0 32px 8px 32px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">
+          Hello ${escapeHtml(result.signatureName)},
+        </td></tr>
+        <tr><td style="padding:0 32px 16px 32px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">
+          Thank you for signing the PDYE Platform Non-Disclosure Agreement. A countersigned copy of the agreement is attached to this email for your records.
+        </td></tr>
+        <tr><td style="padding:0 32px 8px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(200,164,107,0.2);">
+            <tr><td style="padding:16px 18px;color:rgba(255,255,255,0.65);font-size:12px;line-height:1.7;">
+              <div><span style="display:inline-block;width:140px;color:rgba(255,255,255,0.4);">Document version</span> ${escapeHtml(input.documentVersion)}</div>
+              <div><span style="display:inline-block;width:140px;color:rgba(255,255,255,0.4);">Signed at (UTC)</span> ${new Date(input.signedAt).toISOString()}</div>
+              <div><span style="display:inline-block;width:140px;color:rgba(255,255,255,0.4);">IP address</span> ${escapeHtml(input.ip || "—")}</div>
+              <div><span style="display:inline-block;width:140px;color:rgba(255,255,255,0.4);">Document hash</span> <span style="font-family:monospace;font-size:10.5px;">${escapeHtml(input.documentHash.slice(0, 32))}…</span></div>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:24px 32px 32px 32px;color:rgba(255,255,255,0.4);font-size:11px;line-height:1.7;">
+          PDYE Holdings · Confidential. The attached PDF is a legally binding electronic record of your signature under the EU eIDAS Regulation, the U.S. ESIGN Act / UETA, and equivalent laws.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const { data, error } = await resend.emails.send({
+    from: fromAddress,
+    to: input.userEmail,
+    subject: `Your signed PDYE Platform NDA — ${input.documentVersion}`,
+    html,
+    attachments: [{ filename, content: result.pdf.toString("base64") }],
+  });
+  if (error) throw new Error(error.message);
+  console.log(`[platform-nda] Emailed signed PDF to ${input.userEmail} (resend id=${data?.id || "n/a"})`);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c] as string));
+}
+
+// PDF download — accessible to the signer or to admins.
+router.get("/platform-nda/signature/:id/pdf", requireUser, async (req, res) => {
+  try {
+    const u = req.authUser!;
+    const sigId = req.params.id;
+    const { rows } = await db().query(
+      `SELECT user_id FROM platform_nda_signatures WHERE id = $1`,
+      [sigId]
+    );
+    if (rows.length === 0) { res.status(404).json({ error: "Signature not found" }); return; }
+    if (u.role !== "admin" && rows[0].user_id !== u.id) {
+      res.status(403).json({ error: "You may only download your own signed NDA" });
+      return;
+    }
+    const result = await fetchSignedPdfBuffer(sigId);
+    if (!result) { res.status(404).json({ error: "Could not generate PDF" }); return; }
+    const filename = `PDYE-NDA-${result.documentVersion}-${result.signatureName.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40)}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", String(result.pdf.length));
+    res.end(result.pdf);
+  } catch (e: any) {
+    console.error("[platform-nda/signature/:id/pdf] error:", e);
     res.status(500).json({ error: e.message });
   }
 });
