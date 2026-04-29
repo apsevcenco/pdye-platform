@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { archiveUserAction, deleteUserAction, countUserReferences } from "@/lib/userAdminActions";
+import { archiveUserAction, deleteUserAction, countAllUserReferences } from "@/lib/userAdminActions";
 import { useAuth } from "@/context/AuthContext";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
@@ -2446,31 +2446,54 @@ function InvestorsView() {
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     setBusyRow(user.id);
-    const refs = await countUserReferences(user.id);
-    if (refs.preflightFailed) {
+    const all = await countAllUserReferences(user.id);
+    if (all.supabase.preflightFailed) {
       alert(
-        `Не удаётся удалить ${user.email}: проверка зависимостей завершилась с ошибкой по одной или нескольким таблицам. Чтобы не оставить осиротевших записей, удаление отменено.\n\n` +
-        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+        `Не удаётся удалить ${user.email}: проверка зависимостей в Supabase завершилась с ошибкой.\n\n` +
+        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n")
       );
       setBusyRow(null);
       return;
     }
-    if (refs.total > 0) {
+    if (all.heliumdb.error) {
+      alert(`Не удаётся проверить базу сделок: ${all.heliumdb.error}\n\nУдаление отменено.`);
+      setBusyRow(null);
+      return;
+    }
+    if (all.blockingTotal > 0) {
       alert(
-        `Не удаётся удалить ${user.email}: пользователь связан с существующими записями.\n\n` +
-        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `Не удаётся удалить ${user.email}: есть связанные записи в Supabase (FK-ограничения):\n\n` +
+        all.supabase.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
         `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
       );
       setBusyRow(null);
       return;
     }
-    if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
-      setBusyRow(null);
-      return;
+    let cascadeFlag = false;
+    if (all.cascadeableTotal > 0) {
+      const ok = confirm(
+        `У ${user.email} есть записи в базе сделок (heliumdb), не видные Supabase:\n\n` +
+        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nПри удалении они будут БЕЗВОЗВРАТНО удалены вместе с пользователем. Это действие нельзя отменить.\n\nПродолжить?`
+      );
+      if (!ok) { setBusyRow(null); return; }
+      cascadeFlag = true;
+    } else {
+      if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
+        setBusyRow(null);
+        return;
+      }
     }
-    const r = await deleteUserAction(user.id);
-    if (!r.ok) alert("Удаление не удалось: " + r.error);
-    else setUsers(prev => prev.filter(u => u.id !== user.id));
+    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
+    if (!r.ok) {
+      alert("Удаление не удалось: " + r.error);
+    } else {
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      if (r.cascadeDeleted && r.cascadeDeleted.length) {
+        alert(`Пользователь ${user.email} удалён.\n\nУдалено в базе сделок:\n` +
+          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
+      }
+    }
     setBusyRow(null);
   }
 
@@ -2687,31 +2710,54 @@ function BrokersView() {
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     setBusyRow(user.id);
-    const refs = await countUserReferences(user.id);
-    if (refs.preflightFailed) {
+    const all = await countAllUserReferences(user.id);
+    if (all.supabase.preflightFailed) {
       alert(
-        `Не удаётся удалить ${user.email}: проверка зависимостей завершилась с ошибкой по одной или нескольким таблицам. Чтобы не оставить осиротевших записей, удаление отменено.\n\n` +
-        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+        `Не удаётся удалить ${user.email}: проверка зависимостей в Supabase завершилась с ошибкой.\n\n` +
+        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n")
       );
       setBusyRow(null);
       return;
     }
-    if (refs.total > 0) {
+    if (all.heliumdb.error) {
+      alert(`Не удаётся проверить базу сделок: ${all.heliumdb.error}\n\nУдаление отменено.`);
+      setBusyRow(null);
+      return;
+    }
+    if (all.blockingTotal > 0) {
       alert(
-        `Не удаётся удалить ${user.email}: пользователь связан с существующими записями.\n\n` +
-        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `Не удаётся удалить ${user.email}: есть связанные записи в Supabase (FK-ограничения):\n\n` +
+        all.supabase.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
         `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
       );
       setBusyRow(null);
       return;
     }
-    if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
-      setBusyRow(null);
-      return;
+    let cascadeFlag = false;
+    if (all.cascadeableTotal > 0) {
+      const ok = confirm(
+        `У ${user.email} есть записи в базе сделок (heliumdb), не видные Supabase:\n\n` +
+        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nПри удалении они будут БЕЗВОЗВРАТНО удалены вместе с пользователем. Это действие нельзя отменить.\n\nПродолжить?`
+      );
+      if (!ok) { setBusyRow(null); return; }
+      cascadeFlag = true;
+    } else {
+      if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
+        setBusyRow(null);
+        return;
+      }
     }
-    const r = await deleteUserAction(user.id);
-    if (!r.ok) alert("Удаление не удалось: " + r.error);
-    else setUsers(prev => prev.filter(u => u.id !== user.id));
+    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
+    if (!r.ok) {
+      alert("Удаление не удалось: " + r.error);
+    } else {
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      if (r.cascadeDeleted && r.cascadeDeleted.length) {
+        alert(`Пользователь ${user.email} удалён.\n\nУдалено в базе сделок:\n` +
+          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
+      }
+    }
     setBusyRow(null);
   }
 
@@ -2889,31 +2935,54 @@ function OwnersView() {
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     setBusyRow(user.id);
-    const refs = await countUserReferences(user.id);
-    if (refs.preflightFailed) {
+    const all = await countAllUserReferences(user.id);
+    if (all.supabase.preflightFailed) {
       alert(
-        `Не удаётся удалить ${user.email}: проверка зависимостей завершилась с ошибкой по одной или нескольким таблицам. Чтобы не оставить осиротевших записей, удаление отменено.\n\n` +
-        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+        `Не удаётся удалить ${user.email}: проверка зависимостей в Supabase завершилась с ошибкой.\n\n` +
+        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n")
       );
       setBusyRow(null);
       return;
     }
-    if (refs.total > 0) {
+    if (all.heliumdb.error) {
+      alert(`Не удаётся проверить базу сделок: ${all.heliumdb.error}\n\nУдаление отменено.`);
+      setBusyRow(null);
+      return;
+    }
+    if (all.blockingTotal > 0) {
       alert(
-        `Не удаётся удалить ${user.email}: пользователь связан с существующими записями.\n\n` +
-        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `Не удаётся удалить ${user.email}: есть связанные записи в Supabase (FK-ограничения):\n\n` +
+        all.supabase.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
         `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
       );
       setBusyRow(null);
       return;
     }
-    if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
-      setBusyRow(null);
-      return;
+    let cascadeFlag = false;
+    if (all.cascadeableTotal > 0) {
+      const ok = confirm(
+        `У ${user.email} есть записи в базе сделок (heliumdb), не видные Supabase:\n\n` +
+        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nПри удалении они будут БЕЗВОЗВРАТНО удалены вместе с пользователем. Это действие нельзя отменить.\n\nПродолжить?`
+      );
+      if (!ok) { setBusyRow(null); return; }
+      cascadeFlag = true;
+    } else {
+      if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
+        setBusyRow(null);
+        return;
+      }
     }
-    const r = await deleteUserAction(user.id);
-    if (!r.ok) alert("Удаление не удалось: " + r.error);
-    else setUsers(prev => prev.filter(u => u.id !== user.id));
+    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
+    if (!r.ok) {
+      alert("Удаление не удалось: " + r.error);
+    } else {
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      if (r.cascadeDeleted && r.cascadeDeleted.length) {
+        alert(`Пользователь ${user.email} удалён.\n\nУдалено в базе сделок:\n` +
+          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
+      }
+    }
     setBusyRow(null);
   }
 

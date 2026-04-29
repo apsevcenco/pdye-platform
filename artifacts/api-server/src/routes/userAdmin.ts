@@ -1,0 +1,178 @@
+import { Router, type Request, type Response } from "express";
+import pg from "pg";
+import { requireAdmin } from "../middlewares/auth";
+
+const router: Router = Router();
+
+let pool: pg.Pool | null = null;
+function db(): pg.Pool {
+  if (!pool) {
+    const dbUrl = process.env["DATABASE_URL"];
+    if (!dbUrl) throw new Error("DATABASE_URL not set");
+    pool = new pg.Pool({ connectionString: dbUrl, max: 5 });
+  }
+  return pool;
+}
+
+type HeliumRef = { table: string; column: string; label: string };
+
+// USER-OWNED data: safe to cascade-delete when the user is removed.
+// These rows belong to the specific user and have no shared usage.
+const CASCADE_USER_REFS: HeliumRef[] = [
+  { table: "platform_nda_signatures",  column: "user_id",        label: "подпис(ь/и) Платформенного NDA" },
+  { table: "deal_nda_signatures",      column: "user_id",        label: "подпис(ь/и) NDA комнаты сделки" },
+  { table: "nda_envelopes",            column: "user_id",        label: "конверт(а/ов) NDA (устаревший)" },
+  { table: "deal_room_participants",   column: "user_id",        label: "участи(е/й) в комнате сделки" },
+  { table: "deal_rooms",               column: "buyer_user_id",  label: "комнат(ы) сделок как покупатель" },
+  { table: "deal_rooms",               column: "seller_user_id", label: "комнат(ы) сделок как продавец" },
+  { table: "deal_room_messages",       column: "sender_id",      label: "сообщени(е/й) в комнате сделки" },
+  { table: "deal_room_documents",      column: "uploaded_by",    label: "загруженных документ(а/ов) в комнате сделки" },
+  { table: "deal_room_blocks",         column: "unlocked_by",    label: "разблокированных блок(а/ов) в комнате сделки" },
+  { table: "audit_logs",               column: "user_id",        label: "запис(ь/и) аудита" },
+];
+
+// SHARED / ADMIN-CREATED data: must NOT be cascade-deleted because deleting it
+// would break the platform for other users (e.g. wiping the seeded NDA template).
+// If a user has any of these, delete is REFUSED — admin must manually reassign.
+const BLOCK_USER_REFS: HeliumRef[] = [
+  { table: "platform_nda_documents", column: "created_by",         label: "версия(ий) Платформенного NDA (общий шаблон!)" },
+  { table: "deal_nda_documents",     column: "created_by",         label: "версия(ий) NDA для комнат сделок (общий шаблон!)" },
+  { table: "deal_rooms",             column: "created_by_admin_id", label: "комнат(ы) сделок, созданных этим админом" },
+];
+
+async function tableExists(client: pg.PoolClient | pg.Pool, table: string): Promise<boolean> {
+  const r = await client.query<{ exists: boolean }>(
+    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1) AS exists",
+    [table],
+  );
+  return Boolean(r.rows[0]?.exists);
+}
+
+async function columnExists(client: pg.PoolClient | pg.Pool, table: string, column: string): Promise<boolean> {
+  const r = await client.query<{ exists: boolean }>(
+    "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2) AS exists",
+    [table, column],
+  );
+  return Boolean(r.rows[0]?.exists);
+}
+
+function isValidUuid(s: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+type CountedRef = { label: string; count: number; table: string; column: string };
+
+async function countRefs(refs: HeliumRef[], userId: string): Promise<{ counts: CountedRef[]; total: number }> {
+  const counts: CountedRef[] = [];
+  let total = 0;
+  for (const ref of refs) {
+    if (!(await tableExists(db(), ref.table))) continue;
+    if (!(await columnExists(db(), ref.table, ref.column))) continue;
+    const r = await db().query<{ c: string }>(
+      `SELECT COUNT(*)::text AS c FROM "${ref.table}" WHERE "${ref.column}" = $1`,
+      [userId],
+    );
+    const c = Number(r.rows[0]?.c || "0");
+    if (c > 0) {
+      counts.push({ label: ref.label, count: c, table: ref.table, column: ref.column });
+      total += c;
+    }
+  }
+  return { counts, total };
+}
+
+/* ─────────────────── GET /admin/users/:userId/heliumdb-references ─────────────────── */
+router.get("/admin/users/:userId/heliumdb-references", requireAdmin, async (req: Request, res: Response) => {
+  const userId = String(req.params.userId || "");
+  if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user id" }); return; }
+
+  try {
+    const cascadeable = await countRefs(CASCADE_USER_REFS, userId);
+    const blocking = await countRefs(BLOCK_USER_REFS, userId);
+    res.json({
+      cascadeable: cascadeable.counts,
+      cascadeableTotal: cascadeable.total,
+      blocking: blocking.counts,
+      blockingTotal: blocking.total,
+    });
+  } catch (e: any) {
+    console.error("[user-admin] heliumdb-references error:", e?.message);
+    res.status(500).json({ error: e?.message || "Failed to count heliumdb references" });
+  }
+});
+
+/* ─────────────────── POST /admin/users/:userId/cascade-delete ─────────────────── */
+// Deletes all cascade-eligible heliumdb records for this user_id in a single transaction.
+// REFUSES if user has any BLOCK refs (admin-created shared content).
+// Does NOT touch the Supabase users row — caller must do that after success.
+router.post("/admin/users/:userId/cascade-delete", requireAdmin, async (req: Request, res: Response) => {
+  const userId = String(req.params.userId || "");
+  if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  if (req.authUser && req.authUser.id === userId) {
+    res.status(400).json({ error: "Нельзя каскадно удалить свой собственный аккаунт" });
+    return;
+  }
+
+  // Pre-check: refuse if any BLOCK refs exist (using non-tx query — read-only)
+  let blocking;
+  try {
+    blocking = await countRefs(BLOCK_USER_REFS, userId);
+  } catch (e: any) {
+    res.status(500).json({ error: "Не удалось проверить блокирующие зависимости: " + (e?.message || "") });
+    return;
+  }
+  if (blocking.total > 0) {
+    res.status(409).json({
+      error: "У пользователя есть общие/админские записи, удаление которых сломает платформу. " +
+             "Сначала переназначьте их другому администратору.",
+      blocking: blocking.counts,
+    });
+    return;
+  }
+
+  const client = await db().connect();
+  try {
+    await client.query("BEGIN");
+    const deleted: CountedRef[] = [];
+    let total = 0;
+    for (const ref of CASCADE_USER_REFS) {
+      if (!(await tableExists(client, ref.table))) continue;
+      if (!(await columnExists(client, ref.table, ref.column))) continue;
+      const r = await client.query(
+        `DELETE FROM "${ref.table}" WHERE "${ref.column}" = $1`,
+        [userId],
+      );
+      const c = r.rowCount || 0;
+      if (c > 0) {
+        deleted.push({ label: ref.label, count: c, table: ref.table, column: ref.column });
+        total += c;
+      }
+    }
+    // Best-effort audit log of the cascade itself
+    try {
+      if (await tableExists(client, "audit_logs")) {
+        const hasUserCol = await columnExists(client, "audit_logs", "user_id");
+        const hasActionCol = await columnExists(client, "audit_logs", "action");
+        const hasMetaCol = await columnExists(client, "audit_logs", "meta");
+        if (hasUserCol && hasActionCol && hasMetaCol) {
+          await client.query(
+            `INSERT INTO "audit_logs" ("user_id", "action", "meta") VALUES ($1, $2, $3::jsonb)`,
+            [req.authUser!.id, "user_cascade_delete", JSON.stringify({ target_user_id: userId, deleted, total })],
+          );
+        }
+      }
+    } catch (auditErr: any) {
+      console.warn("[user-admin] cascade audit log failed:", auditErr?.message);
+    }
+    await client.query("COMMIT");
+    res.json({ ok: true, deleted, total });
+  } catch (e: any) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("[user-admin] cascade-delete error:", e?.message);
+    res.status(500).json({ error: e?.message || "Cascade delete failed" });
+  } finally {
+    client.release();
+  }
+});
+
+export default router;

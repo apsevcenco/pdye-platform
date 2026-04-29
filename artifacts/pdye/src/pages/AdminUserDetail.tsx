@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaSignature } from "@/lib/platformNdaApi";
-import { archiveUserAction, deleteUserAction, countUserReferences } from "@/lib/userAdminActions";
+import { archiveUserAction, deleteUserAction, countAllUserReferences } from "@/lib/userAdminActions";
 
 type UserRecord = {
   id: string;
@@ -109,33 +109,53 @@ export default function AdminUserDetail() {
   async function deleteUser() {
     if (!user) return;
     setDeleting(true);
-    const refs = await countUserReferences(user.id);
-    if (refs.preflightFailed) {
+    const all = await countAllUserReferences(user.id);
+    if (all.supabase.preflightFailed) {
       alert(
-        `Не удаётся удалить ${user.email}: проверка зависимостей завершилась с ошибкой по одной или нескольким таблицам. Чтобы не оставить осиротевших записей, удаление отменено.\n\n` +
-        refs.failures.map(f => `• ${f.table}.${f.column}: ${f.message}`).join("\n")
+        `Не удаётся удалить ${user.email}: проверка зависимостей в Supabase завершилась с ошибкой.\n\n` +
+        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(пустая ошибка)"}`).join("\n")
       );
       setDeleting(false);
       return;
     }
-    if (refs.total > 0) {
+    if (all.heliumdb.error) {
+      alert(`Не удаётся проверить базу сделок: ${all.heliumdb.error}\n\nУдаление отменено.`);
+      setDeleting(false);
+      return;
+    }
+    if (all.blockingTotal > 0) {
       alert(
-        `Не удаётся удалить ${user.email}: пользователь связан с существующими записями.\n\n` +
-        refs.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `Не удаётся удалить ${user.email}: есть связанные записи в Supabase (FK-ограничения):\n\n` +
+        all.supabase.counts.map(c => `• ${c.count} ${c.label}`).join("\n") +
         `\n\nИспользуйте Архивировать — это скроет пользователя из активных списков, сохранив всю связанную историю.`
       );
       setDeleting(false);
       return;
     }
-    if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
-      setDeleting(false);
-      return;
+    let cascadeFlag = false;
+    if (all.cascadeableTotal > 0) {
+      const ok = confirm(
+        `У ${user.email} есть записи в базе сделок (heliumdb), не видные Supabase:\n\n` +
+        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
+        `\n\nПри удалении они будут БЕЗВОЗВРАТНО удалены вместе с пользователем. Это действие нельзя отменить.\n\nПродолжить?`
+      );
+      if (!ok) { setDeleting(false); return; }
+      cascadeFlag = true;
+    } else {
+      if (!confirm(`БЕЗВОЗВРАТНО УДАЛИТЬ ${user.email}? Это действие нельзя отменить.\n\nСвязанных записей не найдено.`)) {
+        setDeleting(false);
+        return;
+      }
     }
-    const r = await deleteUserAction(user.id);
+    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
     if (!r.ok) {
       alert("Удаление не удалось: " + r.error);
       setDeleting(false);
     } else {
+      if (r.cascadeDeleted && r.cascadeDeleted.length) {
+        alert(`Пользователь ${user.email} удалён.\n\nУдалено в базе сделок:\n` +
+          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
+      }
       setLocation("/admin");
     }
   }

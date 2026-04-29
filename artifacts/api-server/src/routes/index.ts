@@ -9,6 +9,7 @@ import fxRouter from "./fx";
 import authRouter from "./auth";
 import platformNdaRouter from "./platformNda";
 import dealLegalRouter from "./dealLegal";
+import userAdminRouter from "./userAdmin";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(fxRouter);
 router.use(authRouter);
 router.use(platformNdaRouter);
 router.use(dealLegalRouter);
+router.use(userAdminRouter);
 
 export default router;
