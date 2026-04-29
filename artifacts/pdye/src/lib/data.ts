@@ -45,4 +45,10 @@ export interface Yacht {
   description?: string;
   is_private?: boolean;
   is_featured?: boolean;
+  owner_id?: string;
+  listing_status?: "draft" | "pending" | "approved" | "rejected" | null;
+  listing_review_comment?: string | null;
+  listing_submitted_at?: string | null;
+  listing_reviewed_at?: string | null;
+  listing_reviewed_by?: string | null;
 }

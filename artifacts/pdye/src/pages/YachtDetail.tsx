@@ -3,7 +3,7 @@ import { useParams, Link } from "wouter";
 import {
   ChevronLeft, ChevronRight, MapPin, Calendar, Anchor, Ruler,
   Bed, Bath, Zap, Flag, Gauge, Droplets, Wind,
-  ArrowLeft, Users, X, Lock, Clock, CheckCircle, UserPlus, ShieldCheck, Eye, Info,
+  ArrowLeft, Users, X, Lock, Clock, CheckCircle, UserPlus, ShieldCheck, Eye, Info, Pencil,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -416,6 +416,7 @@ export default function YachtDetail() {
   const M = units === "metric";
 
   const isAdmin = (userProfile as any)?.role === "admin";
+  const isOwner = !!(user && yacht && yacht.owner_id === user.id);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -432,6 +433,19 @@ export default function YachtDetail() {
   const loadAccessStatus = useCallback(async () => {
     if (!user || !id) { setAccessLoading(false); return; }
     if (isAdmin) { setAccessLevel("deal_room_active"); setAccessLoading(false); return; }
+
+    // Wait until yacht is loaded so we can correctly classify the viewer as owner vs. visitor.
+    // Without this, the visitor query would briefly run before owner_id is known and the
+    // owner would see a flash of the "Request Access" screen.
+    if (!yacht) return;
+
+    // Owner of the yacht always gets full access to their own listing —
+    // no admin request, no NDA, no lockout.
+    if (yacht.owner_id === user.id) {
+      setAccessLevel("deal_room_active");
+      setAccessLoading(false);
+      return;
+    }
 
     const { data: req } = await supabase
       .from("access_requests")
@@ -469,7 +483,7 @@ export default function YachtDetail() {
       setAccessLevel("none");
     }
     setAccessLoading(false);
-  }, [user, id, isAdmin]);
+  }, [user, id, isAdmin, yacht]);
 
   useEffect(() => { loadAccessStatus(); }, [loadAccessStatus]);
 
@@ -577,10 +591,25 @@ export default function YachtDetail() {
         </Link>
       </div>
 
-      <div className="fixed top-6 right-6 z-40">
-        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-3 py-1.5 text-xs font-bold tracking-widest uppercase">
-          <ShieldCheck size={12} /> Full Access
-        </div>
+      <div className="fixed top-6 right-6 z-40 flex items-center gap-2">
+        {isOwner ? (
+          <>
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-3 py-1.5 text-xs font-bold tracking-widest uppercase">
+              <ShieldCheck size={12} /> Your Listing
+            </div>
+            <Link
+              href={`/add-yacht?edit=${yacht.id}`}
+              className="flex items-center gap-2 bg-background/80 backdrop-blur-md border border-primary/40 text-primary hover:bg-primary hover:text-background px-3 py-1.5 text-xs font-bold tracking-widest uppercase transition-colors"
+              title="Edit this listing"
+            >
+              <Pencil size={12} /> Edit
+            </Link>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 px-3 py-1.5 text-xs font-bold tracking-widest uppercase">
+            <ShieldCheck size={12} /> Full Access
+          </div>
+        )}
       </div>
 
       <div className="relative h-[70vh] min-h-[480px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">

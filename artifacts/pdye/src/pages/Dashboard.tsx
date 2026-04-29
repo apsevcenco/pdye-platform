@@ -10,7 +10,7 @@ import type { DealRoom } from "@/lib/dealTypes";
 import {
   User, Clock, CheckCircle, XCircle, Ship, Plus, TrendingUp,
   LayoutDashboard, ArrowRight, FileText, Lock, ShieldCheck,
-  Trash2, Eye, Send, AlertTriangle, ChevronRight, RefreshCw,
+  Trash2, Eye, Send, AlertTriangle, ChevronRight, RefreshCw, Pencil,
   Anchor, Calculator, BadgeCheck, Handshake, CircleDot, MessageSquareWarning,
 } from "lucide-react";
 
@@ -461,31 +461,42 @@ export function ListingsDashboard({ userId, role }: { userId: string; role: stri
                       </span>
                     )}
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Link href={`/yacht/${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="View">
-                        <Eye size={14} />
+                    {/* Actions — always visible (mobile-friendly) */}
+                    <div className="flex items-center gap-1">
+                      <Link
+                        href={`/yacht/${yacht.id}`}
+                        className="flex items-center gap-1.5 px-2 py-1.5 text-white/60 hover:text-primary hover:bg-primary/5 transition-colors text-xs uppercase tracking-wider font-bold"
+                        title="View"
+                      >
+                        <Eye size={13} />
+                        <span className="hidden md:inline">View</span>
                       </Link>
-                      <Link href={`/add-yacht?edit=${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="Edit">
-                        <FileText size={14} />
+                      <Link
+                        href={`/add-yacht?edit=${yacht.id}`}
+                        className="flex items-center gap-1.5 px-2 py-1.5 text-primary hover:bg-primary hover:text-background transition-colors text-xs uppercase tracking-wider font-bold border border-primary/30"
+                        title="Edit listing"
+                      >
+                        <Pencil size={13} />
+                        <span className="hidden md:inline">Edit</span>
                       </Link>
                       {canSubmit && (
                         <button
                           onClick={() => submitForApproval(yacht.id)}
                           disabled={submitting === yacht.id}
-                          className="p-1.5 text-white/30 hover:text-yellow-400 transition-colors disabled:opacity-30"
+                          className="flex items-center gap-1.5 px-2 py-1.5 text-yellow-400 hover:bg-yellow-400/10 transition-colors disabled:opacity-30 text-xs uppercase tracking-wider font-bold"
                           title={lstKey === "rejected" ? "Resubmit for Approval" : "Submit for Approval"}
                         >
-                          <Send size={14} />
+                          <Send size={13} />
+                          <span className="hidden md:inline">{lstKey === "rejected" ? "Resubmit" : "Submit"}</span>
                         </button>
                       )}
                       <button
                         onClick={() => deleteYacht(yacht.id)}
                         disabled={deleting === yacht.id}
-                        className="p-1.5 text-white/30 hover:text-red-400 transition-colors disabled:opacity-30"
+                        className="flex items-center px-2 py-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-30"
                         title="Delete"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -801,8 +812,19 @@ export function OwnerDashboard({ userId }: { userId: string }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Link href={`/add-yacht?edit=${activeYacht.id}`} className="p-2 border border-white/10 text-white/30 hover:text-primary hover:border-primary/30 transition-colors" title="Edit">
-                    <FileText size={13} />
+                  <Link
+                    href={`/yacht/${activeYacht.id}`}
+                    className="flex items-center gap-1.5 px-3 py-2 border border-white/10 text-white/60 hover:text-primary hover:border-primary/30 transition-colors text-xs uppercase tracking-wider font-bold"
+                    title="View"
+                  >
+                    <Eye size={13} /> View
+                  </Link>
+                  <Link
+                    href={`/add-yacht?edit=${activeYacht.id}`}
+                    className="flex items-center gap-1.5 px-3 py-2 border border-primary/30 text-primary hover:bg-primary hover:text-background transition-colors text-xs uppercase tracking-wider font-bold"
+                    title="Edit listing"
+                  >
+                    <Pencil size={13} /> Edit
                   </Link>
                   <button
                     onClick={() => deleteYacht(activeYacht.id)}
