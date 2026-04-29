@@ -91,6 +91,7 @@ const navItems = [
   { id: "fonts", label: "Fonts", icon: Type },
   { id: "requests-link", label: "Access Requests", icon: CheckCircle, href: "/admin-requests" },
   { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
+  { id: "platform-nda-link", label: "Platform NDA", icon: FileText, href: "/admin-platform-nda" },
 ];
 
 type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string; name?: string; budget?: string; yacht_type?: string; location?: string };

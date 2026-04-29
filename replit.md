@@ -114,13 +114,32 @@ Express on port 8080. Routes:
 
 ### Important Notes
 
-- **users table has NO `full_name` column** — only id, email, role, approved, created_at
+- **users table has NO `full_name` column** — only id, email, role, approved, created_at, name, phone, company, budget, yacht_type, location, notes
+- **Two databases**: Supabase (auth + `users` profile) and Replit's local PostgreSQL `heliumdb` (DATABASE_URL — `deal_rooms`, `deal_room_*`, `nda_envelopes`, `audit_logs`, `platform_nda_documents`, `platform_nda_signatures`)
 - **Internal role value `investor`** is displayed as "Private Buyer" in UI
 - **Hash routing** — all routes use `/#/path` format
 - **Currency switching** — €/$/£ with useCurrency hook
 - **WordToolbar** — Full MS Word-like formatting panel on all text editors (CMS, yacht description). Yacht specs use ONE shared toolbar that styles ALL spec inputs at once (font, size, bold, etc.). Settings saved to localStorage key `pdye_spec_styles`.
 - **RLS disabled** on access_requests and users tables (supabaseAdmin uses anon key)
 - **SQL migrations** at `migrations/001_deal_flow.sql` and `migrations/002_access_workflow.sql` must be run in Supabase SQL Editor
+- **Auto-migrations** in heliumdb: `dealRoomsApi.ts` and `platformNda.ts` run schema migrations + seeds on first DB access (eager-triggered on module load via `setImmediate`); seeds use `ON CONFLICT DO NOTHING`
+
+### Platform NDA Onboarding Gate (in-app electronic signature)
+
+- **Goal**: every non-admin user must sign a platform-level NDA before accessing the personal cabinet (profile, dashboard, deal rooms, etc.). Admins are pre-signed by policy.
+- **Backend** (`artifacts/api-server/src/routes/platformNda.ts`):
+  - Tables in heliumdb: `platform_nda_documents` (versioned, content_hash, is_active), `platform_nda_signatures` (user_id, user_email, signature_name, document_id, document_version, document_hash, ip, user_agent, signed_at)
+  - Initial NDA v1.0 seeded automatically (English, ~6.6k chars, 10 sections)
+  - Endpoints: `GET /api/platform-nda` (active doc), `GET /api/platform-nda/me` (signed status), `POST /api/platform-nda/sign` (sign — requires `document_id` + `content_hash` to detect mid-session version-publish; returns 409 `PLATFORM_NDA_VERSION_CHANGED` on mismatch), `GET /api/admin/platform-nda` (versions), `PUT /api/admin/platform-nda` (publish new version), `GET /api/admin/platform-nda/signatures` (audit log)
+  - Exports `requirePlatformNdaSigned` middleware — chained AFTER `requireUser` on non-admin user-facing routes; returns 403 `PLATFORM_NDA_NOT_SIGNED` for unsigned non-admins; admin bypass automatic
+  - Currently applied to: all non-admin endpoints in `dealRoomsApi.ts` (deal rooms list/by-user, participants/messages/documents/blocks GET, messages POST, commission/sign POST, audit-logs GET/POST). Apply to other sensitive non-admin endpoints as they're added.
+- **Frontend**:
+  - `AuthContext.tsx` fetches NDA status via `/platform-nda/me` after login; admins auto-treated as signed
+  - `ProtectedRoute` in `App.tsx` redirects unsigned non-admin users to `/platform-nda` (uses `skipNdaGate` prop on the `/platform-nda` route to avoid infinite redirect)
+  - `pages/PlatformNda.tsx`: shows NDA text in scrollable preview, 3 acknowledgement checkboxes, full-name signature input with Georgia italic preview; sends `document_id` + `content_hash` on submit
+  - `pages/AdminPlatformNda.tsx`: edit/publish new versions + version history + signature audit log
+  - Admin nav link in `Admin.tsx`
+- **Phase 2 (deferred)**: calligraphic signature font, PDF generation, Resend email of signed PDF (RESEND_API_KEY available, no integration)
 
 ## Structure
 

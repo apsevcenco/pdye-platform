@@ -28,7 +28,9 @@ const DealDetails = lazy(() => import("./pages/DealDetails"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AdminRequests = lazy(() => import("./pages/AdminRequests"));
+const AdminPlatformNda = lazy(() => import("./pages/AdminPlatformNda"));
 const Profile = lazy(() => import("./pages/Profile"));
+const PlatformNda = lazy(() => import("./pages/PlatformNda"));
 
 function FontLoader() {
   useEffect(() => { loadAllCustomFonts(); }, []);
@@ -77,8 +79,8 @@ function UnderReview() {
   );
 }
 
-function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
-  const { user, userProfile, loading, refreshProfile } = useAuth();
+function ProtectedRoute({ component: Component, adminOnly = false, skipNdaGate = false }: { component: React.ComponentType; adminOnly?: boolean; skipNdaGate?: boolean }) {
+  const { user, userProfile, ndaStatus, loading, refreshProfile } = useAuth();
   const [retried, setRetried] = useState(false);
 
   useEffect(() => {
@@ -96,6 +98,12 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
 
   if (adminOnly && !isAdmin) return <Redirect to="/" />;
   if (!isAdmin && !userProfile.approved) return <UnderReview />;
+
+  // Platform NDA gate — non-admin users must have signed before reaching any protected page
+  if (!isAdmin && !skipNdaGate) {
+    if (ndaStatus === null) return <Spinner />;
+    if (!ndaStatus.signed) return <Redirect to="/platform-nda" />;
+  }
 
   return <Component />;
 }
@@ -115,6 +123,9 @@ function Router() {
         <Route path="/private-buyers" component={Investors} />
         <Route path="/valuation" component={Valuation} />
 
+        {/* Platform NDA — auth required but bypasses NDA gate (otherwise infinite redirect) */}
+        <Route path="/platform-nda" component={() => <ProtectedRoute component={PlatformNda} skipNdaGate />} />
+
         {/* Protected */}
         <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
         <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
@@ -128,6 +139,7 @@ function Router() {
         <Route path="/admin" component={() => <ProtectedRoute component={Admin} adminOnly />} />
         <Route path="/admin-users" component={() => <ProtectedRoute component={AdminUsers} adminOnly />} />
         <Route path="/admin-requests" component={() => <ProtectedRoute component={AdminRequests} adminOnly />} />
+        <Route path="/admin-platform-nda" component={() => <ProtectedRoute component={AdminPlatformNda} adminOnly />} />
 
         <Route component={NotFound} />
       </Switch>

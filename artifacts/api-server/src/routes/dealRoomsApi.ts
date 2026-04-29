@@ -1,6 +1,7 @@
 import { Router } from "express";
 import pg from "pg";
 import { requireAdmin, requireUser, optionalUser } from "../middlewares/auth";
+import { requirePlatformNdaSigned } from "./platformNda";
 
 const router = Router();
 
@@ -140,7 +141,7 @@ async function runMigration() {
 
 const BLOCK_KEYS = ["specs", "photos", "documents", "chat", "location", "yacht_name", "identities"];
 
-router.get("/deal-rooms", requireUser, async (req, res) => {
+router.get("/deal-rooms", requireUser, requirePlatformNdaSigned, async (req, res) => {
   try {
     const includeArchived = req.query.include_archived === "true";
     const viewer = req.authUser!;
@@ -166,7 +167,7 @@ router.get("/deal-rooms", requireUser, async (req, res) => {
   }
 });
 
-router.get("/deal-rooms/by-user/:userId", requireUser, async (req, res) => {
+router.get("/deal-rooms/by-user/:userId", requireUser, requirePlatformNdaSigned, async (req, res) => {
   try {
     const viewer = req.authUser!;
     if (viewer.role !== "admin" && viewer.id !== req.params.userId) {
@@ -238,7 +239,7 @@ router.delete("/deal-rooms/:id", requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/deal-rooms/:id/participants", requireUser, async (req, res) => {
+router.get("/deal-rooms/:id/participants", requireUser, requirePlatformNdaSigned, async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -284,7 +285,7 @@ router.patch("/deal-rooms/:roomId/participants", requireAdmin, async (req, res) 
   }
 });
 
-router.get("/deal-rooms/:id/messages", requireUser, async (req, res) => {
+router.get("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -295,7 +296,7 @@ router.get("/deal-rooms/:id/messages", requireUser, async (req, res) => {
   }
 });
 
-router.post("/deal-rooms/:id/messages", requireUser, async (req, res) => {
+router.post("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, async (req, res) => {
   const { message, is_system } = req.body;
   if (typeof message !== "string" || !message.trim()) {
     res.status(400).json({ error: "Message text required" });
@@ -318,7 +319,7 @@ router.post("/deal-rooms/:id/messages", requireUser, async (req, res) => {
   }
 });
 
-router.get("/deal-rooms/:id/documents", requireUser, async (req, res) => {
+router.get("/deal-rooms/:id/documents", requireUser, requirePlatformNdaSigned, async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -380,7 +381,7 @@ router.post("/nda-envelopes", requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/audit-logs", requireUser, async (req, res) => {
+router.post("/audit-logs", requireUser, requirePlatformNdaSigned, async (req, res) => {
   const { entity_type, entity_id, action, meta } = req.body;
   try {
     // Server-side participation check for deal_room audits (non-admins)
@@ -400,7 +401,7 @@ router.post("/audit-logs", requireUser, async (req, res) => {
   }
 });
 
-router.get("/audit-logs/:entityType/:entityId", requireUser, async (req, res) => {
+router.get("/audit-logs/:entityType/:entityId", requireUser, requirePlatformNdaSigned, async (req, res) => {
   try {
     if (req.authUser!.role !== "admin" && req.params.entityType === "deal_room") {
       const auth = await isParticipantOrAdmin(String(req.params.entityId), req.authUser);
@@ -420,7 +421,7 @@ router.get("/audit-logs/:entityType/:entityId", requireUser, async (req, res) =>
   }
 });
 
-router.get("/deal-rooms/:id/blocks", requireUser, async (req, res) => {
+router.get("/deal-rooms/:id/blocks", requireUser, requirePlatformNdaSigned, async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -500,7 +501,7 @@ router.post("/deal-rooms/:id/commission/send", requireAdmin, async (req, res) =>
   }
 });
 
-router.post("/deal-rooms/:id/commission/sign", requireUser, async (req, res) => {
+router.post("/deal-rooms/:id/commission/sign", requireUser, requirePlatformNdaSigned, async (req, res) => {
   const { side } = req.body;
   if (!["buyer", "seller"].includes(side)) { res.status(400).json({ error: "Invalid side" }); return; }
   const viewer = req.authUser!;
