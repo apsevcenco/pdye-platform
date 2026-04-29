@@ -11,6 +11,8 @@ import NotFound from "@/pages/not-found";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Access from "./pages/Access";
 import Brokers from "./pages/Brokers";
 import Investors from "./pages/Investors";
@@ -105,6 +107,8 @@ function Router() {
         {/* Public */}
         <Route path="/" component={Home} />
         <Route path="/login" component={Login} />
+        <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password" component={ResetPassword} />
         <Route path="/access" component={Access} />
         <Route path="/boat-owners" component={BoatOwners} />
         <Route path="/brokers" component={Brokers} />

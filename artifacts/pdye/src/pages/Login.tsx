@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { Anchor, TrendingUp, Briefcase, Ship, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -322,6 +322,11 @@ export default function Login() {
                   </button>
                 </div>
                 {mode === "register" && <p className="text-white/25 text-[10px] mt-1 font-sans">Minimum 6 characters</p>}
+                {mode === "login" && (
+                  <p className="text-right mt-1.5">
+                    <Link href="/forgot-password" className="text-primary/60 hover:text-primary text-[11px] font-sans transition-colors">Forgot password?</Link>
+                  </p>
+                )}
               </div>
 
               {error && (
