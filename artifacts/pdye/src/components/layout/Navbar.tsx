@@ -122,6 +122,15 @@ export function Navbar() {
                 <LayoutDashboard size={11} />
                 Dashboard
               </Link>
+              <Link
+                href="/profile"
+                title="My Profile — change email or password"
+                data-testid="link-profile-desktop"
+                className={`flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors px-3 py-1.5 border ${location === "/profile" ? "border-primary/50 text-primary bg-primary/8" : "border-white/8 bg-white/3 text-white/50 hover:text-primary hover:border-primary/30"}`}
+              >
+                <User size={11} />
+                Profile
+              </Link>
               <button
                 onClick={handleLogout}
                 title="Logout"
