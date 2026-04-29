@@ -113,13 +113,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function register(email: string, password: string, role: string): Promise<{ error: string | null }> {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return { error: error.message };
+    const normalized = email.trim().toLowerCase();
+
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "/api";
+      const checkRes = await fetch(`${apiBase}/auth/check-email?email=${encodeURIComponent(normalized)}`);
+      if (checkRes.ok) {
+        const body = await checkRes.json();
+        if (body?.exists) {
+          return { error: "Этот email уже зарегистрирован. Войдите или используйте восстановление пароля." };
+        }
+      }
+    } catch (e) {
+      console.warn("[register] email pre-check failed, continuing:", e);
+    }
+
+    const { data, error } = await supabase.auth.signUp({ email: normalized, password });
+    if (error) {
+      const msg = error.message || "";
+      if (/already|exists|registered/i.test(msg)) {
+        return { error: "Этот email уже зарегистрирован. Войдите или используйте восстановление пароля." };
+      }
+      return { error: msg };
+    }
+
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { error: "Этот email уже зарегистрирован. Войдите или используйте восстановление пароля." };
+    }
 
     if (data.user) {
       await supabase.from("users").upsert([{
         id: data.user.id,
-        email,
+        email: normalized,
         role,
         approved: false,
       }]);
