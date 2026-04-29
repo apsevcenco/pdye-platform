@@ -82,8 +82,11 @@ function buildEmailHtml({ name, email, password, role, siteUrl }: { name: string
 
 router.post("/leads/:id/approve", requireAdmin, async (req, res) => {
   try {
-    const leadId = Number(req.params["id"]);
-    if (!Number.isFinite(leadId) || leadId <= 0) {
+    const leadId = String(req.params["id"] || "").trim();
+    // Accept either a positive integer or a UUID
+    const isInt = /^\d+$/.test(leadId) && Number(leadId) > 0;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId);
+    if (!leadId || (!isInt && !isUuid)) {
       res.status(400).json({ error: "Invalid lead id" });
       return;
     }
