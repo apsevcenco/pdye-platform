@@ -159,12 +159,13 @@ router.post("/leads/:id/approve", requireAdmin, async (req, res) => {
     }
     const fromAddress = process.env["RESEND_FROM_EMAIL"] || "PDYE <onboarding@resend.dev>";
     const resend = new Resend(resendKey);
-    const { error: mailErr } = await resend.emails.send({
+    const { data: mailData, error: mailErr } = await resend.emails.send({
       from: fromAddress,
       to: email,
       subject: "Welcome to PDYE — Your Access Credentials",
       html: buildEmailHtml({ name: lead.name || "", email, password, role, siteUrl }),
     });
+    console.log(`[approve] Resend → to=${email} from=${fromAddress} id=${mailData?.id || "n/a"} err=${mailErr?.message || "none"}`);
     if (mailErr) {
       res.status(500).json({ error: "Failed to send email: " + mailErr.message, hint: "User was created but email delivery failed. Check RESEND_API_KEY and RESEND_FROM_EMAIL." });
       return;
