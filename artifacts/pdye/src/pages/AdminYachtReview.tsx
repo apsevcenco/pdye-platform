@@ -355,10 +355,10 @@ export default function AdminYachtReview() {
             </Section>
           </div>
 
-          {/* Description */}
+          {/* Description (rendered as plain text — owner-controlled content must never run as HTML) */}
           {yacht.description && (
             <Section title="Description" icon={<FileText size={14} className="text-primary" />}>
-              <div className="text-white/85 text-sm font-sans leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: String(yacht.description) }} />
+              <p className="text-white/85 text-sm font-sans leading-relaxed whitespace-pre-wrap">{String(yacht.description)}</p>
             </Section>
           )}
 

@@ -12,9 +12,9 @@ function escapeHtml(s: string): string {
   }[c] as string));
 }
 
-function siteBase(req: import("express").Request): string {
-  const fromBody = (req.body?.siteUrl as string | undefined)?.trim();
-  if (fromBody) return fromBody.replace(/\/+$/, "");
+function siteBase(_req: import("express").Request): string {
+  // Only trust server-side env to build links in outbound emails — never accept from client body
+  // (otherwise an attacker could inject phishing links into the moderation emails).
   const fromEnv = process.env["PUBLIC_SITE_URL"];
   if (fromEnv) return fromEnv.replace(/\/+$/, "");
   return "https://pdye.app";
@@ -226,6 +226,26 @@ async function sendOwnerDecisionEmail(opts: {
 }
 
 /* ─────────────────── Owner: submit for approval ─────────────────── */
+//
+// State machine:
+//   draft     → pending  (owner submits)
+//   rejected  → pending  (owner edits and resubmits)
+//   pending   → approved (admin approves)
+//   pending   → rejected (admin rejects with comment)
+//   rejected  → approved (admin changes mind without owner resubmit)
+//   approved  → (terminal — owner edits go live immediately, no further moderation)
+//
+// All state changes are guarded with conditional UPDATE … WHERE listing_status IN (allowed prior states)
+// so concurrent operations cannot silently overwrite each other (TOCTOU). If 0 rows are returned
+// from the conditional update, we re-read and return a 409 with the actual current state.
+
+async function refusedStaleState(res: import("express").Response, yachtId: string, action: string) {
+  const fresh = await loadYacht(yachtId);
+  res.status(409).json({
+    error: `Cannot ${action}: listing is currently in state "${fresh?.listing_status || "unknown"}". Refresh and try again.`,
+    listing_status: fresh?.listing_status || null,
+  });
+}
 
 router.post("/yachts/:id/submit", requireUser, async (req, res) => {
   try {
@@ -240,26 +260,26 @@ router.post("/yachts/:id/submit", requireUser, async (req, res) => {
       res.status(403).json({ error: "You may only submit your own listings" });
       return;
     }
-    if (yacht.listing_status === "pending") {
-      res.status(409).json({ error: "Listing is already awaiting review" });
-      return;
-    }
-    if (yacht.listing_status === "approved") {
-      res.status(409).json({ error: "Listing is already approved — your edits go live immediately, no resubmission required" });
-      return;
-    }
 
-    const { error: updErr } = await sb.from("yachts").update({
+    // Conditional update — only flip to pending if currently draft or rejected (or NULL legacy).
+    const { data: updated, error: updErr } = await sb.from("yachts").update({
       listing_status: "pending",
       listing_submitted_at: new Date().toISOString(),
       listing_review_comment: null,
       listing_reviewed_at: null,
       listing_reviewed_by: null,
-    }).eq("id", id);
+    })
+      .eq("id", id)
+      .in("listing_status", ["draft", "rejected"])
+      .select("id");
 
     if (updErr) {
       if (isMissingColumnError(updErr)) { res.status(500).json({ error: MIGRATION_HINT }); return; }
       res.status(500).json({ error: updErr.message });
+      return;
+    }
+    if (!updated || updated.length === 0) {
+      await refusedStaleState(res, id, "submit");
       return;
     }
 
@@ -295,20 +315,25 @@ router.post("/admin/yachts/:id/approve", requireAdmin, async (req, res) => {
 
     const yacht = await loadYacht(id);
     if (!yacht) { res.status(404).json({ error: "Yacht not found" }); return; }
-    if (yacht.listing_status === "approved") {
-      res.status(409).json({ error: "Listing is already approved" });
-      return;
-    }
 
-    const { error: updErr } = await sb.from("yachts").update({
+    // Approve allowed only from pending or rejected (admin can override their own rejection).
+    // Drafts MUST be submitted by the owner first — admin should not silently publish unsubmitted work.
+    const { data: updated, error: updErr } = await sb.from("yachts").update({
       listing_status: "approved",
       listing_reviewed_at: new Date().toISOString(),
       listing_reviewed_by: u.id,
       listing_review_comment: null,
-    }).eq("id", id);
+    })
+      .eq("id", id)
+      .in("listing_status", ["pending", "rejected"])
+      .select("id");
     if (updErr) {
       if (isMissingColumnError(updErr)) { res.status(500).json({ error: MIGRATION_HINT }); return; }
       res.status(500).json({ error: updErr.message });
+      return;
+    }
+    if (!updated || updated.length === 0) {
+      await refusedStaleState(res, id, "approve");
       return;
     }
 
@@ -348,15 +373,25 @@ router.post("/admin/yachts/:id/reject", requireAdmin, async (req, res) => {
     const yacht = await loadYacht(id);
     if (!yacht) { res.status(404).json({ error: "Yacht not found" }); return; }
 
-    const { error: updErr } = await sb.from("yachts").update({
+    // Reject is only meaningful for listings currently awaiting review.
+    // Once a listing is approved, the user owns the lifecycle (edits go live immediately) —
+    // taking it down requires deleting the listing, not retro-rejecting it.
+    const { data: updated, error: updErr } = await sb.from("yachts").update({
       listing_status: "rejected",
       listing_reviewed_at: new Date().toISOString(),
       listing_reviewed_by: u.id,
       listing_review_comment: comment,
-    }).eq("id", id);
+    })
+      .eq("id", id)
+      .eq("listing_status", "pending")
+      .select("id");
     if (updErr) {
       if (isMissingColumnError(updErr)) { res.status(500).json({ error: MIGRATION_HINT }); return; }
       res.status(500).json({ error: updErr.message });
+      return;
+    }
+    if (!updated || updated.length === 0) {
+      await refusedStaleState(res, id, "reject");
       return;
     }
 
