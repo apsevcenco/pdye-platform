@@ -181,6 +181,14 @@ export default function AddYacht() {
       deal_status: "none",
     };
 
+    // For NEW listings, start as 'draft' so they don't appear publicly until the owner
+    // explicitly hits "Submit for Approval" from the dashboard. For EDITS we never touch
+    // listing_status here — once the listing is approved, edits go live immediately and
+    // must not silently revert to 'draft'.
+    if (!editId) {
+      payload.listing_status = "draft";
+    }
+
     let error;
     if (editId) {
       ({ error } = await supabase.from("yachts").update(payload).eq("id", editId).eq("owner_id", user.id));

@@ -11,6 +11,7 @@ import platformNdaRouter from "./platformNda";
 import dealLegalRouter from "./dealLegal";
 import dealCommissionRouter from "./dealCommission";
 import userAdminRouter from "./userAdmin";
+import yachtModerationRouter from "./yachtModeration";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(platformNdaRouter);
 router.use(dealLegalRouter);
 router.use(dealCommissionRouter);
 router.use(userAdminRouter);
+router.use(yachtModerationRouter);
 
 export default router;

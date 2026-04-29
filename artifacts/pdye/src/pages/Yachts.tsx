@@ -53,7 +53,14 @@ export default function Yachts() {
     if (authLoading) return;
     async function fetchYachts() {
       setLoading(true);
-      const { data, error } = await supabase.from("yachts").select("*");
+      // Public catalogue shows ONLY listings the admin has approved. Drafts, listings
+      // awaiting review, and rejected listings are visible only to their owner on the
+      // dashboard. Treat NULL as approved so legacy rows added before the moderation
+      // migration was applied keep showing up.
+      const { data, error } = await supabase
+        .from("yachts")
+        .select("*")
+        .or("listing_status.eq.approved,listing_status.is.null");
       if (!error && data) {
         const visible = user ? (data as Yacht[]) : (data as Yacht[]).filter(y => !y.is_private);
         setYachts(visible);

@@ -44,6 +44,7 @@ import {
   RefreshCw,
   Menu,
   Type,
+  ShieldCheck,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -399,7 +400,12 @@ function YachtsView() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("yachts").select("*");
+    // Pull listing-moderation columns too; gracefully fall back if the migration hasn't run yet
+    let { data, error } = await supabase.from("yachts").select("*");
+    if (error && /column .* does not exist|Could not find the .* column/i.test(error.message)) {
+      const retry = await supabase.from("yachts").select("id,name,builder,length,year,type,location,price,status,is_private,is_featured,is_locked,deal_status,owner_id,main_image,image,photos,documents,created_at");
+      data = retry.data as any;
+    }
     setYachts((data as Yacht[]) || []);
     setLoading(false);
   }
@@ -1189,6 +1195,37 @@ function YachtsView() {
         </div>
       )}
 
+      {/* Pending review banner */}
+      {(() => {
+        const pending = yachts.filter((y: any) => y.listing_status === "pending");
+        if (pending.length === 0) return null;
+        return (
+          <div className="bg-yellow-500/8 border border-yellow-500/25 px-5 py-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <ShieldCheck size={18} className="text-yellow-400" />
+              <div>
+                <p className="text-yellow-400 text-sm font-medium">{pending.length} listing{pending.length === 1 ? "" : "s"} awaiting your review</p>
+                <p className="text-white/50 text-xs font-sans">Owners are waiting for approval before their yachts go live in the catalogue.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {pending.slice(0, 3).map((y: any) => (
+                <a
+                  key={y.id}
+                  href={`#/admin/yachts/${y.id}`}
+                  className="inline-flex items-center gap-1.5 bg-yellow-400/10 border border-yellow-400/40 text-yellow-300 hover:bg-yellow-400/20 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors"
+                >
+                  <Eye size={11} /> {(y.name || "Untitled").slice(0, 20)}
+                </a>
+              ))}
+              {pending.length > 3 && (
+                <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">+ {pending.length - 3} more</span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {loading ? (
         <div className="bg-[#0f1d33] border border-white/5 flex items-center justify-center py-16">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1203,6 +1240,7 @@ function YachtsView() {
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold hidden lg:table-cell">Location</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Price</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Photos</th>
+                <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Listing</th>
                 <th className="text-left px-6 py-4 text-white/40 text-xs uppercase tracking-wider font-bold">Status</th>
                 <th className="px-6 py-4 text-right">
                   <span className="flex items-center justify-end gap-1 text-white/30 text-[10px] uppercase tracking-wider font-bold">
@@ -1272,6 +1310,27 @@ function YachtsView() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
+                      {(() => {
+                        const ls = ((yacht as any).listing_status || "approved") as string;
+                        const cfg: Record<string, { label: string; cls: string }> = {
+                          draft:    { label: "Draft",    cls: "text-white/40 border-white/15 bg-white/5" },
+                          pending:  { label: "Pending",  cls: "text-yellow-400 border-yellow-500/30 bg-yellow-500/8" },
+                          approved: { label: "Live",     cls: "text-green-400 border-green-500/25 bg-green-500/8" },
+                          rejected: { label: "Rejected", cls: "text-red-400 border-red-500/25 bg-red-500/8" },
+                        };
+                        const c = cfg[ls] || cfg.approved;
+                        return (
+                          <a
+                            href={`#/admin/yachts/${yacht.id}`}
+                            className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border hover:opacity-80 transition-opacity ${c.cls}`}
+                            title="Open moderation review"
+                          >
+                            {c.label}
+                          </a>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-4">
                       <StatusBadge status={
                         yacht.status === "Distressed Sale" ? "review" :
                         yacht.status === "Confidential" ? "pending" : "active"
@@ -1279,6 +1338,16 @@ function YachtsView() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-3">
+                        {/* Review button — only for pending listings, always visible */}
+                        {(yacht as any).listing_status === "pending" && (
+                          <a
+                            href={`#/admin/yachts/${yacht.id}`}
+                            className="inline-flex items-center gap-1 bg-yellow-400/10 border border-yellow-400/40 text-yellow-300 hover:bg-yellow-400/20 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 transition-colors"
+                            title="Open moderation review"
+                          >
+                            <Eye size={11} /> Review
+                          </a>
+                        )}
                         {/* Featured toggle — always visible */}
                         <button
                           onClick={() => toggleFeatured(yacht.id, !!yacht.is_featured)}

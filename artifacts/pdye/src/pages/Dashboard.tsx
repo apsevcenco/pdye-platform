@@ -4,13 +4,14 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { dealRoomApi } from "@/lib/dealRoomApi";
+import { yachtModerationApi, LISTING_STATUS_LABEL, LISTING_STATUS_STYLE, type ListingStatus } from "@/lib/yachtModerationApi";
 import { Layout } from "@/components/layout/Layout";
 import type { DealRoom } from "@/lib/dealTypes";
 import {
   User, Clock, CheckCircle, XCircle, Ship, Plus, TrendingUp,
   LayoutDashboard, ArrowRight, FileText, Lock, ShieldCheck,
   Trash2, Eye, Send, AlertTriangle, ChevronRight, RefreshCw,
-  Anchor, Calculator, BadgeCheck, Handshake, CircleDot,
+  Anchor, Calculator, BadgeCheck, Handshake, CircleDot, MessageSquareWarning,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -34,6 +35,8 @@ type MyYacht = {
   created_at: string;
   main_image: string | null;
   image: string | null;
+  listing_status: string | null;
+  listing_review_comment: string | null;
 };
 
 /* ─── Status helpers ─── */
@@ -317,25 +320,43 @@ export function ListingsDashboard({ userId, role }: { userId: string; role: stri
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    // Try with the moderation columns; fall back gracefully if the migration hasn't been run yet.
+    let { data, error } = await supabase
       .from("yachts")
-      .select("id, name, builder, length, year, status, deal_status, is_private, created_at, main_image, image")
+      .select("id, name, builder, length, year, status, deal_status, is_private, created_at, main_image, image, listing_status, listing_review_comment")
       .eq("owner_id", userId)
       .order("created_at", { ascending: false });
+    if (error && /column .* does not exist|Could not find the .* column/i.test(error.message)) {
+      const retry = await supabase
+        .from("yachts")
+        .select("id, name, builder, length, year, status, deal_status, is_private, created_at, main_image, image")
+        .eq("owner_id", userId)
+        .order("created_at", { ascending: false });
+      data = retry.data as any;
+    }
     setYachts((data as MyYacht[]) || []);
     setLoading(false);
   }, [userId]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function submitToDealRoom(yachtId: string) {
+  async function submitForApproval(yachtId: string) {
     setSubmitting(yachtId);
-    await supabase.from("yachts").update({ deal_status: "pending" }).eq("id", yachtId).eq("owner_id", userId);
-    setYachts(prev => prev.map(y => y.id === yachtId ? { ...y, deal_status: "pending" } : y));
-    setSubmitting(null);
+    setSubmitError(null);
+    try {
+      await yachtModerationApi.submit(yachtId);
+      setYachts(prev => prev.map(y => y.id === yachtId
+        ? { ...y, listing_status: "pending", listing_review_comment: null }
+        : y));
+    } catch (e: any) {
+      setSubmitError(e?.message || "Could not submit listing for approval");
+    } finally {
+      setSubmitting(null);
+    }
   }
 
   async function deleteYacht(yachtId: string) {
@@ -346,16 +367,25 @@ export function ListingsDashboard({ userId, role }: { userId: string; role: stri
     setDeleting(null);
   }
 
+  function listingCfg(s: string | null | undefined) {
+    const key = (s || "draft") as ListingStatus;
+    return {
+      label: LISTING_STATUS_LABEL[key] ?? "Draft",
+      style: LISTING_STATUS_STYLE[key] ?? LISTING_STATUS_STYLE.draft,
+    };
+  }
+
   const label = role === "broker" ? "My Listings" : "My Yachts";
 
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/5">
         {[
-          { label: "Total Listings", value: yachts.length },
-          { label: "In Deal Room",   value: yachts.filter(y => y.deal_status === "approved").length },
-          { label: "Pending Review", value: yachts.filter(y => y.deal_status === "pending").length },
+          { label: "Total Listings",   value: yachts.length },
+          { label: "Live in Catalogue", value: yachts.filter(y => (y.listing_status || "approved") === "approved").length },
+          { label: "Awaiting Review",  value: yachts.filter(y => y.listing_status === "pending").length },
+          { label: "Changes Requested", value: yachts.filter(y => y.listing_status === "rejected").length },
         ].map(s => (
           <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-6 text-center">
             <span className="font-display text-3xl text-white">{s.value}</span>
@@ -363,6 +393,13 @@ export function ListingsDashboard({ userId, role }: { userId: string; role: stri
           </div>
         ))}
       </div>
+
+      {submitError && (
+        <div className="bg-red-500/8 border border-red-500/20 px-4 py-3 text-red-400 text-xs font-sans flex items-center justify-between">
+          <span>{submitError}</span>
+          <button onClick={() => setSubmitError(null)} className="text-red-400/60 hover:text-red-400 text-base leading-none">×</button>
+        </div>
+      )}
 
       {/* Listings */}
       <Block
@@ -387,61 +424,82 @@ export function ListingsDashboard({ userId, role }: { userId: string; role: stri
           <div className="divide-y divide-white/5">
             {yachts.map(yacht => {
               const dealCfg = DEAL_STATUS[yacht.deal_status || "none"] || DEAL_STATUS.none;
+              const lst = listingCfg(yacht.listing_status);
+              const lstKey = (yacht.listing_status || "draft") as ListingStatus;
+              const canSubmit = lstKey === "draft" || lstKey === "rejected";
               const thumb = yacht.main_image || yacht.image;
               return (
-                <div key={yacht.id} className="flex items-center gap-4 px-6 py-4 hover:bg-white/2 transition-colors group">
-                  {/* Thumb */}
-                  <div className="w-14 h-10 bg-white/5 border border-white/5 overflow-hidden flex-shrink-0">
-                    {thumb ? <img src={thumb} alt={yacht.name} className="w-full h-full object-cover" /> : <Ship size={16} className="m-auto mt-2 text-white/20" />}
-                  </div>
+                <div key={yacht.id} className="flex flex-col gap-2 px-6 py-4 hover:bg-white/2 transition-colors group">
+                  <div className="flex items-center gap-4">
+                    {/* Thumb */}
+                    <div className="w-14 h-10 bg-white/5 border border-white/5 overflow-hidden flex-shrink-0">
+                      {thumb ? <img src={thumb} alt={yacht.name} className="w-full h-full object-cover" /> : <Ship size={16} className="m-auto mt-2 text-white/20" />}
+                    </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{yacht.name}</p>
-                    <p className="text-white/40 text-xs font-sans truncate">
-                      {[yacht.builder, yacht.length, yacht.year].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{yacht.name}</p>
+                      <p className="text-white/40 text-xs font-sans truncate">
+                        {[yacht.builder, yacht.length, yacht.year].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
 
-                  {/* Deal status */}
-                  <span className={`hidden sm:flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${dealCfg.style}`}>
-                    {dealCfg.label}
-                  </span>
-
-                  {/* Private badge */}
-                  {yacht.is_private && (
-                    <span className="hidden md:flex items-center gap-1 text-[10px] text-primary/60 border border-primary/20 px-2 py-0.5">
-                      <Lock size={9} /> Private
+                    {/* Listing status (publication) */}
+                    <span className={`hidden sm:flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${lst.style}`} title="Publication status">
+                      {lst.label}
                     </span>
-                  )}
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Link href={`/yacht/${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="View">
-                      <Eye size={14} />
-                    </Link>
-                    <Link href={`/add-yacht?edit=${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="Edit">
-                      <FileText size={14} />
-                    </Link>
-                    {(!yacht.deal_status || yacht.deal_status === "none" || yacht.deal_status === "rejected") && (
-                      <button
-                        onClick={() => submitToDealRoom(yacht.id)}
-                        disabled={submitting === yacht.id}
-                        className="p-1.5 text-white/30 hover:text-green-400 transition-colors disabled:opacity-30"
-                        title="Submit to Deal Room"
-                      >
-                        <Send size={14} />
-                      </button>
+                    {/* Deal status */}
+                    <span className={`hidden lg:flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${dealCfg.style}`} title="Deal Room status">
+                      {dealCfg.label}
+                    </span>
+
+                    {/* Private badge */}
+                    {yacht.is_private && (
+                      <span className="hidden xl:flex items-center gap-1 text-[10px] text-primary/60 border border-primary/20 px-2 py-0.5">
+                        <Lock size={9} /> Private
+                      </span>
                     )}
-                    <button
-                      onClick={() => deleteYacht(yacht.id)}
-                      disabled={deleting === yacht.id}
-                      className="p-1.5 text-white/30 hover:text-red-400 transition-colors disabled:opacity-30"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Link href={`/yacht/${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="View">
+                        <Eye size={14} />
+                      </Link>
+                      <Link href={`/add-yacht?edit=${yacht.id}`} className="p-1.5 text-white/30 hover:text-primary transition-colors" title="Edit">
+                        <FileText size={14} />
+                      </Link>
+                      {canSubmit && (
+                        <button
+                          onClick={() => submitForApproval(yacht.id)}
+                          disabled={submitting === yacht.id}
+                          className="p-1.5 text-white/30 hover:text-yellow-400 transition-colors disabled:opacity-30"
+                          title={lstKey === "rejected" ? "Resubmit for Approval" : "Submit for Approval"}
+                        >
+                          <Send size={14} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteYacht(yacht.id)}
+                        disabled={deleting === yacht.id}
+                        className="p-1.5 text-white/30 hover:text-red-400 transition-colors disabled:opacity-30"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Rejection comment (visible on the row) */}
+                  {lstKey === "rejected" && yacht.listing_review_comment && (
+                    <div className="ml-[72px] flex items-start gap-2 border-l-2 border-red-400/40 bg-red-400/5 px-3 py-2">
+                      <MessageSquareWarning size={13} className="text-red-400/80 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-red-400/90 text-[10px] uppercase tracking-widest font-bold mb-1">Admin requested changes</p>
+                        <p className="text-white/70 text-xs font-sans whitespace-pre-wrap">{yacht.listing_review_comment}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
