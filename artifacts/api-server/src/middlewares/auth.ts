@@ -39,17 +39,22 @@ async function resolveUser(token: string): Promise<AuthUser | null> {
   const { data, error } = await sb.auth.getUser(token);
   if (error || !data.user) return null;
   const authU = data.user;
-  // Look up profile to get role + status
-  const { data: profile } = await sb
+  // Look up profile to get role + approved (users table columns: id, email, role, approved, created_at)
+  const { data: profile, error: profErr } = await sb
     .from("users")
-    .select("role,status,email")
+    .select("role,approved,email")
     .eq("id", authU.id)
     .maybeSingle();
+  if (profErr) {
+    // eslint-disable-next-line no-console
+    console.error("[auth] profile lookup failed:", profErr.message);
+  }
+  const approved = (profile?.approved as boolean | undefined) ?? true;
   return {
     id: authU.id,
     email: (profile?.email as string | undefined) || authU.email || "",
     role: (profile?.role as string | undefined) || "investor",
-    status: (profile?.status as string | undefined) || "active",
+    status: approved ? "active" : "pending",
   };
 }
 
