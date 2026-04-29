@@ -69,6 +69,11 @@ export const platformNdaApi = {
   adminListSignatures: (): Promise<PlatformNdaSignature[]> =>
     authFetch("/admin/platform-nda/signatures"),
 
+  // Permanently delete one signature row (admin only). Returns the deleted row.
+  // Useful for cleaning up "ghost" signatures left after a user was removed.
+  adminDeleteSignature: (signatureId: string): Promise<{ ok: boolean; deleted: { id: string; user_id: string; user_email: string } }> =>
+    authFetch(`/admin/platform-nda/signatures/${signatureId}`, { method: "DELETE" }),
+
   // Download the signed NDA as a PDF. Returns a Blob; caller is responsible for triggering the download.
   downloadSignedPdf: async (signatureId: string): Promise<Blob> => {
     const { data: { session } } = await supabase.auth.getSession();

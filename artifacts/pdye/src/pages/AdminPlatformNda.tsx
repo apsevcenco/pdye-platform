@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Anchor, ArrowLeft, FileText, Loader2, Save, History, Download } from "lucide-react";
+import { Anchor, ArrowLeft, FileText, Loader2, Save, History, Download, Trash2 } from "lucide-react";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaDocument, type PlatformNdaSignature } from "@/lib/platformNdaApi";
 
 export default function AdminPlatformNda() {
@@ -16,6 +16,30 @@ export default function AdminPlatformNda() {
   const [publishing, setPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDeleteSig(sig: PlatformNdaSignature) {
+    const ok = window.confirm(
+      `Permanently delete this signature?\n\n` +
+      `User:    ${sig.user_email || "(unknown email)"}\n` +
+      `Signed:  ${sig.signature_name}\n` +
+      `Version: ${sig.document_version}\n` +
+      `Date:    ${fmtDate(sig.signed_at)}\n\n` +
+      `Use this only to clean up "ghost" signatures left behind after a user was deleted. ` +
+      `For active users, this will let them sign the NDA again.\n\n` +
+      `This cannot be undone.`
+    );
+    if (!ok) return;
+    setDeletingId(sig.id);
+    try {
+      await platformNdaApi.adminDeleteSignature(sig.id);
+      setSignatures(prev => prev.filter(x => x.id !== sig.id));
+    } catch (e: any) {
+      alert(`Could not delete signature: ${e?.message || e}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleDownloadSig(sig: PlatformNdaSignature) {
     setDownloadingId(sig.id);
@@ -274,6 +298,7 @@ export default function AdminPlatformNda() {
                       <th className="text-left p-3">IP</th>
                       <th className="text-left p-3">Signed At</th>
                       <th className="text-left p-3">PDF</th>
+                      <th className="text-left p-3"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -302,10 +327,22 @@ export default function AdminPlatformNda() {
                             <Download size={11} /> {downloadingId === s.id ? "…" : "PDF"}
                           </button>
                         </td>
+                        <td className="p-3">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSig(s)}
+                            disabled={deletingId === s.id}
+                            className="inline-flex items-center gap-1.5 border border-red-500/30 px-2.5 py-1 text-[10px] uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Permanently delete this signature (use only for cleaning ghost signatures of deleted users)"
+                            data-testid={`button-delete-signature-${s.id}`}
+                          >
+                            <Trash2 size={11} /> {deletingId === s.id ? "…" : "Delete"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {signatures.length === 0 && (
-                      <tr><td colSpan={8} className="p-6 text-center text-white/40 text-xs">No signatures yet</td></tr>
+                      <tr><td colSpan={9} className="p-6 text-center text-white/40 text-xs">No signatures yet</td></tr>
                     )}
                   </tbody>
                 </table>

@@ -32,6 +32,16 @@ const CASCADE_USER_REFS: HeliumRef[] = [
   { table: "audit_logs",               column: "user_id",        label: "audit log record(s)" },
 ];
 
+// EMAIL-keyed signature tables: when a user is deleted we also sweep these by
+// user_email to catch "ghost" rows whose user_id belongs to a previously-deleted
+// account that shared the same email. Without this, the new user's card would
+// keep showing the old NDA signature (because the admin UI matches by email too).
+const CASCADE_EMAIL_REFS: HeliumRef[] = [
+  { table: "platform_nda_signatures",   column: "user_email", label: "Platform NDA signature(s) (by email)" },
+  { table: "deal_nda_signatures",       column: "user_email", label: "Deal Room NDA signature(s) (by email)" },
+  { table: "deal_commission_signatures", column: "user_email", label: "Commission Agreement signature(s) (by email)" },
+];
+
 // SHARED / ADMIN-CREATED data: must NOT be cascade-deleted because deleting it
 // would break the platform for other users (e.g. wiping the seeded NDA template).
 // If a user has any of these, delete is REFUSED — admin must manually reassign.
@@ -132,6 +142,23 @@ router.post("/admin/users/:userId/cascade-delete", requireAdmin, async (req: Req
     return;
   }
 
+  // Look up the user's email from Supabase BEFORE we touch anything, so we can
+  // also sweep email-keyed signature rows (catches "ghost" sigs left by a previous
+  // account that re-used this email but had a different user_id).
+  let userEmail: string | null = null;
+  try {
+    const sb = getSupabaseAdmin();
+    const { data: authUser } = await sb.auth.admin.getUserById(userId);
+    userEmail = (authUser?.user?.email || "").trim().toLowerCase() || null;
+    if (!userEmail) {
+      // Fall back to public.users row (auth user might already be gone).
+      const { data: profileRow } = await sb.from("users").select("email").eq("id", userId).maybeSingle();
+      userEmail = ((profileRow as { email?: string } | null)?.email || "").trim().toLowerCase() || null;
+    }
+  } catch (e: any) {
+    console.warn("[user-admin] could not look up email for cascade-delete:", e?.message);
+  }
+
   const client = await db().connect();
   try {
     await client.query("BEGIN");
@@ -148,6 +175,23 @@ router.post("/admin/users/:userId/cascade-delete", requireAdmin, async (req: Req
       if (c > 0) {
         deleted.push({ label: ref.label, count: c, table: ref.table, column: ref.column });
         total += c;
+      }
+    }
+    // Now sweep email-keyed signature rows that escaped the user_id sweep
+    // (they belonged to a previously-deleted account that shared this email).
+    if (userEmail) {
+      for (const ref of CASCADE_EMAIL_REFS) {
+        if (!(await tableExists(client, ref.table))) continue;
+        if (!(await columnExists(client, ref.table, ref.column))) continue;
+        const r = await client.query(
+          `DELETE FROM "${ref.table}" WHERE LOWER("${ref.column}") = $1`,
+          [userEmail],
+        );
+        const c = r.rowCount || 0;
+        if (c > 0) {
+          deleted.push({ label: ref.label, count: c, table: ref.table, column: ref.column });
+          total += c;
+        }
       }
     }
     // Best-effort audit log of the cascade itself

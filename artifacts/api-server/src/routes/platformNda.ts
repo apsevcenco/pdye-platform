@@ -558,6 +558,33 @@ router.get("/admin/platform-nda/signatures", requireAdmin, async (_req, res) => 
   }
 });
 
+// DELETE a single platform NDA signature row (admin only).
+// Used to clean up "ghost" signatures left over after a user is deleted from
+// Supabase but their signature row remained in heliumdb (which has no FK to
+// the users table). Operates on the row's own UUID (not user_id) so it can
+// remove orphans whose user_id no longer exists anywhere.
+router.delete("/admin/platform-nda/signatures/:id", requireAdmin, async (req, res) => {
+  try {
+    const sigId = String(req.params.id || "").trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sigId)) {
+      res.status(400).json({ error: "Invalid signature id" });
+      return;
+    }
+    const r = await db().query(
+      `DELETE FROM platform_nda_signatures WHERE id = $1 RETURNING id, user_id, user_email`,
+      [sigId]
+    );
+    if (r.rowCount === 0) {
+      res.status(404).json({ error: "Signature not found" });
+      return;
+    }
+    res.json({ ok: true, deleted: r.rows[0] });
+  } catch (e: any) {
+    console.error("[platform-nda] delete signature error:", e?.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Eagerly trigger pool init + migration on module load (deferred to next tick so DATABASE_URL is ready)
 setImmediate(() => {
   try { db(); } catch (e) { console.error("[platform-nda] eager init failed:", e); }
