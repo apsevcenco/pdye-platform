@@ -1,35 +1,31 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { loadAllCustomFonts } from "@/lib/content";
 import { CurrencyProvider } from "@/lib/currency";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Anchor } from "lucide-react";
 import NotFound from "@/pages/not-found";
 
-// Pages
 import Home from "./pages/Home";
-import Yachts from "./pages/Yachts";
-import Access from "./pages/Access";
-
-import Brokers from "./pages/Brokers";
 import Login from "./pages/Login";
-import DealRoom from "./pages/DealRoom";
-import DealDetails from "./pages/DealDetails";
-import Admin from "./pages/Admin";
-import AdminUsers from "./pages/AdminUsers";
-import AdminRequests from "./pages/AdminRequests";
-import YachtDetail from "./pages/YachtDetail";
+import Access from "./pages/Access";
+import Brokers from "./pages/Brokers";
 import Investors from "./pages/Investors";
 import BoatOwners from "./pages/BoatOwners";
-import Valuation from "./pages/Valuation";
-import Dashboard from "./pages/Dashboard";
-import AddYacht from "./pages/AddYacht";
 
-const queryClient = new QueryClient();
+const Yachts = lazy(() => import("./pages/Yachts"));
+const YachtDetail = lazy(() => import("./pages/YachtDetail"));
+const Valuation = lazy(() => import("./pages/Valuation"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const AddYacht = lazy(() => import("./pages/AddYacht"));
+const DealRoom = lazy(() => import("./pages/DealRoom"));
+const DealDetails = lazy(() => import("./pages/DealDetails"));
+const Admin = lazy(() => import("./pages/Admin"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AdminRequests = lazy(() => import("./pages/AdminRequests"));
 
 function FontLoader() {
   useEffect(() => { loadAllCustomFonts(); }, []);
@@ -83,7 +79,6 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
   const [retried, setRetried] = useState(false);
 
   useEffect(() => {
-    // If auth done but profile didn't load, retry once
     if (!loading && user && userProfile === null && !retried) {
       setRetried(true);
       refreshProfile();
@@ -92,8 +87,6 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
 
   if (loading) return <Spinner />;
   if (!user) return <Redirect to="/login" />;
-
-  // Profile still loading — show spinner, not UnderReview
   if (userProfile === null) return <Spinner />;
 
   const isAdmin = userProfile.role === "admin";
@@ -106,49 +99,49 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
 
 function Router() {
   return (
-    <Switch>
-      {/* Public */}
-      <Route path="/" component={Home} />
-      <Route path="/login" component={Login} />
-      <Route path="/access" component={Access} />
-      <Route path="/boat-owners" component={BoatOwners} />
-      <Route path="/brokers" component={Brokers} />
-      <Route path="/private-buyers" component={Investors} />
-      <Route path="/valuation" component={Valuation} />
+    <Suspense fallback={<Spinner />}>
+      <Switch>
+        {/* Public */}
+        <Route path="/" component={Home} />
+        <Route path="/login" component={Login} />
+        <Route path="/access" component={Access} />
+        <Route path="/boat-owners" component={BoatOwners} />
+        <Route path="/brokers" component={Brokers} />
+        <Route path="/private-buyers" component={Investors} />
+        <Route path="/valuation" component={Valuation} />
 
-      {/* Protected */}
-      <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/add-yacht" component={() => <ProtectedRoute component={AddYacht} />} />
-      <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
-      <Route path="/yacht/:id" component={() => <ProtectedRoute component={YachtDetail} />} />
-      <Route path="/dealroom" component={() => <ProtectedRoute component={DealRoom} />} />
-      <Route path="/dealroom/:id" component={() => <ProtectedRoute component={DealDetails} />} />
+        {/* Protected */}
+        <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
+        <Route path="/add-yacht" component={() => <ProtectedRoute component={AddYacht} />} />
+        <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
+        <Route path="/yacht/:id" component={() => <ProtectedRoute component={YachtDetail} />} />
+        <Route path="/dealroom" component={() => <ProtectedRoute component={DealRoom} />} />
+        <Route path="/dealroom/:id" component={() => <ProtectedRoute component={DealDetails} />} />
 
-      {/* Admin only */}
-      <Route path="/admin" component={() => <ProtectedRoute component={Admin} adminOnly />} />
-      <Route path="/admin-users" component={() => <ProtectedRoute component={AdminUsers} adminOnly />} />
-      <Route path="/admin-requests" component={() => <ProtectedRoute component={AdminRequests} adminOnly />} />
+        {/* Admin only */}
+        <Route path="/admin" component={() => <ProtectedRoute component={Admin} adminOnly />} />
+        <Route path="/admin-users" component={() => <ProtectedRoute component={AdminUsers} adminOnly />} />
+        <Route path="/admin-requests" component={() => <ProtectedRoute component={AdminRequests} adminOnly />} />
 
-      <Route component={NotFound} />
-    </Switch>
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <CurrencyProvider>
-          <TooltipProvider>
-            <FontLoader />
-            <WouterRouter hook={useHashLocation}>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
-        </CurrencyProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <CurrencyProvider>
+        <TooltipProvider>
+          <FontLoader />
+          <WouterRouter hook={useHashLocation}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </CurrencyProvider>
+    </AuthProvider>
   );
 }
 
