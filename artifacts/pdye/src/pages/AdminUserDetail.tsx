@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaSignature } from "@/lib/platformNdaApi";
-import { archiveUserAction, deleteUserAction, countAllUserReferences } from "@/lib/userAdminActions";
+import { archiveUserAction, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
 
 type UserRecord = {
   id: string;
@@ -110,64 +110,9 @@ export default function AdminUserDetail() {
   async function deleteUser() {
     if (!user) return;
     setDeleting(true);
-    const all = await countAllUserReferences(user.id);
-    if (all.supabase.preflightFailed) {
-      alert(
-        `Cannot delete ${user.email}: the Supabase dependency check failed.\n\n` +
-        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
-      );
-      setDeleting(false);
-      return;
-    }
-    if (all.heliumdb.error) {
-      alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
-      setDeleting(false);
-      return;
-    }
-    if (all.blockingTotal > 0) {
-      const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
-      const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
-      const allLines = [supLines, hdLines].filter(Boolean).join("\n");
-      alert(
-        `Cannot delete ${user.email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
-        allLines +
-        `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
-      );
-      setDeleting(false);
-      return;
-    }
-    let cascadeFlag = false;
-    if (all.cascadeableTotal > 0) {
-      const ok = confirm(
-        `${user.email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
-        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
-      );
-      if (!ok) { setDeleting(false); return; }
-      cascadeFlag = true;
-    } else {
-      if (!confirm(`PERMANENTLY DELETE ${user.email}? This action cannot be undone.\n\nNo linked records found.`)) {
-        setDeleting(false);
-        return;
-      }
-    }
-    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
-    if (!r.ok) {
-      alert("Delete failed: " + r.error);
-      setDeleting(false);
-    } else {
-      const lines: string[] = [];
-      if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        lines.push(`User ${user.email} deleted.`, "", "Removed from the deal-rooms database:");
-        lines.push(...r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`));
-      }
-      if (r.authUserWarning) {
-        if (lines.length === 0) lines.push(`User ${user.email} deleted.`);
-        lines.push("", "⚠ " + r.authUserWarning);
-      }
-      if (lines.length > 0) alert(lines.join("\n"));
-      setLocation("/admin");
-    }
+    const ok = await confirmAndDeleteUserInteractive(user.id, user.email);
+    if (ok) setLocation("/admin");
+    else setDeleting(false);
   }
 
   function startEdit() {

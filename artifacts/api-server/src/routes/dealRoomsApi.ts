@@ -195,13 +195,17 @@ router.get("/deal-rooms/:id", optionalUser, async (req, res) => {
 });
 
 router.post("/deal-rooms", requireAdmin, async (req, res) => {
-  const { yacht_id, created_by_admin_id, buyer_user_id, seller_user_id, notes, status, nda_required } = req.body;
+  // Always use the authenticated admin as creator (route is requireAdmin-gated).
+  // We deliberately ignore any `created_by_admin_id` from the body to prevent spoofing
+  // and to avoid the previous nil-UUID fallback.
+  const { yacht_id, buyer_user_id, seller_user_id, notes, status, nda_required } = req.body;
+  const creatorId = req.authUser!.id;
   try {
     const { rows } = await db().query(
       `INSERT INTO deal_rooms (yacht_id, created_by_admin_id, buyer_user_id, seller_user_id, notes, status, nda_required)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [yacht_id, created_by_admin_id || '00000000-0000-0000-0000-000000000000', buyer_user_id, seller_user_id, notes, status || 'draft', nda_required !== false]
+      [yacht_id, creatorId, buyer_user_id, seller_user_id, notes, status || 'draft', nda_required !== false]
     );
     res.json(rows[0]);
   } catch (e: any) {

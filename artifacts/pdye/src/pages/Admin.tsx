@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, Fragment, useCallback } from "react
 import { Link, useLocation } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { archiveUserAction, deleteUserAction, countAllUserReferences, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
+import { archiveUserAction, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
 import { useAuth } from "@/context/AuthContext";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
@@ -2523,57 +2523,8 @@ function InvestorsView() {
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     setBusyRow(user.id);
-    const all = await countAllUserReferences(user.id);
-    if (all.supabase.preflightFailed) {
-      alert(
-        `Cannot delete ${user.email}: the Supabase dependency check failed.\n\n` +
-        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
-      );
-      setBusyRow(null);
-      return;
-    }
-    if (all.heliumdb.error) {
-      alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
-      setBusyRow(null);
-      return;
-    }
-    if (all.blockingTotal > 0) {
-      const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
-      const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
-      const allLines = [supLines, hdLines].filter(Boolean).join("\n");
-      alert(
-        `Cannot delete ${user.email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
-        allLines +
-        `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
-      );
-      setBusyRow(null);
-      return;
-    }
-    let cascadeFlag = false;
-    if (all.cascadeableTotal > 0) {
-      const ok = confirm(
-        `${user.email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
-        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
-      );
-      if (!ok) { setBusyRow(null); return; }
-      cascadeFlag = true;
-    } else {
-      if (!confirm(`PERMANENTLY DELETE ${user.email}? This action cannot be undone.\n\nNo linked records found.`)) {
-        setBusyRow(null);
-        return;
-      }
-    }
-    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
-    if (!r.ok) {
-      alert("Delete failed: " + r.error);
-    } else {
-      setUsers(prev => prev.filter(u => u.id !== user.id));
-      if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        alert(`User ${user.email} deleted.\n\nRemoved from the deal-rooms database:\n` +
-          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
-      }
-    }
+    const ok = await confirmAndDeleteUserInteractive(user.id, user.email);
+    if (ok) setUsers(prev => prev.filter(u => u.id !== user.id));
     setBusyRow(null);
   }
 
@@ -2791,57 +2742,8 @@ function BrokersView() {
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     setBusyRow(user.id);
-    const all = await countAllUserReferences(user.id);
-    if (all.supabase.preflightFailed) {
-      alert(
-        `Cannot delete ${user.email}: the Supabase dependency check failed.\n\n` +
-        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
-      );
-      setBusyRow(null);
-      return;
-    }
-    if (all.heliumdb.error) {
-      alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
-      setBusyRow(null);
-      return;
-    }
-    if (all.blockingTotal > 0) {
-      const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
-      const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
-      const allLines = [supLines, hdLines].filter(Boolean).join("\n");
-      alert(
-        `Cannot delete ${user.email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
-        allLines +
-        `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
-      );
-      setBusyRow(null);
-      return;
-    }
-    let cascadeFlag = false;
-    if (all.cascadeableTotal > 0) {
-      const ok = confirm(
-        `${user.email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
-        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
-      );
-      if (!ok) { setBusyRow(null); return; }
-      cascadeFlag = true;
-    } else {
-      if (!confirm(`PERMANENTLY DELETE ${user.email}? This action cannot be undone.\n\nNo linked records found.`)) {
-        setBusyRow(null);
-        return;
-      }
-    }
-    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
-    if (!r.ok) {
-      alert("Delete failed: " + r.error);
-    } else {
-      setUsers(prev => prev.filter(u => u.id !== user.id));
-      if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        alert(`User ${user.email} deleted.\n\nRemoved from the deal-rooms database:\n` +
-          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
-      }
-    }
+    const ok = await confirmAndDeleteUserInteractive(user.id, user.email);
+    if (ok) setUsers(prev => prev.filter(u => u.id !== user.id));
     setBusyRow(null);
   }
 
@@ -3020,57 +2922,8 @@ function OwnersView() {
   async function deleteRow(user: UserRecord, e: React.MouseEvent) {
     e.stopPropagation();
     setBusyRow(user.id);
-    const all = await countAllUserReferences(user.id);
-    if (all.supabase.preflightFailed) {
-      alert(
-        `Cannot delete ${user.email}: the Supabase dependency check failed.\n\n` +
-        all.supabase.failures.map(f => `• ${f.table}.${f.column}: ${f.message || "(empty error)"}`).join("\n")
-      );
-      setBusyRow(null);
-      return;
-    }
-    if (all.heliumdb.error) {
-      alert(`Could not check the deal-rooms database: ${all.heliumdb.error}\n\nDeletion cancelled.`);
-      setBusyRow(null);
-      return;
-    }
-    if (all.blockingTotal > 0) {
-      const supLines = all.supabase.counts.map(c => `• ${c.count} ${c.label} (Supabase)`).join("\n");
-      const hdLines = all.heliumdb.blocking.map(c => `• ${c.count} ${c.label} (heliumdb)`).join("\n");
-      const allLines = [supLines, hdLines].filter(Boolean).join("\n");
-      alert(
-        `Cannot delete ${user.email}: linked records would break the platform (Supabase FK constraints or shared/admin templates):\n\n` +
-        allLines +
-        `\n\nUse Archive — it will hide the user from active lists while preserving all related history.`
-      );
-      setBusyRow(null);
-      return;
-    }
-    let cascadeFlag = false;
-    if (all.cascadeableTotal > 0) {
-      const ok = confirm(
-        `${user.email} has records in the deal-rooms database (heliumdb) that are not visible in Supabase:\n\n` +
-        all.heliumdb.cascadeable.map(c => `• ${c.count} ${c.label}`).join("\n") +
-        `\n\nThey will be PERMANENTLY deleted together with the user. This action cannot be undone.\n\nProceed?`
-      );
-      if (!ok) { setBusyRow(null); return; }
-      cascadeFlag = true;
-    } else {
-      if (!confirm(`PERMANENTLY DELETE ${user.email}? This action cannot be undone.\n\nNo linked records found.`)) {
-        setBusyRow(null);
-        return;
-      }
-    }
-    const r = await deleteUserAction(user.id, { cascadeHeliumdb: cascadeFlag });
-    if (!r.ok) {
-      alert("Delete failed: " + r.error);
-    } else {
-      setUsers(prev => prev.filter(u => u.id !== user.id));
-      if (r.cascadeDeleted && r.cascadeDeleted.length) {
-        alert(`User ${user.email} deleted.\n\nRemoved from the deal-rooms database:\n` +
-          r.cascadeDeleted.map(c => `• ${c.count} ${c.label}`).join("\n"));
-      }
-    }
+    const ok = await confirmAndDeleteUserInteractive(user.id, user.email);
+    if (ok) setUsers(prev => prev.filter(u => u.id !== user.id));
     setBusyRow(null);
   }
 

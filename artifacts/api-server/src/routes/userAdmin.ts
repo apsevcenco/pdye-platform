@@ -22,7 +22,7 @@ const CASCADE_USER_REFS: HeliumRef[] = [
   { table: "platform_nda_signatures",   column: "user_id",        label: "Platform NDA signature(s)" },
   { table: "deal_nda_signatures",       column: "user_id",        label: "Deal Room NDA signature(s)" },
   { table: "deal_commission_signatures", column: "user_id",       label: "Commission Agreement signature(s)" },
-  { table: "nda_envelopes",             column: "user_id",        label: "legacy NDA envelope(s)" },
+  { table: "nda_envelopes",             column: "user_id",        label: "NDA envelope(s)" },
   { table: "deal_room_participants",   column: "user_id",        label: "deal room participation(s)" },
   { table: "deal_rooms",               column: "buyer_user_id",  label: "deal room(s) as buyer" },
   { table: "deal_rooms",               column: "seller_user_id", label: "deal room(s) as seller" },

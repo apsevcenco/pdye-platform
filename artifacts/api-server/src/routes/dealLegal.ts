@@ -391,7 +391,10 @@ router.post(
         [roomId, signedAtIso]
       );
 
-      // Insert nda_envelopes record (legacy compat).
+      // Mirror the signed signature into nda_envelopes — this is the side-aware,
+      // human-readable view used by Admin pages (Send NDA / Signed NDA) and by the
+      // user cascade-delete flow. The authoritative signature record lives in
+      // deal_nda_signatures; this row is the per-side envelope tracker.
       await client.query(
         `INSERT INTO nda_envelopes
            (deal_room_id, user_id, side, provider, status, sent_at, signed_at, completed_at, document_name)
