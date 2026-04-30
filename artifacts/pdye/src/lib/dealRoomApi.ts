@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+const API_BASE = "https://pdye-platform.onrender.com/api";
 
 async function request(path: string, options?: RequestInit) {
   const { data: { session } } = await supabase.auth.getSession();
