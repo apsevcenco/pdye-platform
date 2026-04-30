@@ -146,7 +146,10 @@ export default function Valuation() {
     setLoading(true);
     setResult(null);
     try {
-      const res = await fetch("/api/valuation", {
+      const API_BASE =
+  import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
+
+const res = await fetch(`${API_BASE}/valuation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, units, ...form }),
