@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (checkRes.ok) {
         const body = await checkRes.json();
         if (body?.exists) {
-          return { error: "Этот email уже зарегистрирован. Войдите или используйте восстановление пароля." };
+          return { error: "This email is already registered. Sign in or use password recovery." };
         }
       }
     } catch (e) {
@@ -202,13 +202,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       const msg = error.message || "";
       if (/already|exists|registered/i.test(msg)) {
-        return { error: "Этот email уже зарегистрирован. Войдите или используйте восстановление пароля." };
+        return { error: "This email is already registered. Sign in or use password recovery." };
       }
       return { error: msg };
     }
 
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      return { error: "Этот email уже зарегистрирован. Войдите или используйте восстановление пароля." };
+      return { error: "This email is already registered. Sign in or use password recovery." };
     }
 
     if (data.user) {

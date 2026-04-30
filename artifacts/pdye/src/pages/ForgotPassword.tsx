@@ -14,7 +14,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError(null);
     if (!email.trim()) {
-      setError("Введите email");
+      setError("Enter your email");
       return;
     }
     setLoading(true);

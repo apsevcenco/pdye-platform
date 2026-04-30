@@ -390,7 +390,7 @@ function YachtsView() {
       setF("market_price", data.market_price);
       setAiNote({ reasoning: data.reasoning, confidence: data.confidence, comparables: 0, sources: data.sources });
     } catch (e: unknown) {
-      setFormError("AI оценка не удалась: " + (e instanceof Error ? e.message : String(e)));
+      setFormError("AI estimate failed: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setAiEstimating(false);
     }
@@ -433,7 +433,7 @@ function YachtsView() {
 
   async function handleFormPhotoUpload(files: File[]) {
     if (formPhotos.length + files.length > 30) {
-      setFormPhotoError(`Максимум 30 фото. Можно добавить ещё ${30 - formPhotos.length}.`);
+      setFormPhotoError(`30 photos max. You can add ${30 - formPhotos.length} more.`);
       return;
     }
     setFormPhotoSaving(true);
@@ -442,7 +442,7 @@ function YachtsView() {
       const newUrls = await uploadFilesToServer(files, "new");
       setFormPhotos(prev => [...prev, ...newUrls]);
     } catch (e: any) {
-      setFormPhotoError(e.message || "Ошибка загрузки");
+      setFormPhotoError(e.message || "Upload error");
     } finally {
       setFormPhotoSaving(false);
       if (formFileRef.current) formFileRef.current.value = "";
@@ -674,7 +674,7 @@ function YachtsView() {
   async function handleFileUpload(yacht: Yacht, files: File[]) {
     const current: string[] = yacht.photos || [];
     if (current.length + files.length > 30) {
-      setUploadError(`Можно добавить ещё ${30 - current.length} фото — максимум 30.`);
+      setUploadError(`You can add ${30 - current.length} more photos — 30 max.`);
       return;
     }
     setPhotoSaving(true);
@@ -1061,19 +1061,19 @@ function YachtsView() {
                     type="button"
                     onClick={estimateWithAI}
                     disabled={aiEstimating || !form.name}
-                    title={!form.name ? "Сначала введите название яхты" : "Найти цены на рынке и оценить стоимость"}
+                    title={!form.name ? "Enter the yacht name first" : "Search the market for prices and estimate value"}
                     className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/30 text-primary text-xs font-bold tracking-wider uppercase hover:bg-primary/20 hover:border-primary/60 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {aiEstimating
                       ? <span className="w-3.5 h-3.5 border border-primary/40 border-t-primary rounded-full animate-spin" />
                       : <Sparkles size={13} />
                     }
-                    {aiEstimating ? "Поиск..." : "AI"}
+                    {aiEstimating ? "Searching..." : "AI"}
                   </button>
                 </div>
                 {aiEstimating && (
                   <p className="mt-1.5 text-[10px] text-white/30 font-sans">
-                    Поиск актуальных цен на YachtWorld, RightBoat, TheYachtMarket... (30–60 сек)
+                    Searching live prices on YachtWorld, RightBoat, TheYachtMarket... (30–60 sec)
                   </p>
                 )}
                 {aiNote && (
@@ -1081,13 +1081,13 @@ function YachtsView() {
                     <div className="flex items-center gap-2">
                       <Sparkles size={10} className="text-primary flex-shrink-0" />
                       <span className="text-primary font-bold uppercase tracking-widest text-[10px]">
-                        Оценка по живым данным рынка · Точность: {aiNote.confidence}
+                        Estimate based on live market data · Confidence: {aiNote.confidence}
                       </span>
                     </div>
                     <p className="text-white/65 leading-relaxed">{aiNote.reasoning}</p>
                     {aiNote.sources && (
                       <p className="text-white/35 text-[10px] leading-relaxed">
-                        Источники: {aiNote.sources}
+                        Sources: {aiNote.sources}
                       </p>
                     )}
                   </div>
@@ -1136,14 +1136,14 @@ function YachtsView() {
                   {formPhotoSaving ? (
                     <>
                       <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      <p className="text-white/50 text-sm font-sans">Загружаю...</p>
+                      <p className="text-white/50 text-sm font-sans">Uploading...</p>
                     </>
                   ) : (
                     <>
                       <Camera size={28} className="text-primary/50" />
                       <div className="text-center">
-                        <p className="text-white/70 text-sm font-sans">Перетащи фото сюда или <span className="text-primary">нажми для выбора</span></p>
-                        <p className="text-white/30 text-xs font-sans mt-1">JPG, PNG, WebP — до 20 МБ каждый, максимум 30 фото</p>
+                        <p className="text-white/70 text-sm font-sans">Drag photos here or <span className="text-primary">click to choose</span></p>
+                        <p className="text-white/30 text-xs font-sans mt-1">JPG, PNG, WebP — up to 20 MB each, 30 photos max</p>
                       </div>
                     </>
                   )}
@@ -1169,7 +1169,7 @@ function YachtsView() {
               </div>
 
               <div>
-                <label className={labelCls}>Image URL (если нет загруженных фото)</label>
+                <label className={labelCls}>Image URL (if no photos uploaded)</label>
                 <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
               </div>
               <RichTextArea
@@ -1542,7 +1542,7 @@ function YachtsView() {
                             <FileText size={13} />
                             {docSaving ? "Uploading..." : "Upload Documents"}
                           </button>
-                          <span className="text-white/20 text-xs font-sans">PDF, DOC, XLS, ZIP и другие форматы</span>
+                          <span className="text-white/20 text-xs font-sans">PDF, DOC, XLS, ZIP and other formats</span>
                         </div>
                         {docError && <p className="text-red-400 text-xs font-sans mt-2">{docError}</p>}
                       </td>

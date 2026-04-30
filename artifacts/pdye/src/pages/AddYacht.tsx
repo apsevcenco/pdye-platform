@@ -256,7 +256,7 @@ export default function AddYacht() {
       setF("market_price", data.market_price);
       setAiNote({ reasoning: data.reasoning, confidence: data.confidence, sources: data.sources });
     } catch (e: unknown) {
-      setErr("AI оценка не удалась: " + (e instanceof Error ? e.message : String(e)));
+      setErr("AI estimate failed: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setAiEstimating(false);
     }
@@ -371,7 +371,7 @@ export default function AddYacht() {
               <span className={`text-[10px] font-bold tracking-widest uppercase transition-colors ${!M ? "text-primary" : "text-white/30"}`}>Imperial</span>
             </button>
           </div>
-          <p className="text-white/40 text-sm font-sans mb-10">Заполните информацию о яхте. Только основные данные и главное фото видны публично — остальное только одобренным членам.</p>
+          <p className="text-white/40 text-sm font-sans mb-10">Fill in the yacht details. Only the basic information and the cover photo are visible publicly — everything else is shown to approved members only.</p>
 
           <form onSubmit={handleSubmit} className="bg-[#0f1d33] border border-white/5 p-6 space-y-6">
 
@@ -643,19 +643,19 @@ export default function AddYacht() {
                       type="button"
                       onClick={estimateWithAI}
                       disabled={aiEstimating || !form.name}
-                      title={!form.name ? "Сначала введите название яхты" : "Найти цены на рынке и оценить стоимость"}
+                      title={!form.name ? "Enter the yacht name first" : "Search the market for prices and estimate value"}
                       className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/30 text-primary text-xs font-bold tracking-wider uppercase hover:bg-primary/20 hover:border-primary/60 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                       {aiEstimating
                         ? <span className="w-3.5 h-3.5 border border-primary/40 border-t-primary rounded-full animate-spin" />
                         : <Sparkles size={13} />
                       }
-                      {aiEstimating ? "Поиск..." : "AI"}
+                      {aiEstimating ? "Searching..." : "AI"}
                     </button>
                   </div>
                   {aiEstimating && (
                     <p className="mt-1.5 text-[10px] text-white/30 font-sans">
-                      Поиск актуальных цен на YachtWorld, RightBoat, TheYachtMarket... (30–60 сек)
+                      Searching live prices on YachtWorld, RightBoat, TheYachtMarket... (30–60 sec)
                     </p>
                   )}
                   {aiNote && (
@@ -663,13 +663,13 @@ export default function AddYacht() {
                       <div className="flex items-center gap-2">
                         <Sparkles size={10} className="text-primary flex-shrink-0" />
                         <span className="text-primary font-bold uppercase tracking-widest text-[10px]">
-                          Оценка по живым данным рынка · Точность: {aiNote.confidence}
+                          Estimate based on live market data · Confidence: {aiNote.confidence}
                         </span>
                       </div>
                       <p className="text-white/65 leading-relaxed">{aiNote.reasoning}</p>
                       {aiNote.sources && (
                         <p className="text-white/35 text-[10px] leading-relaxed">
-                          Источники: {aiNote.sources}
+                          Sources: {aiNote.sources}
                         </p>
                       )}
                     </div>
@@ -718,14 +718,14 @@ export default function AddYacht() {
                     {uploading ? (
                       <>
                         <Loader2 size={28} className="text-primary animate-spin" />
-                        <p className="text-white/50 text-sm font-sans">Загружаю...</p>
+                        <p className="text-white/50 text-sm font-sans">Uploading...</p>
                       </>
                     ) : (
                       <>
                         <Camera size={28} className="text-primary/50" />
                         <div className="text-center">
-                          <p className="text-white/70 text-sm font-sans">Перетащи фото сюда или <span className="text-primary">нажми для выбора</span></p>
-                          <p className="text-white/30 text-xs font-sans mt-1">JPG, PNG, WebP — до 20 МБ каждый, максимум 30 фото</p>
+                          <p className="text-white/70 text-sm font-sans">Drag photos here or <span className="text-primary">click to choose</span></p>
+                          <p className="text-white/30 text-xs font-sans mt-1">JPG, PNG, WebP — up to 20 MB each, 30 photos max</p>
                         </div>
                       </>
                     )}
@@ -751,7 +751,7 @@ export default function AddYacht() {
                 </div>
 
                 <div>
-                  <label className={labelCls}>Image URL (если нет загруженных фото)</label>
+                  <label className={labelCls}>Image URL (if no photos uploaded)</label>
                   <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
                 </div>
 
@@ -762,7 +762,7 @@ export default function AddYacht() {
                     rows={6}
                     value={form.description}
                     onChange={e => setF("description", e.target.value)}
-                    placeholder="Полное описание яхты, состояние, особенности, история рефита…"
+                    placeholder="Full description of the yacht — condition, features, refit history…"
                   />
                 </div>
               </div>
