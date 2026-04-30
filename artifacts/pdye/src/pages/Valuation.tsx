@@ -154,7 +154,8 @@ const res = await fetch(`${API_BASE}/valuation`, {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, units, ...form }),
       });
-      const data = await res.json();
+      const text = await res.text();
+const data = text ? JSON.parse(text) : {};
       if (!res.ok) throw new Error(data.error || "Estimation failed");
       setResult(data as ValuationResult);
     } catch (err) {
