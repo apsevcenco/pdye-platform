@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import { yachtModerationApi, LISTING_STATUS_LABEL, LISTING_STATUS_STYLE, type ListingStatus } from "@/lib/yachtModerationApi";
 import { Layout } from "@/components/layout/Layout";

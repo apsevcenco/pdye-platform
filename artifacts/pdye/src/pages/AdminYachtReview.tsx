@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { useAuth } from "@/context/AuthContext";
 import {
   yachtModerationApi,
@@ -72,7 +71,7 @@ export default function AdminYachtReview() {
     if (!id) return;
     setLoading(true);
     setErr(null);
-    const { data, error } = await supabaseAdmin.from("yachts").select("*").eq("id", id).maybeSingle();
+    const { data, error } = await supabase.from("yachts").select("*").eq("id", id).maybeSingle();
     if (error || !data) {
       setErr(error?.message || "Yacht not found");
       setLoading(false);
@@ -81,7 +80,7 @@ export default function AdminYachtReview() {
     setYacht(data as YachtFull);
 
     if (data.owner_id) {
-      const { data: profile } = await supabaseAdmin
+      const { data: profile } = await supabase
         .from("users")
         .select("id, email, name, role, company, phone, location")
         .eq("id", data.owner_id)
@@ -92,7 +91,7 @@ export default function AdminYachtReview() {
     }
 
     if (data.listing_reviewed_by) {
-      const { data: rv } = await supabaseAdmin
+      const { data: rv } = await supabase
         .from("users")
         .select("email, name")
         .eq("id", data.listing_reviewed_by)

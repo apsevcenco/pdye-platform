@@ -1,4 +1,3 @@
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -44,7 +43,7 @@ export type ArchiveResult = {
 };
 
 export async function archiveUserAction(userId: string, archive: boolean): Promise<ArchiveResult> {
-  const { error, data } = await supabaseAdmin
+  const { error, data } = await supabase
     .from("users")
     .update({ archived: archive, archived_at: archive ? new Date().toISOString() : null })
     .eq("id", userId)
@@ -100,7 +99,7 @@ export async function countSupabaseReferences(userId: string): Promise<Reference
   const failures: PreflightFailure[] = [];
   let total = 0;
   for (const ref of SUPABASE_REFS) {
-    const { count, error } = await supabaseAdmin
+    const { count, error } = await supabase
       .from(ref.table)
       .select("*", { count: "exact", head: true })
       .eq(ref.column, userId);
@@ -245,7 +244,7 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
   }
 
   // Now delete from Supabase users
-  const { error, data } = await supabaseAdmin.from("users").delete().eq("id", userId).select("id");
+  const { error, data } = await supabase.from("users").delete().eq("id", userId).select("id");
   if (error) return { ok: false, error: error.message, errorKind: "other", cascadeDeleted };
   if (!data || data.length === 0) {
     return {
@@ -275,7 +274,7 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
 }
 
 /* ─────────────────── Interactive helper used by Admin list panels ─────────────────── */
-// Drop-in replacement for the legacy raw `supabaseAdmin.from("users").delete()` calls
+// Drop-in replacement for the legacy raw `supabase.from("users").delete()` calls
 // in Admin.tsx (Buyers / Brokers / Owners panels). Mirrors the safe flow used in
 // AdminUserDetail: preflight refs → block on shared content → confirm cascade →
 // delete profile → delete auth user. Returns true if the user was removed.

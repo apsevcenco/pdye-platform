@@ -10,7 +10,6 @@ import {
   Circle, Minus, X, Upload, MoreVertical, Gavel, Package,
   Compass, Wrench, Home, Monitor, Navigation, Fuel, Wind,
 } from "lucide-react";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { dealRoomApi, dealLegalApi, dealCommissionApi, triggerBlobDownload, type DealNdaDocument, type DealCommissionDocument } from "@/lib/dealRoomApi";
@@ -108,7 +107,7 @@ export default function DealDetails() {
 
       const participantIds = [data.buyer_user_id, data.seller_user_id, data.created_by_admin_id].filter(Boolean) as string[];
       if (participantIds.length > 0) {
-        const { data: pUsers } = await supabaseAdmin.from("users").select("id, email, role").in("id", participantIds);
+        const { data: pUsers } = await supabase.from("users").select("id, email, role").in("id", participantIds);
         const pMap: Record<string, { email: string; role: string }> = {};
         (pUsers || []).forEach((u: any) => { pMap[u.id] = { email: u.email, role: u.role }; });
         setParticipantMap(pMap);

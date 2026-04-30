@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabase } from "@/lib/supabase";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import {
   CheckCircle, XCircle, Clock, ArrowLeft, Ship, User,
@@ -70,7 +70,7 @@ export default function AdminRequests() {
 
   async function load() {
     setLoading(true);
-    const { data: rqs, error } = await supabaseAdmin
+    const { data: rqs, error } = await supabase
       .from("access_requests")
       .select("*")
       .order("created_at", { ascending: false });
@@ -81,8 +81,8 @@ export default function AdminRequests() {
     const userIds = [...new Set(rqs.map((r: any) => r.requester_id).filter(Boolean))];
 
     const [{ data: yachts }, { data: users }] = await Promise.all([
-      yachtIds.length ? supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds) : Promise.resolve({ data: [] }),
-      userIds.length ? supabaseAdmin.from("users").select("id, email").in("id", userIds) : Promise.resolve({ data: [] }),
+      yachtIds.length ? supabase.from("yachts").select("id, name").in("id", yachtIds) : Promise.resolve({ data: [] }),
+      userIds.length ? supabase.from("users").select("id, email").in("id", userIds) : Promise.resolve({ data: [] }),
     ]);
 
     const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
@@ -102,7 +102,7 @@ export default function AdminRequests() {
   }
 
   async function loadUsers() {
-    const { data } = await supabaseAdmin.from("users").select("id, email, role").order("email");
+    const { data } = await supabase.from("users").select("id, email, role").order("email");
     setAllUsers(data || []);
   }
 
@@ -116,7 +116,7 @@ export default function AdminRequests() {
   async function approveSpecAccess(id: string) {
     setUpdating(id);
     const now = new Date().toISOString();
-    await supabaseAdmin.from("access_requests").update({
+    await supabase.from("access_requests").update({
       status: "approved_spec",
       approved_spec_access: true,
       approved_spec_access_at: now,
@@ -142,7 +142,7 @@ export default function AdminRequests() {
 
   async function rejectRequest(id: string) {
     setUpdating(id);
-    await supabaseAdmin.from("access_requests").update({
+    await supabase.from("access_requests").update({
       status: "rejected",
       updated_at: new Date().toISOString(),
     }).eq("id", id);
@@ -195,7 +195,7 @@ export default function AdminRequests() {
       await dealRoomApi.addParticipant(room.id, { user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false });
     }
 
-    await supabaseAdmin.from("access_requests").update({
+    await supabase.from("access_requests").update({
       status: "escalated",
       escalated_to_deal_room: true,
       deal_room_id: room.id,

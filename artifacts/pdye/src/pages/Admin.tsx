@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, Fragment, useCallback } from "react
 import { Link, useLocation } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { archiveUserAction, deleteUserAction, countAllUserReferences, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
 import { useAuth } from "@/context/AuthContext";
 import { dealRoomApi } from "@/lib/dealRoomApi";
@@ -134,10 +133,10 @@ function Dashboard() {
     async function load() {
       try {
         const [yRes, uRes, arRes, lRes, allRooms] = await Promise.all([
-          supabaseAdmin.from("yachts").select("*", { count: "exact", head: true }),
-          supabaseAdmin.from("users").select("id, email, role, approved"),
-          supabaseAdmin.from("access_requests").select("id, requester_id, yacht_id, status, role, created_at").order("created_at", { ascending: false }).limit(5),
-          supabaseAdmin.from("leads").select("*", { count: "exact", head: true }),
+          supabase.from("yachts").select("*", { count: "exact", head: true }),
+          supabase.from("users").select("id, email, role, approved"),
+          supabase.from("access_requests").select("id, requester_id, yacht_id, status, role, created_at").order("created_at", { ascending: false }).limit(5),
+          supabase.from("leads").select("*", { count: "exact", head: true }),
           dealRoomApi.list().catch(() => []),
         ]);
         const users = (uRes.data || []) as any[];
@@ -154,7 +153,7 @@ function Dashboard() {
         const reqUserIds = [...new Set(reqs.map((r: any) => r.requester_id))];
         let reqEmails: Record<string, string> = {};
         if (reqUserIds.length) {
-          const { data: ru } = await supabaseAdmin.from("users").select("id, email").in("id", reqUserIds);
+          const { data: ru } = await supabase.from("users").select("id, email").in("id", reqUserIds);
           (ru || []).forEach((u: any) => { reqEmails[u.id] = u.email; });
         }
         setRecentRequests(reqs.map((r: any) => ({ ...r, email: reqEmails[r.requester_id] || r.requester_id?.slice(0, 8) })));
@@ -173,7 +172,7 @@ function Dashboard() {
         const msgSenderIds = [...new Set(recentMsgs.map((m: any) => m.sender_id))];
         let senderEmails: Record<string, string> = {};
         if (msgSenderIds.length) {
-          const { data: su } = await supabaseAdmin.from("users").select("id, email").in("id", msgSenderIds);
+          const { data: su } = await supabase.from("users").select("id, email").in("id", msgSenderIds);
           (su || []).forEach((u: any) => { senderEmails[u.id] = u.email; });
         }
         setRecentMessages(recentMsgs.map((m: any) => ({ ...m, sender_email: senderEmails[m.sender_id] || "System" })));
@@ -503,7 +502,7 @@ function YachtsView() {
       listing_status: "approved",
     };
 
-    const { error } = await supabaseAdmin.from("yachts").insert([payload]);
+    const { error } = await supabase.from("yachts").insert([payload]);
     setSaving(false);
     if (error) {
       setFormError(error.message);
@@ -520,12 +519,12 @@ function YachtsView() {
 
   async function handleDelete(id: string) {
     if (!window.confirm("Remove this listing from the database?")) return;
-    await supabaseAdmin.from("yachts").delete().eq("id", id);
+    await supabase.from("yachts").delete().eq("id", id);
     load();
   }
 
   async function toggleFeatured(id: string, current: boolean) {
-    await supabaseAdmin.from("yachts").update({ is_featured: !current }).eq("id", id);
+    await supabase.from("yachts").update({ is_featured: !current }).eq("id", id);
     setYachts(prev => prev.map(y => y.id === id ? { ...y, is_featured: !current } : y));
   }
 
@@ -626,7 +625,7 @@ function YachtsView() {
       is_private: formIsPrivate,
     };
 
-    const { error } = await supabaseAdmin.from("yachts").update(payload).eq("id", editingId);
+    const { error } = await supabase.from("yachts").update(payload).eq("id", editingId);
     setSaving(false);
     if (error) {
       setFormError(error.message);
@@ -656,7 +655,7 @@ function YachtsView() {
   const BUCKET = "yacht-photos";
 
   async function savePhotos(yachtId: string, photos: string[]) {
-    await supabaseAdmin.from("yachts").update({ photos }).eq("id", yachtId);
+    await supabase.from("yachts").update({ photos }).eq("id", yachtId);
     load();
   }
 
@@ -697,7 +696,7 @@ function YachtsView() {
   }
 
   async function saveDocs(yachtId: string, docs: YachtDocument[]) {
-    await supabaseAdmin.from("yachts").update({ documents: docs }).eq("id", yachtId);
+    await supabase.from("yachts").update({ documents: docs }).eq("id", yachtId);
     load();
   }
 
@@ -1599,7 +1598,7 @@ function DealsManageView() {
       const ownerIds = [...new Set(list.map(y => y.owner_id).filter(Boolean))] as string[];
       let ownerMap: Record<string, string> = {};
       if (ownerIds.length > 0) {
-        const { data: owners } = await supabaseAdmin.from("users").select("id, email").in("id", ownerIds);
+        const { data: owners } = await supabase.from("users").select("id, email").in("id", ownerIds);
         ownerMap = Object.fromEntries((owners || []).map((u: any) => [u.id, u.email]));
       }
       setYachtOptions(list.map(y => ({ ...y, owner_email: y.owner_id ? ownerMap[y.owner_id] || "" : "" })));
@@ -1618,12 +1617,12 @@ function DealsManageView() {
       let sellerUserId: string | null = null;
 
       if (buyerEmail.trim()) {
-        const { data: bu } = await supabaseAdmin.from("users").select("id").eq("email", buyerEmail.trim().toLowerCase()).maybeSingle();
+        const { data: bu } = await supabase.from("users").select("id").eq("email", buyerEmail.trim().toLowerCase()).maybeSingle();
         if (!bu) { setCreateError(`Buyer email "${buyerEmail}" not found. The user must register first.`); setCreating(false); return; }
         buyerUserId = bu.id;
       }
       if (sellerEmail.trim()) {
-        const { data: su } = await supabaseAdmin.from("users").select("id").eq("email", sellerEmail.trim().toLowerCase()).maybeSingle();
+        const { data: su } = await supabase.from("users").select("id").eq("email", sellerEmail.trim().toLowerCase()).maybeSingle();
         if (!su) { setCreateError(`Seller email "${sellerEmail}" not found. The user must register first.`); setCreating(false); return; }
         sellerUserId = su.id;
       }
@@ -1676,7 +1675,7 @@ function DealsManageView() {
 
     if (allRooms.length > 0) {
       const userIds = [...new Set([...allRooms.map(r => r.buyer_user_id), ...allRooms.map(r => r.seller_user_id)].filter(Boolean))];
-      const { data: users } = await supabaseAdmin.from("users").select("id, email").in("id", userIds as string[]);
+      const { data: users } = await supabase.from("users").select("id, email").in("id", userIds as string[]);
       const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, u.email]));
 
       const yachtIds = [...new Set(allRooms.map(r => r.yacht_id).filter(Boolean))];
@@ -1718,7 +1717,7 @@ function DealsManageView() {
     setNotesDirty(false);
     setBlocksLoading(true);
     const [logsResult, blocksData] = await Promise.all([
-      supabaseAdmin
+      supabase
         .from("audit_logs")
         .select("*")
         .eq("entity_type", "deal_room")
@@ -2214,7 +2213,7 @@ function LeadsView() {
   const [chosenRole, setChosenRole] = useState<string>("investor");
 
   useEffect(() => {
-    supabaseAdmin
+    supabase
       .from("leads")
       .select("*")
       .order("created_at", { ascending: false })
@@ -2235,7 +2234,7 @@ function LeadsView() {
   async function deleteLead(id: number) {
     if (!window.confirm("Delete this lead? This cannot be undone.")) return;
     setDeletingId(id);
-    const { error } = await supabaseAdmin.from("leads").delete().eq("id", id);
+    const { error } = await supabase.from("leads").delete().eq("id", id);
     if (error) {
       setLoadErr(error.message);
       setDeletingId(null);
@@ -2258,7 +2257,7 @@ function LeadsView() {
     setApproveResult(null);
     try {
       const baseUrl = (import.meta.env.VITE_API_URL as string | undefined) || "";
-      const { data: { session } } = await supabaseAdmin.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
       const res = await fetch(`${baseUrl}/api/leads/${lead.id}/approve`, {
@@ -2582,11 +2581,11 @@ function InvestorsView() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("users").select("*").in("role", ["investor", "buyer"]).order("created_at", { ascending: false });
+    const { data } = await supabase.from("users").select("*").in("role", ["investor", "buyer"]).order("created_at", { ascending: false });
     const u = (data || []) as UserRecord[];
     setUsers(u);
     if (u.length) {
-      const { data: reqs } = await supabaseAdmin.from("access_requests").select("requester_id").in("requester_id", u.map(x => x.id));
+      const { data: reqs } = await supabase.from("access_requests").select("requester_id").in("requester_id", u.map(x => x.id));
       const counts: Record<string, number> = {};
       (reqs || []).forEach((r: any) => { counts[r.requester_id] = (counts[r.requester_id] || 0) + 1; });
       setRequestCounts(counts);
@@ -2595,7 +2594,7 @@ function InvestorsView() {
   }
 
   async function toggleApproval(user: UserRecord) {
-    await supabaseAdmin.from("users").update({ approved: !user.approved }).eq("id", user.id);
+    await supabase.from("users").update({ approved: !user.approved }).eq("id", user.id);
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, approved: !u.approved } : u));
     if (selected?.id === user.id) setSelected({ ...user, approved: !user.approved });
   }
@@ -2603,7 +2602,7 @@ function InvestorsView() {
   async function saveEdit() {
     if (!selected) return;
     setSaving(true);
-    await supabaseAdmin.from("users").update({ company: editForm.company || null, phone: editForm.phone || null, notes: editForm.notes || null }).eq("id", selected.id);
+    await supabase.from("users").update({ company: editForm.company || null, phone: editForm.phone || null, notes: editForm.notes || null }).eq("id", selected.id);
     const updated = { ...selected, ...editForm };
     setUsers(prev => prev.map(u => u.id === selected.id ? updated : u));
     setSelected(updated);
@@ -2850,14 +2849,14 @@ function BrokersView() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("users").select("*").eq("role", "broker").order("created_at", { ascending: false });
+    const { data } = await supabase.from("users").select("*").eq("role", "broker").order("created_at", { ascending: false });
     const u = (data || []) as UserRecord[];
     setUsers(u);
     setLoading(false);
   }
 
   async function toggleApproval(user: UserRecord) {
-    await supabaseAdmin.from("users").update({ approved: !user.approved }).eq("id", user.id);
+    await supabase.from("users").update({ approved: !user.approved }).eq("id", user.id);
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, approved: !u.approved } : u));
     if (selected?.id === user.id) setSelected({ ...user, approved: !user.approved });
   }
@@ -2865,7 +2864,7 @@ function BrokersView() {
   async function saveEdit() {
     if (!selected) return;
     setSaving(true);
-    await supabaseAdmin.from("users").update({ company: editForm.company || null, phone: editForm.phone || null, notes: editForm.notes || null }).eq("id", selected.id);
+    await supabase.from("users").update({ company: editForm.company || null, phone: editForm.phone || null, notes: editForm.notes || null }).eq("id", selected.id);
     const updated = { ...selected, ...editForm };
     setUsers(prev => prev.map(u => u.id === selected.id ? updated : u));
     setSelected(updated);
@@ -3079,14 +3078,14 @@ function OwnersView() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("users").select("*").eq("role", "owner").order("created_at", { ascending: false });
+    const { data } = await supabase.from("users").select("*").eq("role", "owner").order("created_at", { ascending: false });
     const u = (data || []) as UserRecord[];
     setUsers(u);
     setLoading(false);
   }
 
   async function toggleApproval(user: UserRecord) {
-    await supabaseAdmin.from("users").update({ approved: !user.approved }).eq("id", user.id);
+    await supabase.from("users").update({ approved: !user.approved }).eq("id", user.id);
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, approved: !u.approved } : u));
     if (selected?.id === user.id) setSelected({ ...user, approved: !user.approved });
   }
@@ -3101,11 +3100,11 @@ function OwnersView() {
       location: editForm.location || null,
       notes: editForm.notes || null,
     };
-    let { error } = await supabaseAdmin.from("users").update(patch).eq("id", selected.id);
+    let { error } = await supabase.from("users").update(patch).eq("id", selected.id);
     if (error && /column .* does not exist|Could not find the .* column/i.test(error.message)) {
       // Strip unknown columns, retry with what's left (graceful for un-migrated schemas)
       const safe = { company: patch.company, phone: patch.phone, notes: patch.notes };
-      const r = await supabaseAdmin.from("users").update(safe).eq("id", selected.id);
+      const r = await supabase.from("users").update(safe).eq("id", selected.id);
       error = r.error;
     }
     if (error) { window.alert("Save failed: " + error.message); setSaving(false); return; }
@@ -3278,7 +3277,7 @@ function DocumentsView() {
 
       const uploaderIds = [...new Set(d.map(x => x.uploaded_by).filter(Boolean))];
       if (uploaderIds.length) {
-        const { data: users } = await supabaseAdmin.from("users").select("id, email").in("id", uploaderIds);
+        const { data: users } = await supabase.from("users").select("id, email").in("id", uploaderIds);
         const map: Record<string, string> = {};
         (users || []).forEach((u: any) => { map[u.id] = u.email; });
         setUploaderEmails(map);
@@ -3292,7 +3291,7 @@ function DocumentsView() {
         const yachtIds = [...new Set(relevantRooms.map((r: any) => r.yacht_id).filter(Boolean))];
         let yachtNames: Record<string, string> = {};
         if (yachtIds.length) {
-          const { data: yachts } = await supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds);
+          const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
           (yachts || []).forEach((y: any) => { yachtNames[y.id] = y.name; });
         }
         const rn: Record<string, string> = {};
@@ -3393,7 +3392,7 @@ function MessagesView() {
 
       const senderIds = [...new Set(msgs.map(m => m.sender_id).filter(Boolean))];
       if (senderIds.length) {
-        const { data: users } = await supabaseAdmin.from("users").select("id, email").in("id", senderIds);
+        const { data: users } = await supabase.from("users").select("id, email").in("id", senderIds);
         const map: Record<string, string> = {};
         (users || []).forEach((u: any) => { map[u.id] = u.email; });
         setSenderEmails(map);
@@ -3407,7 +3406,7 @@ function MessagesView() {
         const yachtIds = [...new Set(relevantRooms.map((r: any) => r.yacht_id).filter(Boolean))];
         let yNames: Record<string, string> = {};
         if (yachtIds.length) {
-          const { data: yachts } = await supabaseAdmin.from("yachts").select("id, name").in("id", yachtIds);
+          const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
           (yachts || []).forEach((y: any) => { yNames[y.id] = y.name; });
         }
         const rn: Record<string, string> = {};
@@ -3917,12 +3916,12 @@ export default function Admin() {
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
   useEffect(() => {
-    supabaseAdmin
+    supabase
       .from("access_requests")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending")
       .then(({ count }) => { if (count !== null) setPendingRequestsCount(count); });
-    supabaseAdmin
+    supabase
       .from("users")
       .select("*", { count: "exact", head: true })
       .eq("approved", false)

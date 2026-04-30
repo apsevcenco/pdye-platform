@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabase } from "@/lib/supabase";
 import { UserProfile } from "@/context/AuthContext";
 import { ArrowLeft, CheckCircle, XCircle, Clock, Users, RefreshCw } from "lucide-react";
 
@@ -20,7 +20,7 @@ export default function AdminUsers() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabaseAdmin.from("users").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
     setUsers((data as UserRow[]) || []);
     setLoading(false);
   }
@@ -29,14 +29,14 @@ export default function AdminUsers() {
 
   async function toggleApproval(user: UserRow) {
     setUpdating(user.id);
-    await supabaseAdmin.from("users").update({ approved: !user.approved }).eq("id", user.id);
+    await supabase.from("users").update({ approved: !user.approved }).eq("id", user.id);
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, approved: !u.approved } : u));
     setUpdating(null);
   }
 
   async function setRole(user: UserRow, role: string) {
     setUpdating(user.id);
-    await supabaseAdmin.from("users").update({ role }).eq("id", user.id);
+    await supabase.from("users").update({ role }).eq("id", user.id);
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role } : u));
     setUpdating(null);
   }

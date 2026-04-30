@@ -6,7 +6,6 @@ import {
   ArrowLeft, Users, X, Lock, Clock, CheckCircle, UserPlus, ShieldCheck, Eye, Info, Pencil,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import { Yacht } from "@/lib/data";
 import { useCurrency } from "@/lib/currency";
@@ -459,7 +458,7 @@ export default function YachtDetail() {
     if (!req) { setAccessLevel("none"); setAccessLoading(false); return; }
 
     if (req.deal_room_id) {
-      const { data: room } = await supabaseAdmin
+      const { data: room } = await supabase
         .from("deal_rooms")
         .select("status")
         .eq("id", req.deal_room_id)

@@ -2,7 +2,6 @@ import { Layout } from "@/components/layout/Layout";
 import { YachtCard, type RequestStatus } from "@/components/ui/YachtCard";
 import { type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
@@ -78,7 +77,7 @@ export default function Yachts() {
     setRequesting(yachtId);
     setRequestError(null);
 
-    const { data: existingDeal } = await supabaseAdmin
+    const { data: existingDeal } = await supabase
       .from("deals")
       .select("id")
       .eq("yacht_id", yachtId)
@@ -92,7 +91,7 @@ export default function Yachts() {
       return;
     }
 
-    const { data: accessReq, error: arError } = await supabaseAdmin.from("access_requests").insert([{
+    const { data: accessReq, error: arError } = await supabase.from("access_requests").insert([{
       yacht_id: yachtId,
       requester_id: user.id,
       role: userProfile?.role || "buyer",
@@ -106,7 +105,7 @@ export default function Yachts() {
       return;
     }
 
-    const { error: dealError } = await supabaseAdmin.from("deals").insert([{
+    const { error: dealError } = await supabase.from("deals").insert([{
       yacht_id: yachtId,
       request_id: accessReq?.id || null,
       buyer_id: user.id,
@@ -117,7 +116,7 @@ export default function Yachts() {
     if (dealError) {
       console.error("deal create error:", dealError.message);
     } else {
-      const { data: newDeal } = await supabaseAdmin
+      const { data: newDeal } = await supabase
         .from("deals")
         .select("id")
         .eq("yacht_id", yachtId)
@@ -128,7 +127,7 @@ export default function Yachts() {
         .maybeSingle();
 
       if (newDeal) {
-        await supabaseAdmin.from("deal_participants").insert([{
+        await supabase.from("deal_participants").insert([{
           deal_id: newDeal.id,
           user_id: user.id,
           role: "buyer",
@@ -136,7 +135,7 @@ export default function Yachts() {
           can_message: true,
           can_download: false,
         }]);
-        await supabaseAdmin.from("deal_activity_logs").insert([
+        await supabase.from("deal_activity_logs").insert([
           { deal_id: newDeal.id, user_id: user.id, action: "request_created", meta: { yacht_id: yachtId } },
           { deal_id: newDeal.id, user_id: user.id, action: "deal_created", meta: { status: "pending_admin_review" } },
         ]);

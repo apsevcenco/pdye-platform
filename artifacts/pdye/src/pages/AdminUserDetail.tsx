@@ -24,7 +24,7 @@ import {
   ArchiveRestore,
   Trash2,
 } from "lucide-react";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabase } from "@/lib/supabase";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaSignature } from "@/lib/platformNdaApi";
 import { archiveUserAction, deleteUserAction, countAllUserReferences } from "@/lib/userAdminActions";
 
@@ -192,7 +192,7 @@ export default function AdminUserDetail() {
       location: editForm.location.trim() || null,
       notes: editForm.notes.trim() || null,
     };
-    const { error: e } = await supabaseAdmin.from("users").update(patch).eq("id", user.id);
+    const { error: e } = await supabase.from("users").update(patch).eq("id", user.id);
     if (e) {
       alert("Failed to save: " + e.message);
     } else {
@@ -205,7 +205,7 @@ export default function AdminUserDetail() {
   async function loadUser() {
     setLoading(true);
     setError("");
-    const { data, error: dbErr } = await supabaseAdmin
+    const { data, error: dbErr } = await supabase
       .from("users")
       .select("*")
       .eq("id", userId)
@@ -237,7 +237,7 @@ export default function AdminUserDetail() {
   async function toggleApproval() {
     if (!user) return;
     setSavingApproval(true);
-    const { error: e } = await supabaseAdmin
+    const { error: e } = await supabase
       .from("users")
       .update({ approved: !user.approved })
       .eq("id", user.id);
