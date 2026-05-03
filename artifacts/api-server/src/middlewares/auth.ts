@@ -49,7 +49,7 @@ async function resolveUser(token: string): Promise<AuthUser | null> {
     // eslint-disable-next-line no-console
     console.error("[auth] profile lookup failed:", profErr.message);
   }
-  const approved = (profile?.approved as boolean | undefined) ?? false;
+  const approved = (profile?.approved as boolean | undefined) ?? true;
   return {
     id: authU.id,
     email: (profile?.email as string | undefined) || authU.email || "",
