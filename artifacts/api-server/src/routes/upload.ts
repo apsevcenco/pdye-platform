@@ -6,18 +6,18 @@ const router = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
 
 const BUCKET = "yacht-photos";
 
-// Supabase client
+// Supabase admin client
 function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    throw new Error("Missing SUPABASE env variables");
   }
 
   return createClient(url, key, {
@@ -25,35 +25,29 @@ function getSupabaseAdmin() {
   });
 }
 
-// Upload route
 router.post("/upload-photo", upload.single("file"), async (req, res) => {
-  console.log("UPLOAD START");
+  console.log("➡️ upload-photo hit");
 
   try {
-    // check file
     if (!req.file) {
-      console.log("NO FILE RECEIVED");
+      console.log("❌ no file");
       return res.status(400).json({ error: "No file provided" });
     }
-
-    console.log("FILE:", req.file.originalname, req.file.size);
 
     const supabase = getSupabaseAdmin();
 
     const yachtId = (req.body?.yachtId as string) || "misc";
 
-    const fileExt =
-      req.file.originalname.split(".").pop() || "bin";
+    const ext = req.file.originalname.split(".").pop() || "bin";
 
     const fileName = `${Date.now()}-${Math.random()
       .toString(36)
-      .substring(2, 10)}.${fileExt}`;
+      .substring(2, 10)}.${ext}`;
 
     const path = `${yachtId}/${fileName}`;
 
-    console.log("UPLOAD PATH:", path);
+    console.log("📦 uploading to:", path);
 
-    // upload to supabase
     const { error } = await supabase.storage
       .from(BUCKET)
       .upload(path, req.file.buffer, {
@@ -62,24 +56,20 @@ router.post("/upload-photo", upload.single("file"), async (req, res) => {
       });
 
     if (error) {
-      console.error("SUPABASE ERROR:", error);
+      console.log("❌ supabase error:", error);
       return res.status(500).json({ error: error.message });
     }
 
-    // get public url
-    const { data } = supabase.storage
-      .from(BUCKET)
-      .getPublicUrl(path);
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
 
-    console.log("SUCCESS URL:", data.publicUrl);
+    console.log("✅ success:", data.publicUrl);
 
     return res.json({
       success: true,
       url: data.publicUrl,
     });
-
   } catch (err: any) {
-    console.error("UPLOAD CRASH:", err);
+    console.log("💥 crash:", err);
     return res.status(500).json({
       error: err.message || "Upload failed",
     });
