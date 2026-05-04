@@ -18,7 +18,7 @@ router.use(healthRouter);
 router.use(uploadRouter);
 router.use(estimateRouter);
 router.use(dealRoomsRouter);
-router.use(leadsRouter);
+router.use("/leads", leadsRouter);
 router.use(fxRouter);
 router.use(authRouter);
 router.use(platformNdaRouter);
