@@ -15,7 +15,7 @@ import yachtModerationRouter from "./yachtModeration";
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(uploadRouter);
+router.use("/upload-photo", uploadRouter);
 router.use(estimateRouter);
 router.use(dealRoomsRouter);
 router.use("/leads", leadsRouter);
