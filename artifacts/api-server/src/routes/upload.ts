@@ -2,13 +2,10 @@ import { Router } from "express";
 
 const router = Router();
 
-router.post("/upload-photo", async (req, res) => {
-  console.log("UPLOAD HIT");
+router.post("/upload-photo", (req, res) => {
+  console.log("UPLOAD REAL HIT");
 
-  return res.json({
-    ok: true,
-    message: "server works",
-  });
+  return res.send("OK");
 });
 
 export default router;
