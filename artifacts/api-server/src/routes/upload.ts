@@ -45,3 +45,4 @@ router.post("/upload-photo", upload.single("file"), async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 });
+export default router;
