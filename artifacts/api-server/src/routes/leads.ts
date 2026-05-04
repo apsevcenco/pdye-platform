@@ -80,7 +80,7 @@ function buildEmailHtml({ name, email, password, role, siteUrl }: { name: string
 </body></html>`;
 }
 
-router.post("/leads/:id/approve", requireAdmin, async (req, res) => {
+router.post("/:id/approve", requireAdmin, async (req, res) => {
   try {
     const leadId = String(req.params["id"] || "").trim();
     // Accept either a positive integer or a UUID
