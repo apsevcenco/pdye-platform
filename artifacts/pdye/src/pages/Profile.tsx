@@ -23,6 +23,24 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  function openPasswordForm() {
+    setError(null);
+    setSuccess(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setExpanded(true);
+  }
+
+  function closePasswordForm() {
+    setExpanded(false);
+    setError(null);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  }
 
   if (!user || !userProfile) {
     return (
@@ -78,6 +96,7 @@ export default function Profile() {
     setNewPassword("");
     setConfirmPassword("");
     setSaving(false);
+    setExpanded(false);
     setTimeout(() => setSuccess(false), 5000);
   }
 
@@ -139,6 +158,32 @@ export default function Profile() {
 
           {/* Change password */}
           <div className="bg-[#0f1d33] border border-white/8 p-8">
+            {!expanded ? (
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="font-display text-lg text-white flex items-center gap-2">
+                    <Lock size={18} className="text-primary" /> Password
+                  </h2>
+                  <p className="text-white/50 text-xs font-sans mt-1">
+                    Update your account password at any time.
+                  </p>
+                  {success && (
+                    <div className="mt-3 px-4 py-3 bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-sans inline-flex items-center gap-2" data-testid="text-success">
+                      <CheckCircle2 size={16} /> Password updated successfully.
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={openPasswordForm}
+                  className="bg-primary text-[#070f1a] px-6 py-3 font-bold tracking-widest uppercase text-xs hover:bg-primary/90 transition-colors"
+                  data-testid="button-open-change-password"
+                >
+                  Change Password
+                </button>
+              </div>
+            ) : (
+            <>
             <h2 className="font-display text-lg text-white mb-2 flex items-center gap-2">
               <Lock size={18} className="text-primary" /> Change Password
             </h2>
@@ -214,21 +259,29 @@ export default function Profile() {
                   {error}
                 </div>
               )}
-              {success && (
-                <div className="px-4 py-3 bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-sans flex items-center gap-2" data-testid="text-success">
-                  <CheckCircle2 size={16} /> Password updated successfully.
-                </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="bg-primary text-[#070f1a] px-8 py-3 font-bold tracking-widest uppercase text-xs hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                data-testid="button-change-password"
-              >
-                {saving ? "Updating…" : "Update Password"}
-              </button>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-primary text-[#070f1a] px-8 py-3 font-bold tracking-widest uppercase text-xs hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-change-password"
+                >
+                  {saving ? "Updating…" : "Update Password"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closePasswordForm}
+                  disabled={saving}
+                  className="px-6 py-3 border border-white/15 text-white/70 font-bold tracking-widest uppercase text-xs hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50"
+                  data-testid="button-cancel-change-password"
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       </div>
