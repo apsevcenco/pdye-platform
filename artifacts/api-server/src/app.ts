@@ -9,15 +9,15 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ ROUTES FIRST
+// API routes
 app.use("/api", router);
 
-// --- OpenAI ---
+// OpenAI init
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ✅ valuation endpoint MUST be here BEFORE export
+// valuation route
 app.post("/api/valuation", async (req, res) => {
   try {
     const data = req.body;
@@ -47,13 +47,7 @@ Data completeness: ${completeness}%.
 Yacht data:
 ${JSON.stringify(data, null, 2)}
 
-Return ONLY JSON:
-{
-  "estimated_price": "€X–€Y",
-  "confidence": "${confidence}",
-  "reasoning": "...",
-  "comparables": []
-}
+Return JSON only.
 `;
 
     const response = await openai.responses.create({
@@ -61,16 +55,13 @@ Return ONLY JSON:
       input: prompt,
     });
 
-    const text = response.output_text;
-
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(response.output_text);
 
     return res.json(parsed);
+
   } catch (err) {
     console.error(err);
-    return res.status(500).json({
-      error: "valuation failed",
-    });
+    return res.status(500).json({ error: "valuation failed" });
   }
 });
 
