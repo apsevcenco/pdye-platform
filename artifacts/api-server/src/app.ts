@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import router from "./routes";
+import OpenAI from "openai";
 
 const app: Express = express();
 
@@ -8,20 +9,19 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// ✅ ROUTES FIRST
 app.use("/api", router);
 
-export default app;
-import OpenAI from "openai";
-
+// --- OpenAI ---
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// ✅ valuation endpoint MUST be here BEFORE export
 app.post("/api/valuation", async (req, res) => {
   try {
     const data = req.body;
 
-    // --- 1. считаем полноту данных ---
     const importantFields = [
       "type","builder","year","refit","length","beam","draft",
       "gross_tonnage","condition","hull_material","hull_type",
@@ -39,7 +39,6 @@ app.post("/api/valuation", async (req, res) => {
     if (completeness >= 75) confidence = "high";
     else if (completeness >= 45) confidence = "medium";
 
-    // --- 2. prompt ---
     const prompt = `
 You are a professional yacht broker.
 
@@ -48,32 +47,15 @@ Data completeness: ${completeness}%.
 Yacht data:
 ${JSON.stringify(data, null, 2)}
 
-Rules:
-- Do NOT invent missing data
-- Provide realistic market valuation
-- More data = tighter price range
-- Low data = wide estimate
-
-Return JSON only:
+Return ONLY JSON:
 {
   "estimated_price": "€X–€Y",
   "confidence": "${confidence}",
   "reasoning": "...",
-  "comparables": [
-    {
-      "builder": "...",
-      "model": "...",
-      "year": 2020,
-      "length": "24m",
-      "condition": "Good",
-      "price": "€X",
-      "note": "..."
-    }
-  ]
+  "comparables": []
 }
 `;
 
-    // --- 3. запрос к OpenAI ---
     const response = await openai.responses.create({
       model: "gpt-4.1",
       input: prompt,
@@ -84,7 +66,6 @@ Return JSON only:
     const parsed = JSON.parse(text);
 
     return res.json(parsed);
-
   } catch (err) {
     console.error(err);
     return res.status(500).json({
@@ -92,3 +73,5 @@ Return JSON only:
     });
   }
 });
+
+export default app;
