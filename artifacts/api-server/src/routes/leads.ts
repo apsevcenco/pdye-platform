@@ -13,12 +13,14 @@ function generatePassword(length = 12): string {
   const all = upper + lower + digits + symbols;
   const pick = (s: string) => s[randomInt(0, s.length)];
   const chars: string[] = [pick(upper), pick(lower), pick(digits), pick(symbols)];
+
   for (let i = chars.length; i < length; i++) chars.push(pick(all));
-  // Cryptographically secure shuffle (Fisher–Yates)
+
   for (let i = chars.length - 1; i > 0; i--) {
     const j = randomInt(0, i + 1);
     [chars[i], chars[j]] = [chars[j], chars[i]];
   }
+
   return chars.join("");
 }
 
@@ -36,8 +38,21 @@ function roleLabel(role: string): string {
   return "Private Buyer";
 }
 
-function buildEmailHtml({ name, email, password, role, siteUrl }: { name: string; email: string; password: string; role: string; siteUrl: string }): string {
+function buildEmailHtml({
+  name,
+  email,
+  password,
+  role,
+  siteUrl,
+}: {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  siteUrl: string;
+}): string {
   const label = roleLabel(role);
+
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to PDYE</title></head>
 <body style="margin:0;padding:0;background:#070f1a;font-family:Georgia,serif;color:#e8e8e8;">
@@ -80,28 +95,65 @@ function buildEmailHtml({ name, email, password, role, siteUrl }: { name: string
 </body></html>`;
 }
 
+// GET /api/leads
+router.get("/", requireAdmin, async (req, res) => {
+  try {
+    const sb = getSupabaseAdmin();
+
+    const { data, error } = await sb
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json(data || []);
+  } catch (err: any) {
+    console.error("[GET /leads] error:", err);
+    res.status(500).json({ error: err?.message || "Internal server error" });
+  }
+});
+
+// POST /api/leads/:id/approve
 router.post("/:id/approve", requireAdmin, async (req, res) => {
   try {
     const leadId = String(req.params["id"] || "").trim();
-    // Accept either a positive integer or a UUID
+
     const isInt = /^\d+$/.test(leadId) && Number(leadId) > 0;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        leadId
+      );
+
     if (!leadId || (!isInt && !isUuid)) {
       res.status(400).json({ error: "Invalid lead id" });
       return;
     }
+
     const overrideRole = (req.body?.role as string | undefined)?.trim();
-    const siteUrl = (req.body?.siteUrl as string | undefined) || process.env["PUBLIC_SITE_URL"] || "https://pdye.app";
+    const siteUrl =
+      (req.body?.siteUrl as string | undefined) ||
+      process.env["PUBLIC_SITE_URL"] ||
+      "https://pdye.app";
 
     const sb = getSupabaseAdmin();
 
-    // 1. Load the lead
-    const { data: lead, error: leadErr } = await sb.from("leads").select("*").eq("id", leadId).single();
+    const { data: lead, error: leadErr } = await sb
+      .from("leads")
+      .select("*")
+      .eq("id", leadId)
+      .single();
+
     if (leadErr || !lead) {
       res.status(404).json({ error: "Lead not found" });
       return;
     }
+
     const email = (lead.email || "").trim().toLowerCase();
+
     if (!email) {
       res.status(400).json({ error: "Lead has no email address" });
       return;
@@ -110,13 +162,17 @@ router.post("/:id/approve", requireAdmin, async (req, res) => {
     const role = overrideRole || mapYachtTypeToRole(lead.yacht_type || "");
     const password = generatePassword(12);
 
-    // 2. Check if auth user already exists
-    const { data: existingList } = await sb.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const existing = (existingList?.users as Array<{ id: string; email?: string | null }> | undefined)
-      ?.find(u => (u.email || "").toLowerCase() === email);
+    const { data: existingList } = await sb.auth.admin.listUsers({
+      page: 1,
+      perPage: 200,
+    });
+
+    const existing = (
+      existingList?.users as Array<{ id: string; email?: string | null }> | undefined
+    )?.find((u) => (u.email || "").toLowerCase() === email);
+
     let authUserId: string;
 
-    // Build the rich metadata object once — used for auth + profile upsert
     const richMeta: Record<string, any> = {
       name: lead.name || "",
       phone: lead.phone || "",
@@ -130,33 +186,40 @@ router.post("/:id/approve", requireAdmin, async (req, res) => {
     };
 
     if (existing) {
-      // Update password + metadata for existing user
       const { error: updErr } = await sb.auth.admin.updateUserById(existing.id, {
         password,
         user_metadata: richMeta,
       });
+
       if (updErr) {
-        res.status(500).json({ error: "Failed to update existing user: " + updErr.message });
+        res.status(500).json({
+          error: "Failed to update existing user: " + updErr.message,
+        });
         return;
       }
+
       authUserId = existing.id;
     } else {
-      // Create new auth user with full metadata copy
-      const { data: created, error: createErr } = await sb.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: richMeta,
-      });
+      const { data: created, error: createErr } =
+        await sb.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: richMeta,
+        });
+
       if (createErr || !created.user) {
-        res.status(500).json({ error: "Failed to create auth user: " + (createErr?.message || "unknown") });
+        res.status(500).json({
+          error:
+            "Failed to create auth user: " +
+            (createErr?.message || "unknown"),
+        });
         return;
       }
+
       authUserId = created.user.id;
     }
 
-    // 3. Upsert profile in users table — try with all fields, fall back to base columns
-    //    if the schema is missing the optional columns (graceful degradation).
     const fullProfile: Record<string, any> = {
       id: authUserId,
       email,
@@ -170,44 +233,92 @@ router.post("/:id/approve", requireAdmin, async (req, res) => {
       location: lead.location || null,
       notes: lead.message || null,
     };
-    let { error: profErr } = await sb.from("users").upsert(fullProfile, { onConflict: "id" });
-    if (profErr && /column .* does not exist|Could not find the .* column/i.test(profErr.message)) {
-      console.warn("[approve] users table missing optional columns, retrying with base set:", profErr.message);
-      const baseProfile = { id: authUserId, email, role, approved: true };
-      const retry = await sb.from("users").upsert(baseProfile, { onConflict: "id" });
+
+    let { error: profErr } = await sb
+      .from("users")
+      .upsert(fullProfile, { onConflict: "id" });
+
+    if (
+      profErr &&
+      /column .* does not exist|Could not find the .* column/i.test(
+        profErr.message
+      )
+    ) {
+      console.warn(
+        "[approve] users table missing optional columns, retrying with base set:",
+        profErr.message
+      );
+
+      const baseProfile = {
+        id: authUserId,
+        email,
+        role,
+        approved: true,
+      };
+
+      const retry = await sb
+        .from("users")
+        .upsert(baseProfile, { onConflict: "id" });
+
       profErr = retry.error;
     }
+
     if (profErr) {
-      res.status(500).json({ error: "Failed to create user profile: " + profErr.message });
+      res.status(500).json({
+        error: "Failed to create user profile: " + profErr.message,
+      });
       return;
     }
 
-    // 4. Send email via Resend
     const resendKey = process.env["RESEND_API_KEY"];
+
     if (!resendKey) {
       res.status(500).json({ error: "RESEND_API_KEY is not configured" });
       return;
     }
-    const fromAddress = process.env["RESEND_FROM_EMAIL"] || "PDYE <onboarding@resend.dev>";
+
+    const fromAddress =
+      process.env["RESEND_FROM_EMAIL"] || "PDYE <onboarding@resend.dev>";
+
     const resend = new Resend(resendKey);
+
     const { data: mailData, error: mailErr } = await resend.emails.send({
       from: fromAddress,
       to: email,
       subject: "Welcome to PDYE — Your Access Credentials",
-      html: buildEmailHtml({ name: lead.name || "", email, password, role, siteUrl }),
+      html: buildEmailHtml({
+        name: lead.name || "",
+        email,
+        password,
+        role,
+        siteUrl,
+      }),
     });
-    console.log(`[approve] Resend → to=${email} from=${fromAddress} id=${mailData?.id || "n/a"} err=${mailErr?.message || "none"}`);
+
+    console.log(
+      `[approve] Resend → to=${email} from=${fromAddress} id=${
+        mailData?.id || "n/a"
+      } err=${mailErr?.message || "none"}`
+    );
+
     if (mailErr) {
-      res.status(500).json({ error: "Failed to send email: " + mailErr.message, hint: "User was created but email delivery failed. Check RESEND_API_KEY and RESEND_FROM_EMAIL." });
+      res.status(500).json({
+        error: "Failed to send email: " + mailErr.message,
+        hint: "User was created but email delivery failed. Check RESEND_API_KEY and RESEND_FROM_EMAIL.",
+      });
       return;
     }
 
-    // 5. Delete the processed lead
     await sb.from("leads").delete().eq("id", leadId);
 
-    res.json({ success: true, email, role, userId: authUserId });
+    res.json({
+      success: true,
+      email,
+      role,
+      userId: authUserId,
+    });
   } catch (err: any) {
-    console.error("[/leads/:id/approve] error:", err);
+    console.error("[POST /leads/:id/approve] error:", err);
     res.status(500).json({ error: err?.message || "Internal server error" });
   }
 });
