@@ -2260,7 +2260,7 @@ function LeadsView() {
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch(`${baseUrl}/api/leads/${lead.id}/approve`, {
+      const res = await fetch(`${baseUrl}/leads/${lead.id}/approve`, {
         method: "POST",
         headers,
         body: JSON.stringify({ role, siteUrl: window.location.origin }),
