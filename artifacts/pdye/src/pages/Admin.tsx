@@ -2256,7 +2256,7 @@ function LeadsView() {
     setApprovingId(lead.id);
     setApproveResult(null);
     try {
-      const baseUrl = (import.meta.env.VITE_API_URL as string | undefined) || "";
+      const baseUrl = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
