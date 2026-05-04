@@ -5,19 +5,37 @@ import OpenAI from "openai";
 
 const app: Express = express();
 
+// =======================
+// middleware
+// =======================
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// =======================
+// DEBUG: ловим ВСЕ запросы
+// (это поможет найти upload проблему)
+// =======================
+app.use((req, _res, next) => {
+  console.log("REQ:", req.method, req.url);
+  next();
+});
+
+// =======================
 // API routes
+// =======================
 app.use("/api", router);
 
+// =======================
 // OpenAI init
+// =======================
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// =======================
 // valuation route
+// =======================
 app.post("/api/valuation", async (req, res) => {
   try {
     const data = req.body;
