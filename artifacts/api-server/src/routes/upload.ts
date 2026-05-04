@@ -53,3 +53,7 @@ router.post("/upload-photo", upload.single("file"), async (req, res) => {
 });
 
 export default router;
+res.json({
+  success: true,
+  url: "test"
+});
