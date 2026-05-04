@@ -11,44 +11,28 @@ const upload = multer({
 
 const BUCKET = "yacht-photos";
 
-// Supabase admin client
-function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error("Missing SUPABASE env variables");
-  }
-
-  return createClient(url, key, {
-    auth: { persistSession: false },
-  });
+function supabase() {
+  return createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
 }
 
 router.post("/upload-photo", upload.single("file"), async (req, res) => {
-  console.log("➡️ upload-photo hit");
+  console.log("UPLOAD HIT");
 
   try {
     if (!req.file) {
-      console.log("❌ no file");
-      return res.status(400).json({ error: "No file provided" });
+      console.log("NO FILE");
+      return res.status(400).json({ error: "No file" });
     }
 
-    const supabase = getSupabaseAdmin();
+    const sb = supabase();
 
-    const yachtId = (req.body?.yachtId as string) || "misc";
+    const path = `uploads/${Date.now()}-${req.file.originalname}`;
 
-    const ext = req.file.originalname.split(".").pop() || "bin";
-
-    const fileName = `${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 10)}.${ext}`;
-
-    const path = `${yachtId}/${fileName}`;
-
-    console.log("📦 uploading to:", path);
-
-    const { error } = await supabase.storage
+    const { error } = await sb.storage
       .from(BUCKET)
       .upload(path, req.file.buffer, {
         contentType: req.file.mimetype,
@@ -56,23 +40,20 @@ router.post("/upload-photo", upload.single("file"), async (req, res) => {
       });
 
     if (error) {
-      console.log("❌ supabase error:", error);
+      console.log("SUPABASE ERROR", error);
       return res.status(500).json({ error: error.message });
     }
 
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
-    console.log("✅ success:", data.publicUrl);
+    const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
 
     return res.json({
       success: true,
       url: data.publicUrl,
     });
-  } catch (err: any) {
-    console.log("💥 crash:", err);
-    return res.status(500).json({
-      error: err.message || "Upload failed",
-    });
+
+  } catch (e: any) {
+    console.log("CRASH", e);
+    return res.status(500).json({ error: e.message });
   }
 });
 
