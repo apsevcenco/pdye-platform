@@ -57,7 +57,9 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
           <img
             src={image}
             alt={yacht.name}
-            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
+            className={`w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ${
+              effectiveStatus !== "approved" ? "blur-2xl scale-110" : ""
+            }`}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -68,7 +70,7 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
 
         {/* Locked overlay — only when the viewer is not the owner and access is not approved */}
         {effectiveStatus !== "approved" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/30 backdrop-blur-[1px]">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-md">
             <div className="bg-background/80 border border-white/10 px-4 py-2 flex items-center gap-2">
               <Lock size={13} className="text-primary/70" />
               <span className="text-white/60 text-xs font-sans tracking-widest uppercase">Confidential</span>
