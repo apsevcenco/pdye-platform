@@ -1,48 +1,72 @@
-router.post("/upload-photo", upload.single("file"), async (req, res) => {
-  console.log("UPLOAD HIT");
+import { Router } from "express";
+import multer from "multer";
+import { createClient } from "@supabase/supabase-js";
 
+const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
+
+const BUCKET = "yacht-photos";
+
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  if (!url || !key) {
+    throw new Error("Missing Supabase env");
+  }
+
+  return createClient(url, key, {
+    auth: { persistSession: false },
+  });
+}
+
+router.post("/upload-photo", upload.single("file"), async (req, res) => {
   try {
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.log("❌ ENV MISSING");
-      return res.status(500).json({ error: "Supabase env missing" });
-    }
+    console.log("UPLOAD START");
 
     if (!req.file) {
+      console.log("NO FILE");
       return res.status(400).json({ error: "No file" });
     }
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false } }
-    );
+    const supabase = getSupabaseAdmin();
 
-    const path = `uploads/${Date.now()}-${req.file.originalname}`;
+    const fileName = `${Date.now()}-${req.file.originalname}`;
+    const path = `uploads/${fileName}`;
 
-    const { data, error } = await supabase.storage
-      .from("yacht-photos")
+    const { error } = await supabase.storage
+      .from(BUCKET)
       .upload(path, req.file.buffer, {
         contentType: req.file.mimetype,
+        upsert: true,
       });
 
-    console.log("SUPABASE RESULT:", { data, error });
-
     if (error) {
+      console.error("UPLOAD ERROR:", error);
       return res.status(500).json({ error: error.message });
     }
 
-    const { data: urlData } = supabase.storage
-      .from("yacht-photos")
+    const { data } = supabase.storage
+      .from(BUCKET)
       .getPublicUrl(path);
+
+    console.log("SUCCESS:", data.publicUrl);
 
     return res.json({
       success: true,
-      url: urlData.publicUrl,
+      url: data.publicUrl,
     });
 
   } catch (e: any) {
-    console.log("CRASH:", e);
-    return res.status(500).json({ error: e.message });
+    console.error("CRASH:", e);
+    return res.status(500).json({
+      error: e.message || "Upload failed",
+    });
   }
 });
+
 export default router;
