@@ -18,7 +18,7 @@ Private B2B off-market yacht platform. pnpm workspace monorepo using TypeScript.
 ### Supabase Tables (via Supabase REST API)
 - **users**: id, email, role (investor/broker/owner/admin), approved, created_at
 - **yachts**: Full yacht data with images, specs, pricing
-- **access_requests**: yacht_id, requester_id, role, status (pending → approved_spec → rejected → escalated → archived)
+- **access_requests**: yacht_id, requester_id, role, status (pending → rejected | escalated → archived). `rejection_reason` text column (optional admin comment, sent in email). Legacy `approved`/`approved_spec` statuses + `approved_spec_access*` columns retained for back-compat but no longer used by UI (Spec Access flow retired May 2026; admin now goes Pending → Reject or Create Deal Room directly).
 - **leads**: Public form submissions
 - **introductions**: Formal introduction records
 
@@ -58,6 +58,8 @@ Express on port 8080. Routes:
 - `/api/estimate-market-price` — Algorithmic yacht market price estimation
 - `/api/valuation` — Public yacht valuation (algorithmic, no AI dependency)
 - `/api/nda/*` — NDA send/sign/status/webhook endpoints
+- `/api/leads/:id/approve` — Admin approves a public lead → creates auth user + sends welcome email (Resend)
+- `/api/access-requests/:id/reject` — Admin rejects a yacht access request, optionally with `reason`; updates `access_requests.status` + `rejection_reason`, writes audit log, sends rejection email to requester (Resend, PDYE-branded HTML). Email failure is non-fatal: returns `{ success: true, emailed: false, warning }`.
 - `/api/deal-rooms` — CRUD for deal rooms (list, get, create, update, delete)
 - `/api/deal-rooms/by-user/:userId` — rooms by participant
 - `/api/deal-rooms/:id/participants` — participant CRUD

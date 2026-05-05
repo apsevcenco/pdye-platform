@@ -13,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { DealRoom } from "@/lib/dealTypes";
 
 type UnitSystem = "metric" | "imperial";
-type AccessLevel = "none" | "pending" | "approved_spec" | "rejected" | "deal_room_active";
+type AccessLevel = "none" | "pending" | "rejected" | "deal_room_active";
 
 function parseNum(raw: string): number | null {
   if (!raw) return null;
@@ -236,167 +236,6 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
   );
 }
 
-/* ─── STATE B: Approved Spec Access (Anonymized Extended View) ─── */
-function ApprovedSpecView({ yacht, units, setUnits }: {
-  yacht: Yacht;
-  units: UnitSystem;
-  setUnits: (u: UnitSystem) => void;
-}) {
-  const M = units === "metric";
-  const image = (yacht as any).main_image || yacht.image || "";
-
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="fixed top-6 left-6 z-40">
-        <Link href="/yachts" className="flex items-center gap-2 bg-background/80 backdrop-blur-md border border-white/10 text-white/70 hover:text-primary hover:border-primary/40 px-4 py-2 text-sm font-sans tracking-wider uppercase transition-all">
-          <ArrowLeft size={14} /> Fleet
-        </Link>
-      </div>
-
-      <div className="fixed top-6 right-6 z-40 flex items-center gap-2">
-        <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1.5 text-xs font-bold tracking-widest uppercase">
-          <Eye size={12} /> Spec Access Approved
-        </div>
-      </div>
-
-      <div className="relative h-[45vh] min-h-[350px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
-        {image ? (
-          <img src={image} alt="Confidential Listing" className="w-full h-full object-cover filter blur-[2px]" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Anchor size={56} className="text-primary/15" strokeWidth={1.2} />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background/20" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <Lock size={24} className="text-primary/40 mx-auto mb-2" />
-            <p className="text-white/30 font-sans text-xs tracking-widest uppercase">Full gallery available in Deal Room</p>
-          </div>
-        </div>
-        <div className="absolute top-20 right-6 flex flex-col gap-2 items-end">
-          <span className="bg-background/80 backdrop-blur-sm border border-white/10 text-white text-xs font-bold tracking-widest uppercase px-3 py-1.5">{yacht.status}</span>
-          {yacht.type && <span className="bg-primary/20 backdrop-blur-sm border border-primary/40 text-primary text-xs font-bold tracking-widest uppercase px-3 py-1.5">{yacht.type}</span>}
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-2 space-y-8">
-            <div>
-              <p className="text-white/50 font-sans tracking-wide text-lg mb-2">
-                {[yacht.builder, yacht.year, yacht.refit ? `Refit ${yacht.refit}` : null].filter(Boolean).join(" · ")}
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <Info size={13} className="text-blue-400/60" />
-                <p className="text-blue-400/70 text-xs font-sans">Vessel identity and location are disclosed only after Deal Room activation and NDA completion.</p>
-              </div>
-            </div>
-
-            {yacht.description && (
-              <div className="border-l-2 border-primary/40 pl-5">
-                <p className="text-white/65 font-sans leading-relaxed text-base">{yacht.description}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/5">
-              {[
-                { icon: <Ruler size={16} />, label: "Length", value: cvtLength(yacht.length, units) },
-                { icon: <Anchor size={16} />, label: "Draft", value: cvtLength(yacht.draft, units) },
-                { icon: <Bed size={16} />, label: "Cabins", value: yacht.cabins != null ? `${yacht.cabins}` : null },
-                { icon: <Users size={16} />, label: "Crew", value: yacht.crew != null ? `${yacht.crew}` : null },
-              ].map(({ icon, label, value }) => value ? (
-                <div key={label} className="bg-background flex flex-col items-center justify-center gap-1 py-5 text-center">
-                  <span className="text-primary/70">{icon}</span>
-                  <span className="text-white/85 font-sans text-lg font-semibold">{value}</span>
-                  <span className="text-white/35 font-sans text-xs tracking-widest uppercase">{label}</span>
-                </div>
-              ) : null)}
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-white/30 text-[10px] uppercase tracking-widest font-sans">Full Technical Specifications</p>
-                <button onClick={() => setUnits(units === "metric" ? "imperial" : "metric")} className="flex items-center gap-0 border border-white/10 overflow-hidden hover:border-primary/30 transition-colors">
-                  <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>Metric</span>
-                  <span className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase transition-colors ${!M ? "bg-primary text-background" : "text-white/30 hover:text-white/60"}`}>Imperial</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Section title="Dimensions">
-                  <SpecRow label="Length Overall" value={cvtLength(yacht.length, units)} />
-                  <SpecRow label="Beam" value={cvtLength(yacht.beam, units)} />
-                  <SpecRow label="Draft" value={cvtLength(yacht.draft, units)} />
-                  <SpecRow label="Displacement" value={cvtDisp(yacht.displacement, units)} />
-                  <SpecRow label="Gross Tonnage" value={yacht.gross_tonnage ? `${parseNum(String(yacht.gross_tonnage)) ?? yacht.gross_tonnage} GT` : null} />
-                </Section>
-                <Section title="Hull & Construction">
-                  <SpecRow label="Hull Material" value={yacht.hull_material} />
-                  <SpecRow label="Hull Type" value={yacht.hull_type} />
-                  <SpecRow label="Condition" value={yacht.condition} />
-                  <SpecRow label="Year Built" value={yacht.year} />
-                  <SpecRow label="Last Refit" value={yacht.refit} />
-                </Section>
-                <Section title="Performance">
-                  <SpecRow label="Max Speed" value={yacht.max_speed ? `${parseNum(String(yacht.max_speed)) ?? yacht.max_speed} kn` : null} />
-                  <SpecRow label="Cruise Speed" value={yacht.cruise_speed ? `${parseNum(String(yacht.cruise_speed)) ?? yacht.cruise_speed} kn` : null} />
-                  <SpecRow label="Range" value={yacht.range ? `${parseNum(String(yacht.range))?.toLocaleString() ?? yacht.range} nm` : null} />
-                  <SpecRow label="Fuel Type" value={yacht.fuel_type} />
-                  <SpecRow label="Fuel Capacity" value={cvtCapacity(yacht.fuel_capacity, units)} />
-                  <SpecRow label="Water Capacity" value={cvtCapacity(yacht.water_capacity, units)} />
-                </Section>
-                <Section title="Propulsion">
-                  <SpecRow label="Engines" value={yacht.engines} />
-                  <SpecRow label="Engine Count" value={yacht.engine_count} />
-                  <SpecRow label="Horse Power" value={yacht.horse_power ? `${yacht.horse_power} hp` : null} />
-                </Section>
-                <Section title="Accommodation">
-                  <SpecRow label="Guest Cabins" value={yacht.cabins} />
-                  <SpecRow label="Heads / Bathrooms" value={yacht.heads} />
-                  <SpecRow label="Berths" value={yacht.berths} />
-                  <SpecRow label="Crew" value={yacht.crew} />
-                </Section>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-white/3 border border-white/8 p-6 sticky top-24 space-y-5">
-              <div className="flex items-center gap-2 mb-2">
-                <Eye size={16} className="text-blue-400" />
-                <p className="text-white font-display text-base">Approved Access</p>
-              </div>
-              <p className="text-white/50 text-sm font-sans leading-relaxed">
-                You have access to the full anonymized technical specification for this vessel.
-              </p>
-
-              <div className="border border-white/5 bg-white/2 p-4 space-y-2">
-                <p className="text-white/25 text-[10px] uppercase tracking-widest font-sans mb-3">Still Restricted</p>
-                {["Vessel Name", "Current Location", "Full Photo Gallery", "Seller / Broker Identity", "Deal Documents"].map(item => (
-                  <div key={item} className="flex items-center gap-2 text-white/25 text-xs font-sans">
-                    <Lock size={10} className="text-white/15 flex-shrink-0" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-blue-500/5 border border-blue-500/15 p-4">
-                <p className="text-blue-400/80 text-xs font-sans leading-relaxed">
-                  If you wish to proceed, the admin will open a Deal Room and send NDA documents to both parties. Full access is granted only after both sides sign the NDA.
-                </p>
-              </div>
-
-              <div className="border-t border-white/5 pt-4">
-                <p className="text-white/25 text-[10px] font-sans tracking-widest uppercase">Deal Room will be opened by admin if discussion proceeds.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Main Component ─── */
 export default function YachtDetail() {
@@ -470,14 +309,17 @@ export default function YachtDetail() {
       }
     }
 
-    if (req.status === "approved" || req.status === "approved_spec" || req.approved_spec_access) {
-      setAccessLevel("approved_spec");
-    } else if (req.status === "pending") {
-      setAccessLevel("pending");
-    } else if (req.status === "rejected") {
+    // Spec-access flow has been retired. Any non-rejected pre-deal-room status
+    // is now treated as "Under Review" so the user waits for a Deal Room.
+    if (req.status === "rejected") {
       setAccessLevel("rejected");
-    } else if (req.status === "escalated") {
-      setAccessLevel("approved_spec");
+    } else if (
+      req.status === "pending" ||
+      req.status === "approved" ||
+      req.status === "approved_spec" ||
+      req.status === "escalated"
+    ) {
+      setAccessLevel("pending");
     } else {
       setAccessLevel("none");
     }
@@ -554,17 +396,6 @@ export default function YachtDetail() {
         requesting={requesting}
         introSent={introSent}
         onIntro={handleIntro}
-      />
-    );
-  }
-
-  /* STATE B: Approved Spec Access — anonymized extended view */
-  if (accessLevel === "approved_spec") {
-    return (
-      <ApprovedSpecView
-        yacht={yacht}
-        units={units}
-        setUnits={setUnits}
       />
     );
   }

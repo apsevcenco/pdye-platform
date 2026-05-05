@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Link, Redirect, useLocation } from "wouter";
+import { Link, Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Layout } from "@/components/layout/Layout";
@@ -44,7 +44,7 @@ const STATUSES = ["Available", "Under Offer", "Distressed Sale", "Off-Market", "
 export default function AddYacht() {
   const { user, userProfile, loading } = useAuth();
   const [, navigate] = useLocation();
-  const [location] = useLocation();
+  const search = useSearch();
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -73,11 +73,15 @@ export default function AddYacht() {
 
   const M = unitSystem === "metric";
 
-  // Edit-mode: read ?edit=<id> from URL (wouter v3 places query into window.location.search).
+  // Edit-mode: react to ?edit=<id> reactively via wouter's useSearch().
   useEffect(() => {
     let cancelled = false;
 
     function parseEditId(): string | null {
+      // Try the reactive search string from wouter first.
+      const fromHook = new URLSearchParams(search || "").get("edit");
+      if (fromHook) return fromHook;
+      // Fallbacks for hash-based routing.
       const fromSearch = new URLSearchParams(window.location.search).get("edit");
       if (fromSearch) return fromSearch;
       const raw = window.location.hash || "";
@@ -94,6 +98,8 @@ export default function AddYacht() {
         setForm(EMPTY_FORM);
         setPhotos([]);
         setIsPrivate(false);
+        setSaved(false);
+        setErr("");
         return;
       }
       if (!user) return;
@@ -149,14 +155,10 @@ export default function AddYacht() {
     }
 
     syncFromUrl();
-    window.addEventListener("hashchange", syncFromUrl);
-    window.addEventListener("popstate", syncFromUrl);
     return () => {
       cancelled = true;
-      window.removeEventListener("hashchange", syncFromUrl);
-      window.removeEventListener("popstate", syncFromUrl);
     };
-  }, [user, location]);
+  }, [user, search]);
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
   if (!user) return <Redirect to="/login" />;

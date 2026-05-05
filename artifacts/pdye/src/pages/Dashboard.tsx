@@ -41,8 +41,8 @@ type MyYacht = {
 /* ─── Status helpers ─── */
 const REQ_STATUS: Record<string, { label: string; icon: React.ReactNode; style: string }> = {
   pending:       { label: "Under Review",    icon: <Clock size={11} />,       style: "text-yellow-400 border-yellow-500/20 bg-yellow-500/8" },
-  approved:      { label: "Spec Access",     icon: <Eye size={11} />,         style: "text-blue-400   border-blue-500/20  bg-blue-500/8" },
-  approved_spec: { label: "Spec Access",     icon: <Eye size={11} />,         style: "text-blue-400   border-blue-500/20  bg-blue-500/8" },
+  approved:      { label: "Under Review",    icon: <Clock size={11} />,       style: "text-yellow-400 border-yellow-500/20 bg-yellow-500/8" },
+  approved_spec: { label: "Under Review",    icon: <Clock size={11} />,       style: "text-yellow-400 border-yellow-500/20 bg-yellow-500/8" },
   rejected:      { label: "Declined",        icon: <XCircle size={11} />,     style: "text-red-400    border-red-500/20    bg-red-500/8" },
   escalated:     { label: "In Deal Room",    icon: <CheckCircle size={11} />, style: "text-green-400  border-green-500/20  bg-green-500/8" },
 };
@@ -94,39 +94,23 @@ export function BuyerDashboard({ userId }: { userId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const specAccess = requests.filter(r => r.status === "approved" || r.status === "approved_spec");
+  // Legacy "approved" / "approved_spec" records are now treated as pending
+  // (Spec Access flow has been retired) — count them in Under Review.
+  const isUnderReview = (s: string) =>
+    s === "pending" || s === "approved" || s === "approved_spec";
+  const underReview = requests.filter(r => isUnderReview(r.status));
   const inDealRoom = requests.filter(r => r.status === "escalated");
+  const rejected = requests.filter(r => r.status === "rejected");
 
   return (
     <div className="space-y-6">
-      {specAccess.length > 0 && (
-        <div className="bg-blue-500/5 border border-blue-500/20 p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 bg-blue-500/15 flex items-center justify-center"><Eye size={16} className="text-blue-400" /></div>
-            <div>
-              <p className="text-blue-400 text-sm font-bold">Spec Access Granted</p>
-              <p className="text-white/40 text-xs font-sans">You have access to confidential specifications</p>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            {specAccess.map(req => (
-              <Link key={req.id} href={`/yacht/${req.yacht_id}`}
-                className="flex items-center justify-between px-3 py-2 bg-blue-500/5 hover:bg-blue-500/10 transition-colors group">
-                <span className="text-white text-sm font-medium">{req.yacht_name}</span>
-                <span className="text-blue-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 group-hover:underline">View Specs <ChevronRight size={11} /></span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/5">
         {[
           { label: "Total Requests", value: requests.length, icon: <Ship size={16} /> },
-          { label: "Under Review",   value: requests.filter(r => r.status === "pending").length, icon: <Clock size={16} /> },
-          { label: "Spec Access",    value: specAccess.length, icon: <Eye size={16} /> },
+          { label: "Under Review",   value: underReview.length, icon: <Clock size={16} /> },
           { label: "In Deal Room",   value: inDealRoom.length, icon: <CheckCircle size={16} /> },
+          { label: "Rejected",       value: rejected.length, icon: <XCircle size={16} /> },
         ].map(s => (
           <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-4 sm:py-6 text-center">
             <span className="text-primary/60">{s.icon}</span>
@@ -169,11 +153,6 @@ export function BuyerDashboard({ userId }: { userId: string }) {
                     <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${cfg.style}`}>
                       {cfg.icon} {cfg.label}
                     </span>
-                    {(req.status === "approved" || req.status === "approved_spec") && (
-                      <Link href={`/yacht/${req.yacht_id}`} className="flex items-center gap-1 text-blue-400 text-xs font-bold uppercase tracking-wider hover:underline">
-                        View Specs <ChevronRight size={11} />
-                      </Link>
-                    )}
                     {req.status === "escalated" && (
                       <Link href="/dealroom" className="flex items-center gap-1 text-green-400 text-xs font-bold uppercase tracking-wider hover:underline">
                         Deal Room <ChevronRight size={11} />

@@ -10,7 +10,7 @@ import type { AccessRequestStatus, DealRoom } from "@/lib/dealTypes";
 import { ACCESS_STATUS_CONFIG } from "@/lib/dealTypes";
 import { useAuth } from "@/context/AuthContext";
 
-type FilterTab = "all" | "pending" | "approved_spec" | "rejected" | "escalated";
+type FilterTab = "all" | "pending" | "rejected" | "escalated";
 
 type AccessRequest = {
   id: string;
@@ -30,8 +30,8 @@ type AccessRequest = {
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
   pending: <Clock size={12} />,
-  approved_spec: <Eye size={12} />,
-  approved: <Eye size={12} />,
+  approved_spec: <Clock size={12} />,
+  approved: <Clock size={12} />,
   rejected: <XCircle size={12} />,
   escalated: <CheckCircle size={12} />,
   archived: <XCircle size={12} />,
@@ -39,8 +39,8 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 
 const STATUS_STYLE: Record<string, string> = {
   pending: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-  approved_spec: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  approved: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  approved_spec: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+  approved: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
   rejected: "text-red-400 bg-red-500/10 border-red-500/20",
   escalated: "text-green-400 bg-green-500/10 border-green-500/20",
   archived: "text-white/30 bg-white/5 border-white/10",
@@ -48,8 +48,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Under Review",
-  approved_spec: "Spec Access",
-  approved: "Spec Access",
+  approved_spec: "Under Review",
+  approved: "Under Review",
   rejected: "Rejected",
   escalated: "In Deal Room",
   archived: "Archived",
@@ -67,6 +67,9 @@ export default function AdminRequests() {
   const [sellerEmail, setSellerEmail] = useState("");
   const [sellerType, setSellerType] = useState<"broker" | "owner">("broker");
   const [allUsers, setAllUsers] = useState<{ id: string; email: string; role: string }[]>([]);
+  const [rejectModal, setRejectModal] = useState<{ reqId: string; userEmail: string; yachtName: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState("");
 
   async function load() {
     setLoading(true);
@@ -109,57 +112,73 @@ export default function AdminRequests() {
   useEffect(() => { load(); loadUsers(); }, []);
 
   function normalizeStatus(status: string): string {
-    if (status === "approved") return "approved_spec";
+    // Legacy "approved" / "approved_spec" records are now treated as "pending"
+    // since the spec-access flow has been retired.
+    if (status === "approved" || status === "approved_spec") return "pending";
     return status;
   }
 
-  async function approveSpecAccess(id: string) {
-    setUpdating(id);
-    const now = new Date().toISOString();
-    await supabase.from("access_requests").update({
-      status: "approved_spec",
-      approved_spec_access: true,
-      approved_spec_access_at: now,
-      updated_at: now,
-    }).eq("id", id);
-
+  function openRejectModal(id: string) {
     const req = requests.find(r => r.id === id);
-    if (req) {
-      await dealRoomApi.createAuditLog({
-        entity_type: "access_request",
-        entity_id: id,
-        user_id: user?.id || "",
-        action: "spec_access_approved",
-        meta: { yacht_id: req.yacht_id, requester_id: req.requester_id },
-      });
-    }
-
-    setRequests(prev => prev.map(r => r.id === id ? {
-      ...r, status: "approved_spec", approved_spec_access: true, approved_spec_access_at: now,
-    } : r));
-    setUpdating(null);
+    if (!req) return;
+    setRejectModal({
+      reqId: id,
+      userEmail: req.user_email || "—",
+      yachtName: req.yacht_name || "Unknown Vessel",
+    });
+    setRejectReason("");
+    setRejectError("");
   }
 
-  async function rejectRequest(id: string) {
+  async function submitReject() {
+    if (!rejectModal) return;
+    const id = rejectModal.reqId;
     setUpdating(id);
-    await supabase.from("access_requests").update({
-      status: "rejected",
-      updated_at: new Date().toISOString(),
-    }).eq("id", id);
+    setRejectError("");
 
-    const req = requests.find(r => r.id === id);
-    if (req) {
-      await dealRoomApi.createAuditLog({
-        entity_type: "access_request",
-        entity_id: id,
-        user_id: user?.id || "",
-        action: "spec_access_rejected",
-        meta: { yacht_id: req.yacht_id, requester_id: req.requester_id },
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setRejectError("Authentication expired. Please re-login.");
+        setUpdating(null);
+        return;
+      }
+
+      const apiBase = import.meta.env.VITE_API_URL || "/api";
+      const resp = await fetch(`${apiBase}/access-requests/${id}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          reason: rejectReason.trim(),
+          siteUrl: window.location.origin,
+        }),
       });
-    }
 
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "rejected" } : r));
-    setUpdating(null);
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        setRejectError(body?.error || `Server error (${resp.status})`);
+        setUpdating(null);
+        return;
+      }
+
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: "rejected" } : r));
+      setRejectModal(null);
+      setRejectReason("");
+
+      if (body?.warning) {
+        // Surface non-fatal issue (e.g. email failed but DB updated).
+        console.warn("[reject]", body.warning);
+        alert(body.warning);
+      }
+    } catch (err: any) {
+      setRejectError(err?.message || "Network error");
+    } finally {
+      setUpdating(null);
+    }
   }
 
   function openCreateRoomModal(reqId: string, yachtId: string) {
@@ -233,8 +252,7 @@ export default function AdminRequests() {
 
   const counts = {
     all: requests.length,
-    pending: requests.filter(r => r.status === "pending").length,
-    approved_spec: requests.filter(r => normalizeStatus(r.status) === "approved_spec").length,
+    pending: requests.filter(r => normalizeStatus(r.status) === "pending").length,
     rejected: requests.filter(r => r.status === "rejected").length,
     escalated: requests.filter(r => r.status === "escalated").length,
   };
@@ -261,7 +279,6 @@ export default function AdminRequests() {
           {([
             { key: "all", label: "All", icon: <Filter size={11} /> },
             { key: "pending", label: "Pending", icon: <Clock size={11} /> },
-            { key: "approved_spec", label: "Spec Access", icon: <Eye size={11} /> },
             { key: "escalated", label: "In Deal Room", icon: <CheckCircle size={11} /> },
             { key: "rejected", label: "Rejected", icon: <XCircle size={11} /> },
           ] as { key: FilterTab; label: string; icon: React.ReactNode }[]).map(tab => (
@@ -301,9 +318,9 @@ export default function AdminRequests() {
               const icon = STATUS_ICON[ns] || <Clock size={12} />;
               const label = STATUS_LABEL[ns] || req.status;
               const isExpanded = expanded === req.id;
-              const canApprove = req.status === "pending";
-              const canReject = req.status === "pending";
-              const canCreateRoom = (ns === "approved_spec") && !req.escalated_to_deal_room;
+              // Pending (incl. legacy approved/approved_spec) can be rejected or sent to a Deal Room.
+              const canReject = ns === "pending";
+              const canCreateRoom = ns === "pending" && !req.escalated_to_deal_room;
 
               return (
                 <div key={req.id} className="bg-[#0f1d33] border border-white/5 hover:border-white/10 transition-colors">
@@ -338,19 +355,9 @@ export default function AdminRequests() {
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {canApprove && (
-                        <button
-                          onClick={e => { e.stopPropagation(); approveSpecAccess(req.id); }}
-                          disabled={updating === req.id}
-                          className="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 text-xs font-bold uppercase tracking-wider px-3 py-1.5 transition-colors disabled:opacity-40"
-                          title="Approve first-level specification access"
-                        >
-                          <Eye size={11} /> Approve Spec
-                        </button>
-                      )}
                       {canReject && (
                         <button
-                          onClick={e => { e.stopPropagation(); rejectRequest(req.id); }}
+                          onClick={e => { e.stopPropagation(); openRejectModal(req.id); }}
                           disabled={updating === req.id}
                           className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-xs font-bold uppercase tracking-wider px-3 py-1.5 transition-colors disabled:opacity-40"
                         >
@@ -380,7 +387,7 @@ export default function AdminRequests() {
 
                   {isExpanded && (
                     <div className="px-5 pb-5 border-t border-white/5 pt-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Request ID</p>
                           <p className="text-white/60 font-sans text-xs break-all">{req.id}</p>
@@ -388,12 +395,6 @@ export default function AdminRequests() {
                         <div>
                           <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Yacht ID</p>
                           <p className="text-white/60 font-sans text-xs break-all">{req.yacht_id}</p>
-                        </div>
-                        <div>
-                          <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Spec Access</p>
-                          <p className={`font-sans text-xs ${req.approved_spec_access ? "text-blue-400" : "text-white/30"}`}>
-                            {req.approved_spec_access ? `Approved ${req.approved_spec_access_at ? new Date(req.approved_spec_access_at).toLocaleDateString("en-GB") : ""}` : "Not approved"}
-                          </p>
                         </div>
                         <div>
                           <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">Submitted</p>
@@ -408,6 +409,62 @@ export default function AdminRequests() {
           </div>
         )}
       </div>
+
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6" onClick={() => setRejectModal(null)}>
+          <div className="bg-[#0f1d33] border border-red-500/30 max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                <XCircle size={18} className="text-red-400" />
+              </div>
+              <h3 className="font-display text-xl text-white">Reject Access Request</h3>
+            </div>
+            <div className="bg-white/3 border border-white/10 px-4 py-3 space-y-1">
+              <p className="text-white/40 text-[10px] uppercase tracking-widest">Requester</p>
+              <p className="text-white text-sm font-sans break-all">{rejectModal.userEmail}</p>
+              <p className="text-white/40 text-[10px] uppercase tracking-widest pt-2">Yacht</p>
+              <p className="text-white text-sm font-sans">{rejectModal.yachtName}</p>
+            </div>
+            <div>
+              <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-2 font-sans">
+                Reason / Comment <span className="text-white/25 normal-case">(optional — included in the email)</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="e.g. Insufficient verification, vessel no longer available, …"
+                rows={4}
+                maxLength={1000}
+                className="w-full bg-background border border-white/10 px-4 py-3 text-white text-sm font-sans focus:outline-none focus:border-red-400/40 resize-y"
+              />
+              <p className="text-white/25 text-[10px] font-sans mt-1">{rejectReason.length}/1000</p>
+            </div>
+            {rejectError && (
+              <div className="bg-red-500/10 border border-red-500/30 px-4 py-2 text-red-300 text-xs font-sans">
+                {rejectError}
+              </div>
+            )}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={submitReject}
+                disabled={updating === rejectModal.reqId}
+                className="flex-1 bg-red-500 text-white py-3 font-bold text-xs uppercase tracking-widest hover:bg-red-500/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+              >
+                {updating === rejectModal.reqId
+                  ? <><RefreshCw size={12} className="animate-spin" /> Rejecting…</>
+                  : <><XCircle size={12} /> Reject & Notify</>}
+              </button>
+              <button
+                onClick={() => setRejectModal(null)}
+                disabled={updating === rejectModal.reqId}
+                className="px-6 py-3 border border-white/10 text-white/50 text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {sellerModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6" onClick={() => setSellerModal(null)}>
