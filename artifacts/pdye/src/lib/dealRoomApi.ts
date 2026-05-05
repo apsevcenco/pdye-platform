@@ -118,12 +118,15 @@ export const dealLegalApi = {
 
 /* ─────────────────── Commission Agreement API ─────────────────── */
 
+export type DealCommissionAudience = "broker" | "owner";
+
 export interface DealCommissionDocument {
   id: string;
   version: string;
   title: string;
   content: string;
   content_hash: string;
+  audience?: DealCommissionAudience;
   created_at?: string;
 }
 
@@ -135,7 +138,7 @@ export interface DealCommissionSignResponse {
   both_signed: boolean;
 }
 
-export interface DealCommissionAdminBundle {
+export interface DealCommissionAudienceBundle {
   active: (DealCommissionDocument & { created_by?: string | null }) | null;
   history: Array<{
     id: string;
@@ -143,9 +146,15 @@ export interface DealCommissionAdminBundle {
     title: string;
     content_hash: string;
     is_active: boolean;
+    audience: DealCommissionAudience;
     created_at: string;
     created_by: string | null;
   }>;
+}
+
+export interface DealCommissionAdminBundle {
+  broker: DealCommissionAudienceBundle;
+  owner: DealCommissionAudienceBundle;
 }
 
 export interface DealCommissionSignatureRow {
@@ -164,7 +173,13 @@ export interface DealCommissionSignatureRow {
 }
 
 export const dealCommissionApi = {
-  getDocument: (): Promise<DealCommissionDocument> => request("/deal-commission/document"),
+  getDocument: (opts?: { roomId?: string; audience?: DealCommissionAudience }): Promise<DealCommissionDocument> => {
+    const params = new URLSearchParams();
+    if (opts?.roomId) params.set("roomId", opts.roomId);
+    else if (opts?.audience) params.set("audience", opts.audience);
+    const qs = params.toString();
+    return request(`/deal-commission/document${qs ? `?${qs}` : ""}`);
+  },
 
   sign: (
     roomId: string,
@@ -199,7 +214,7 @@ export const dealCommissionApi = {
 
   // Admin
   adminGet: (): Promise<DealCommissionAdminBundle> => request("/admin/deal-commission"),
-  adminPublish: (data: { version: string; title: string; content: string }) =>
+  adminPublish: (data: { version: string; title: string; content: string; audience: DealCommissionAudience }) =>
     request("/admin/deal-commission", { method: "PUT", body: JSON.stringify(data) }),
   adminListSignatures: (): Promise<DealCommissionSignatureRow[]> => request("/admin/deal-commission/signatures"),
 };

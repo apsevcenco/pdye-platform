@@ -42,7 +42,7 @@ export default function Brokers() {
   ];
 
   const [form, setForm] = useState({
-    name: "", email: "", phone: "", company: "", license: "", experience: "", type: "", message: "",
+    name: "", email: "", phone: "", company: "", address: "", license: "", experience: "", type: "", message: "",
   });
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
@@ -58,14 +58,28 @@ export default function Brokers() {
     setError("");
     setSending(true);
     try {
-      await supabase.from("leads").insert([{
+      const payload: Record<string, any> = {
         name: form.name,
         email: form.email,
         phone: form.phone || null,
+        company: form.company || null,
+        location: form.address || null,
         budget: `${form.experience}${form.company ? " · " + form.company : ""}${form.license ? " · License: " + form.license : ""}`,
         yacht_type: "Broker Application",
         message: `Partnership type: ${form.type || "—"}. ${form.message}`,
-      }]);
+      };
+      let { error: insertErr } = await supabase.from("leads").insert([payload]);
+      // Older lead schemas may not have the `location` or `company` columns yet —
+      // fall back to embedding them in the message so the data isn't lost.
+      if (insertErr && /column .* does not exist|Could not find the .* column/i.test(insertErr.message)) {
+        const fallback = { ...payload };
+        delete fallback.location;
+        delete fallback.company;
+        fallback.message = `Partnership type: ${form.type || "—"}. ${form.message}\n\nCompany: ${form.company || "—"}\nAddress: ${form.address || "—"}`;
+        const retry = await supabase.from("leads").insert([fallback]);
+        insertErr = retry.error;
+      }
+      if (insertErr) console.warn("[brokers] lead insert failed:", insertErr.message);
     } catch (_) {}
     setSending(false);
     setSubmitted(true);
@@ -174,6 +188,10 @@ export default function Brokers() {
                     <label className={labelClass}>Agency / Company</label>
                     <input value={form.company} onChange={e => setF("company", e.target.value)} className={inputClass} placeholder="Sforza Maritime" />
                   </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Address</label>
+                  <input value={form.address} onChange={e => setF("address", e.target.value)} className={inputClass} placeholder="Via dei Marinai 12, 80133 Napoli, Italy" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>

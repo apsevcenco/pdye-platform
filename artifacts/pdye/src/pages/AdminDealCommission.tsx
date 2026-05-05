@@ -1,20 +1,35 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Anchor, ArrowLeft, FileText, Loader2, Save, History, Download, Scale } from "lucide-react";
+import { Anchor, ArrowLeft, FileText, Loader2, Save, History, Download, Scale, Briefcase, Crown } from "lucide-react";
 import {
   dealCommissionApi,
   triggerBlobDownload,
-  type DealCommissionDocument,
   type DealCommissionAdminBundle,
+  type DealCommissionAudienceBundle,
+  type DealCommissionAudience,
   type DealCommissionSignatureRow,
 } from "@/lib/dealRoomApi";
 
+const AUDIENCE_LABELS: Record<DealCommissionAudience, { label: string; help: string; Icon: typeof Briefcase }> = {
+  broker: {
+    label: "Broker template",
+    help: "Used in deal rooms where the seller party is a broker.",
+    Icon: Briefcase,
+  },
+  owner: {
+    label: "Owner template",
+    help: "Used in deal rooms where the seller party is the yacht owner directly.",
+    Icon: Crown,
+  },
+};
+
 export default function AdminDealCommission() {
-  const [active, setActive] = useState<(DealCommissionDocument & { created_by?: string | null }) | null>(null);
-  const [history, setHistory] = useState<DealCommissionAdminBundle["history"]>([]);
+  const [bundle, setBundle] = useState<DealCommissionAdminBundle | null>(null);
   const [signatures, setSignatures] = useState<DealCommissionSignatureRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [audience, setAudience] = useState<DealCommissionAudience>("broker");
 
   const [editVersion, setEditVersion] = useState("");
   const [editTitle, setEditTitle] = useState("");
@@ -22,6 +37,10 @@ export default function AdminDealCommission() {
   const [publishing, setPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const audienceBundle: DealCommissionAudienceBundle | null = bundle ? bundle[audience] : null;
+  const active = audienceBundle?.active ?? null;
+  const history = audienceBundle?.history ?? [];
 
   async function handleDownloadSig(sig: DealCommissionSignatureRow) {
     setDownloadingId(sig.id);
@@ -40,17 +59,12 @@ export default function AdminDealCommission() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [bundle, sigs] = await Promise.all([
+      const [b, sigs] = await Promise.all([
         dealCommissionApi.adminGet(),
         dealCommissionApi.adminListSignatures(),
       ]);
-      setActive(bundle.active);
-      setHistory(bundle.history);
+      setBundle(b);
       setSignatures(sigs);
-      if (bundle.active) {
-        setEditTitle(bundle.active.title);
-        setEditContent(bundle.active.content);
-      }
     } catch (e: any) {
       setLoadError(e?.message || "Failed to load");
     } finally {
@@ -59,6 +73,16 @@ export default function AdminDealCommission() {
   }
 
   useEffect(() => { load(); }, []);
+
+  // When audience changes (or bundle reloads), prefill the editor with that audience's active doc.
+  useEffect(() => {
+    if (!bundle) return;
+    const a = bundle[audience]?.active;
+    setEditTitle(a?.title || "");
+    setEditContent(a?.content || "");
+    setEditVersion("");
+    setPublishMessage(null);
+  }, [audience, bundle]);
 
   // Inject Great Vibes for the signed-name column.
   useEffect(() => {
@@ -81,9 +105,10 @@ export default function AdminDealCommission() {
       return;
     }
     if (!confirm(
-      `Publish version "${editVersion.trim()}"?\n\n` +
-      `This will replace the current active Commission Agreement. New deal rooms will use this version. ` +
-      `Existing signatures remain valid for the version they signed.`
+      `Publish version "${editVersion.trim()}" of the ${AUDIENCE_LABELS[audience].label}?\n\n` +
+      `This will replace the current active ${audience}-side Commission Agreement. ` +
+      `New deal rooms with a ${audience}-side seller will use this version. ` +
+      `The other audience's template is unaffected. Existing signatures remain valid for the version they signed.`
     )) return;
 
     setPublishing(true);
@@ -93,8 +118,9 @@ export default function AdminDealCommission() {
         version: editVersion.trim(),
         title: editTitle.trim() || "Commission Agreement",
         content: editContent,
+        audience,
       });
-      setPublishMessage({ type: "ok", text: `Published version ${editVersion.trim()} as the active Commission Agreement.` });
+      setPublishMessage({ type: "ok", text: `Published ${audience} version ${editVersion.trim()} as the active template.` });
       setEditVersion("");
       await load();
     } catch (e: any) {
@@ -135,13 +161,48 @@ export default function AdminDealCommission() {
           <div className="border border-red-500/30 bg-red-500/5 p-6 text-red-300 text-sm">{loadError}</div>
         )}
 
-        {!loading && !loadError && (
+        {!loading && !loadError && bundle && (
           <>
+            {/* AUDIENCE TABS */}
+            <section>
+              <div className="text-[10px] uppercase tracking-widest text-white/40 mb-3">Audience</div>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {(Object.keys(AUDIENCE_LABELS) as DealCommissionAudience[]).map(a => {
+                  const meta = AUDIENCE_LABELS[a];
+                  const Icon = meta.Icon;
+                  const isActive = audience === a;
+                  const audienceActiveVer = bundle[a]?.active?.version;
+                  return (
+                    <button
+                      key={a}
+                      onClick={() => setAudience(a)}
+                      className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs uppercase tracking-widest border transition-colors ${
+                        isActive
+                          ? "border-[#c8a46b] bg-[#c8a46b]/10 text-[#c8a46b]"
+                          : "border-white/10 text-white/60 hover:border-white/30 hover:text-white"
+                      }`}
+                    >
+                      <Icon size={14} />
+                      {meta.label}
+                      {audienceActiveVer && (
+                        <span className={`ml-1 text-[10px] font-mono ${isActive ? "text-[#c8a46b]/80" : "text-white/40"}`}>
+                          v{audienceActiveVer}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-white/45 text-xs">{AUDIENCE_LABELS[audience].help}</p>
+            </section>
+
             {/* CURRENT ACTIVE DOCUMENT */}
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Scale size={16} className="text-[#c8a46b]" />
-                <h2 className="font-display text-xl">Current Active Commission Agreement</h2>
+                <h2 className="font-display text-xl">
+                  Current Active Commission Agreement — {AUDIENCE_LABELS[audience].label}
+                </h2>
               </div>
               {active ? (
                 <div className="border border-white/10 bg-[#0a1426] p-6">
@@ -160,7 +221,7 @@ export default function AdminDealCommission() {
                 </div>
               ) : (
                 <div className="border border-yellow-500/30 bg-yellow-500/5 p-6 text-yellow-200 text-sm">
-                  No active Commission Agreement. Publish the first version below.
+                  No active {audience}-side Commission Agreement. Publish the first version below.
                 </div>
               )}
             </section>
@@ -169,7 +230,7 @@ export default function AdminDealCommission() {
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Save size={16} className="text-[#c8a46b]" />
-                <h2 className="font-display text-xl">Publish New Version</h2>
+                <h2 className="font-display text-xl">Publish New Version — {AUDIENCE_LABELS[audience].label}</h2>
               </div>
               <div className="border border-[#c8a46b]/25 bg-[#c8a46b]/5 p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -215,7 +276,7 @@ export default function AdminDealCommission() {
                     disabled={publishing}
                     className="bg-[#c8a46b] text-[#070f1a] font-bold text-xs uppercase tracking-widest px-8 py-3 disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90"
                   >
-                    {publishing ? "Publishing…" : "Publish New Version"}
+                    {publishing ? "Publishing…" : `Publish New ${audience === "owner" ? "Owner" : "Broker"} Version`}
                   </button>
                 </div>
               </div>
@@ -225,7 +286,7 @@ export default function AdminDealCommission() {
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <History size={16} className="text-[#c8a46b]" />
-                <h2 className="font-display text-xl">Version History</h2>
+                <h2 className="font-display text-xl">Version History — {AUDIENCE_LABELS[audience].label}</h2>
               </div>
               <div className="border border-white/10 bg-[#0a1426]">
                 <table className="w-full text-sm">
@@ -268,6 +329,7 @@ export default function AdminDealCommission() {
                 <FileText size={16} className="text-[#c8a46b]" />
                 <h2 className="font-display text-xl">Signature Log ({signatures.length})</h2>
               </div>
+              <p className="text-white/45 text-xs mb-3">Signatures across all audiences and deal rooms.</p>
               <div className="border border-white/10 bg-[#0a1426] overflow-x-auto">
                 <table className="w-full text-sm min-w-[1100px]">
                   <thead className="text-[10px] uppercase tracking-widest text-white/40 border-b border-white/5">

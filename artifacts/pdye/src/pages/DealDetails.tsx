@@ -1000,6 +1000,7 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
           {showCommissionForm && (
             <div className="mt-4">
               <CommissionSigningForm
+                roomId={room.id}
                 onAccept={signCommission}
                 accepting={acceptingCommission}
                 signError={commissionSignError}
@@ -1331,9 +1332,11 @@ function NdaSigningForm({
    10b. COMMISSION SIGNING FORM
    ═══════════════════════════════════════════════════ */
 function CommissionSigningForm({
+  roomId,
   onAccept, accepting, signError, versionStale,
   mySide, signedSide, pdfDownloading, onDownloadSignedCommission,
 }: {
+  roomId: string;
   onAccept: (payload: {
     signature_name: string;
     accepted_read: boolean;
@@ -1376,7 +1379,7 @@ function CommissionSigningForm({
       setDocLoading(true);
       setDocError(null);
       try {
-        const d = await dealCommissionApi.getDocument();
+        const d = await dealCommissionApi.getDocument({ roomId });
         if (!cancelled) setDoc(d);
       } catch (e: any) {
         if (!cancelled) setDocError(e?.message || "Failed to load Commission Agreement");
@@ -1386,7 +1389,7 @@ function CommissionSigningForm({
     }
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [roomId]);
 
   const allAccepted = acceptedRead && acceptedUnderstand && acceptedAgree;
   const nameValid = signatureName.trim().length >= 3;

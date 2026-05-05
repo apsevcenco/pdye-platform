@@ -86,6 +86,13 @@ function sha256Hex(s: string): string {
   return crypto.createHash("sha256").update(s, "utf8").digest("hex");
 }
 
+type Audience = "broker" | "owner";
+const AUDIENCES: Audience[] = ["broker", "owner"];
+
+function normalizeAudience(v: unknown): Audience {
+  return v === "owner" ? "owner" : "broker";
+}
+
 let migrationDone = false;
 async function runMigration(): Promise<void> {
   if (migrationDone) return;
@@ -95,7 +102,7 @@ async function runMigration(): Promise<void> {
     await client.query(`
       CREATE TABLE IF NOT EXISTS deal_commission_documents (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        version text NOT NULL UNIQUE,
+        version text NOT NULL,
         title text NOT NULL,
         content text NOT NULL,
         content_hash text NOT NULL,
@@ -104,9 +111,28 @@ async function runMigration(): Promise<void> {
         created_at timestamptz NOT NULL DEFAULT now()
       );
     `);
+    // Add audience column for dual templates (broker / owner). Default 'broker' so
+    // any pre-existing rows get backfilled correctly.
     await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS deal_commission_documents_one_active
-        ON deal_commission_documents ((is_active)) WHERE is_active = true;
+      ALTER TABLE deal_commission_documents
+        ADD COLUMN IF NOT EXISTS audience text NOT NULL DEFAULT 'broker';
+    `);
+    // The legacy schema put a column-level UNIQUE on version; drop it so two
+    // audiences can share a version label like "1.0".
+    await client.query(`
+      ALTER TABLE deal_commission_documents
+        DROP CONSTRAINT IF EXISTS deal_commission_documents_version_key;
+    `);
+    // Composite unique on (version, audience).
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS deal_commission_documents_version_audience_uniq
+        ON deal_commission_documents (version, audience);
+    `);
+    // Replace legacy single-active index with one active per audience.
+    await client.query(`DROP INDEX IF EXISTS deal_commission_documents_one_active;`);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS deal_commission_documents_one_active_per_audience
+        ON deal_commission_documents (audience) WHERE is_active = true;
     `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS deal_commission_signatures (
@@ -139,19 +165,31 @@ async function runMigration(): Promise<void> {
       CREATE INDEX IF NOT EXISTS deal_commission_signatures_user_idx
         ON deal_commission_signatures (user_id);
     `);
-    // Seed initial v1.0 if no active document.
-    const { rows: active } = await client.query(
-      `SELECT 1 FROM deal_commission_documents WHERE is_active = true LIMIT 1`
-    );
-    if (active.length === 0) {
-      const hash = sha256Hex(INITIAL_COMMISSION_CONTENT);
-      await client.query(
-        `INSERT INTO deal_commission_documents (version, title, content, content_hash, is_active)
-         VALUES ($1, $2, $3, $4, true)
-         ON CONFLICT (version) DO NOTHING`,
-        [INITIAL_COMMISSION_VERSION, INITIAL_COMMISSION_TITLE, INITIAL_COMMISSION_CONTENT, hash]
+    // Seed initial v1.0 per audience if missing. Owner template starts as a clone
+    // of the broker content — admin edits the commission % afterwards.
+    for (const audience of AUDIENCES) {
+      const { rows: active } = await client.query(
+        `SELECT 1 FROM deal_commission_documents WHERE is_active = true AND audience = $1 LIMIT 1`,
+        [audience]
       );
-      console.log(`[deal-commission] Seeded initial Commission v${INITIAL_COMMISSION_VERSION} (hash=${hash.slice(0, 12)}…)`);
+      if (active.length === 0) {
+        const title =
+          audience === "owner"
+            ? `${INITIAL_COMMISSION_TITLE} (Owner)`
+            : INITIAL_COMMISSION_TITLE;
+        const content =
+          audience === "owner"
+            ? `${INITIAL_COMMISSION_CONTENT}\n\n[Note: This is the OWNER-side template. Admin should edit the commission percentages in Section 3 to reflect the agreed owner-direct rate.]`
+            : INITIAL_COMMISSION_CONTENT;
+        const hash = sha256Hex(content);
+        await client.query(
+          `INSERT INTO deal_commission_documents (version, title, content, content_hash, is_active, audience)
+           VALUES ($1, $2, $3, $4, true, $5)
+           ON CONFLICT (version, audience) DO NOTHING`,
+          [INITIAL_COMMISSION_VERSION, title, content, hash, audience]
+        );
+        console.log(`[deal-commission] Seeded ${audience} v${INITIAL_COMMISSION_VERSION} (hash=${hash.slice(0, 12)}…)`);
+      }
     }
     console.log(`[deal-commission] Migration complete`);
   } finally {
@@ -192,19 +230,63 @@ async function lookupUserEmail(userId: string, fallback?: string | null): Promis
   }
 }
 
+async function lookupUserRole(userId: string): Promise<string> {
+  const sb = supabaseAdmin();
+  if (!sb) return "broker";
+  try {
+    const { data } = await sb
+      .from("users")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle();
+    return ((data as { role?: string } | null)?.role) || "broker";
+  } catch (e) {
+    console.warn(`[deal-commission] Could not look up role for ${userId}:`, (e as Error).message);
+    return "broker";
+  }
+}
+
+function audienceForRole(role: string): Audience {
+  return role === "owner" ? "owner" : "broker";
+}
+
+async function resolveAudienceForRoom(
+  client: pg.PoolClient | pg.Pool,
+  roomId: string
+): Promise<Audience> {
+  const { rows } = await client.query(
+    "SELECT seller_user_id FROM deal_rooms WHERE id = $1",
+    [roomId]
+  );
+  if (rows.length === 0 || !rows[0].seller_user_id) return "broker";
+  const role = await lookupUserRole(String(rows[0].seller_user_id));
+  return audienceForRole(role);
+}
+
 /* ─────────────────── GET /deal-commission/document ─────────────────── */
 
-router.get("/deal-commission/document", requireUser, async (_req, res) => {
+router.get("/deal-commission/document", requireUser, async (req, res) => {
   try {
+    let audience: Audience;
+    const roomIdParam = typeof req.query.roomId === "string" ? req.query.roomId : "";
+    const audienceParam = typeof req.query.audience === "string" ? req.query.audience : "";
+    if (roomIdParam) {
+      audience = await resolveAudienceForRoom(db(), roomIdParam);
+    } else if (audienceParam) {
+      audience = normalizeAudience(audienceParam);
+    } else {
+      audience = "broker";
+    }
     const { rows } = await db().query(
-      `SELECT id, version, title, content, content_hash, created_at
+      `SELECT id, version, title, content, content_hash, audience, created_at
          FROM deal_commission_documents
-        WHERE is_active = true
+        WHERE is_active = true AND audience = $1
         ORDER BY created_at DESC
-        LIMIT 1`
+        LIMIT 1`,
+      [audience]
     );
     if (rows.length === 0) {
-      res.status(404).json({ error: "No active Commission Agreement document configured" });
+      res.status(404).json({ error: `No active ${audience} Commission Agreement document configured` });
       return;
     }
     res.json(rows[0]);
@@ -295,13 +377,15 @@ router.post(
         return;
       }
 
-      // Verify the active document still matches caller's hash.
+      // Verify the active document for THIS room's audience still matches caller's hash.
+      const audience = await resolveAudienceForRoom(client, roomId);
       const { rows: docRows } = await client.query(
-        `SELECT id, version, title, content, content_hash
+        `SELECT id, version, title, content, content_hash, audience
            FROM deal_commission_documents
-          WHERE is_active = true
+          WHERE is_active = true AND audience = $1
           ORDER BY created_at DESC
-          LIMIT 1`
+          LIMIT 1`,
+        [audience]
       );
       if (docRows.length === 0) {
         await client.query("ROLLBACK");
@@ -607,19 +691,24 @@ router.get(
 
 router.get("/admin/deal-commission", requireAdmin, async (_req, res) => {
   try {
-    const { rows: active } = await db().query(
-      `SELECT id, version, title, content, content_hash, created_at, created_by
+    const { rows: actives } = await db().query(
+      `SELECT id, version, title, content, content_hash, audience, created_at, created_by
          FROM deal_commission_documents
-        WHERE is_active = true
-        ORDER BY created_at DESC
-        LIMIT 1`
+        WHERE is_active = true`
     );
     const { rows: history } = await db().query(
-      `SELECT id, version, title, content_hash, is_active, created_at, created_by
+      `SELECT id, version, title, content_hash, is_active, audience, created_at, created_by
          FROM deal_commission_documents
         ORDER BY created_at DESC`
     );
-    res.json({ active: active[0] || null, history });
+    const bundleFor = (audience: Audience) => ({
+      active: actives.find(a => a.audience === audience) || null,
+      history: history.filter(h => h.audience === audience),
+    });
+    res.json({
+      broker: bundleFor("broker"),
+      owner: bundleFor("owner"),
+    });
   } catch (e: any) {
     console.error("[deal-commission] admin get error:", e);
     res.status(500).json({ error: e.message });
@@ -629,7 +718,7 @@ router.get("/admin/deal-commission", requireAdmin, async (_req, res) => {
 /* ─────────────── Admin: publish a new active version ─────────────── */
 
 router.put("/admin/deal-commission", requireAdmin, async (req: Request, res: Response) => {
-  const { version, title, content } = req.body || {};
+  const { version, title, content, audience: audienceRaw } = req.body || {};
   if (typeof version !== "string" || version.trim().length === 0) {
     res.status(400).json({ error: "version is required" });
     return;
@@ -642,6 +731,7 @@ router.put("/admin/deal-commission", requireAdmin, async (req: Request, res: Res
     res.status(400).json({ error: "content is required (min 100 chars)" });
     return;
   }
+  const audience = normalizeAudience(audienceRaw);
   const trimmedVersion = version.trim();
   const trimmedTitle = title.trim();
   const hash = sha256Hex(content);
@@ -649,20 +739,23 @@ router.put("/admin/deal-commission", requireAdmin, async (req: Request, res: Res
   const client = await db().connect();
   try {
     await client.query("BEGIN");
-    // Deactivate all existing.
-    await client.query(`UPDATE deal_commission_documents SET is_active = false WHERE is_active = true`);
-    // Insert new active version.
+    // Deactivate the currently active doc for THIS audience only.
+    await client.query(
+      `UPDATE deal_commission_documents SET is_active = false WHERE is_active = true AND audience = $1`,
+      [audience]
+    );
+    // Insert new active version (per-audience uniqueness on version+audience).
     const { rows } = await client.query(
-      `INSERT INTO deal_commission_documents (version, title, content, content_hash, is_active, created_by)
-       VALUES ($1, $2, $3, $4, true, $5)
-       ON CONFLICT (version) DO UPDATE
+      `INSERT INTO deal_commission_documents (version, title, content, content_hash, is_active, created_by, audience)
+       VALUES ($1, $2, $3, $4, true, $5, $6)
+       ON CONFLICT (version, audience) DO UPDATE
          SET title = EXCLUDED.title,
              content = EXCLUDED.content,
              content_hash = EXCLUDED.content_hash,
              is_active = true,
              created_by = COALESCE(EXCLUDED.created_by, deal_commission_documents.created_by)
-       RETURNING id, version, title, content_hash, is_active, created_at`,
-      [trimmedVersion, trimmedTitle, content, hash, req.authUser?.id || null]
+       RETURNING id, version, title, content_hash, is_active, audience, created_at`,
+      [trimmedVersion, trimmedTitle, content, hash, req.authUser?.id || null, audience]
     );
     await client.query("COMMIT");
     res.json({ success: true, document: rows[0] });
