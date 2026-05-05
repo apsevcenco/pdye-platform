@@ -1711,8 +1711,79 @@ function DealsManageView() {
         meta: { buyer_email: buyerEmail || null, seller_email: sellerEmail || null, yacht_id: yachtId },
       });
 
-      setShowCreate(false);
-      setCreateForm({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
+      // Auto-send Deal NDA on creation. Without this the room stays in
+      // 'draft' with nda_status='not_sent' and seller/buyer would see
+      // no NDA form in their Legal tab — admin used to click a separate
+      // "Send NDA" button. Now the NDA goes out immediately on create.
+      //
+      // Order matters for partial-failure recovery: envelopes + per-side
+      // status flags first; the room-level `status: nda_pending` flip
+      // is LAST. If any earlier step fails the room stays `status:
+      // draft`, which is exactly what canSendNda gates on — so the
+      // manual "Send NDA" button remains available for retry.
+      let ndaSentOk = true;
+      try {
+        const now = new Date().toISOString();
+
+        if (buyerUserId) {
+          await dealRoomApi.createNdaEnvelope({
+            deal_room_id: room.id,
+            user_id: buyerUserId,
+            side: "buyer",
+            provider: "internal",
+            status: "sent",
+            sent_at: now,
+          });
+        }
+        if (sellerUserId) {
+          await dealRoomApi.createNdaEnvelope({
+            deal_room_id: room.id,
+            user_id: sellerUserId,
+            side: "seller",
+            provider: "internal",
+            status: "sent",
+            sent_at: now,
+          });
+        }
+
+        const ndaUpdates: Record<string, any> = { status: "nda_pending" };
+        if (buyerUserId) {
+          ndaUpdates.buyer_nda_status = "sent";
+          ndaUpdates.buyer_nda_sent_at = now;
+        }
+        if (sellerUserId) {
+          ndaUpdates.seller_nda_status = "sent";
+          ndaUpdates.seller_nda_sent_at = now;
+        }
+        await dealRoomApi.update(room.id, ndaUpdates);
+
+        await dealRoomApi.createAuditLog({
+          entity_type: "deal_room",
+          entity_id: room.id,
+          user_id: user?.id || "",
+          action: "nda_sent_by_admin",
+          meta: { buyer: !!buyerUserId, seller: !!sellerUserId, auto: true },
+        });
+        await dealRoomApi.sendMessage(room.id, {
+          sender_id: user?.id || "",
+          message: "[SIMULATION] NDA documents sent automatically on room creation. Participants can sign from their Deal Room → Legal tab.",
+          is_system: true,
+        });
+      } catch (ndaErr: any) {
+        ndaSentOk = false;
+        console.warn("[Admin] auto-send NDA on createRoom failed:", ndaErr);
+        setCreateError(
+          `Deal room created, but auto-sending NDA failed: ${ndaErr?.message || "Unknown error"}. Open the room and click "Send NDA" to retry.`
+        );
+      }
+
+      // Only close the modal if everything succeeded. On NDA failure we
+      // keep the modal open so the red error block stays visible — admin
+      // can dismiss it manually after reading the message.
+      if (ndaSentOk) {
+        setShowCreate(false);
+        setCreateForm({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
+      }
       await load();
     } catch (e: any) {
       setCreateError(e.message || "Error creating deal room.");
@@ -1895,7 +1966,15 @@ function DealsManageView() {
 
   if (selectedRoom) {
     const cfg = DEAL_ROOM_STATUS_CONFIG[selectedRoom.status] || DEAL_ROOM_STATUS_CONFIG.draft;
-    const canSendNda = selectedRoom.status === "draft" && (selectedRoom.buyer_nda_status === "not_sent" || (selectedRoom.seller_user_id && selectedRoom.seller_nda_status === "not_sent"));
+    // Allow manual "Send NDA" not only in the initial 'draft' state but
+    // also in 'nda_pending' when any side is still 'not_sent'. This is the
+    // recovery path for the auto-send-on-create flow: if the per-side
+    // envelope/status writes succeeded but the room-level status flip or
+    // a later step failed (or vice-versa), admin can re-trigger sending
+    // for whichever side is still missing.
+    const canSendNda = (selectedRoom.status === "draft" || selectedRoom.status === "nda_pending") &&
+      (selectedRoom.buyer_nda_status === "not_sent" ||
+        (selectedRoom.seller_user_id && selectedRoom.seller_nda_status === "not_sent"));
     const isTerminal = selectedRoom.status === "closed" || selectedRoom.status === "cancelled";
     return (
       <div>
