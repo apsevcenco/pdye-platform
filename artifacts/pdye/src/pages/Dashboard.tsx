@@ -420,6 +420,10 @@ export function ListingsDashboard({ userId, role }: { userId: string; role: stri
               const dealCfg = DEAL_STATUS[yacht.deal_status || "none"] || DEAL_STATUS.none;
               const lst = listingCfg(yacht.listing_status);
               const lstKey = (yacht.listing_status || "draft") as ListingStatus;
+              // New listings are auto-submitted from the AddYacht form, so
+              // most listings will already be 'pending' here. Still allow
+              // submit for 'draft' (legacy data, or fallback when auto-submit
+              // failed) and 'rejected' (owner edited and resubmits).
               const canSubmit = lstKey === "draft" || lstKey === "rejected";
               const thumb = yacht.main_image || yacht.image;
               return (

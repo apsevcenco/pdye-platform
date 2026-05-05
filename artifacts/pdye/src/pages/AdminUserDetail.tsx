@@ -27,6 +27,40 @@ import {
 import { supabase } from "@/lib/supabase";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaSignature } from "@/lib/platformNdaApi";
 import { archiveUserAction, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
+import { dealRoomApi } from "@/lib/dealRoomApi";
+
+type HistoryListing = {
+  id: string;
+  name: string | null;
+  builder: string | null;
+  length: string | null;
+  year: string | null;
+  price: string | null;
+  listing_status: string | null;
+  deal_status: string | null;
+  created_at: string;
+};
+
+type HistoryAccessRequest = {
+  id: string;
+  yacht_id: string;
+  yacht_name: string | null;
+  status: string | null;
+  message: string | null;
+  created_at: string;
+};
+
+type HistoryDealRoom = {
+  id: string;
+  room_number: string | null;
+  yacht_id: string | null;
+  yacht_name: string | null;
+  status: string | null;
+  created_at: string;
+  buyer_user_id: string | null;
+  seller_user_id: string | null;
+  archived?: boolean | null;
+};
 
 type UserRecord = {
   id: string;
@@ -92,6 +126,12 @@ export default function AdminUserDetail() {
   const [editForm, setEditForm] = useState({ name: "", company: "", phone: "", location: "", notes: "" });
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [listings, setListings] = useState<HistoryListing[]>([]);
+  const [accessRequests, setAccessRequests] = useState<HistoryAccessRequest[]>([]);
+  const [dealRooms, setDealRooms] = useState<HistoryDealRoom[]>([]);
+  const [historyError, setHistoryError] = useState("");
 
   async function toggleArchive() {
     if (!user) return;
@@ -176,8 +216,72 @@ export default function AdminUserDetail() {
     setNdaLoading(false);
   }
 
+  async function loadHistory(forUser: UserRecord) {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const [listingsRes, requestsRes, roomsRes] = await Promise.all([
+        // Owner's / broker's own listings
+        supabase
+          .from("yachts")
+          .select("id, name, builder, length, year, price, listing_status, deal_status, created_at")
+          .eq("owner_id", forUser.id)
+          .order("created_at", { ascending: false }),
+        // Access requests this user made (buyer/investor side)
+        supabase
+          .from("access_requests")
+          .select("id, yacht_id, status, message, created_at, yachts(name)")
+          .eq("requester_id", forUser.id)
+          .order("created_at", { ascending: false }),
+        // Deal rooms — best-effort; backend may 4xx for some role mixes
+        dealRoomApi.byUser(forUser.id).catch((e: any) => {
+          console.warn("[AdminUserDetail] deal rooms load failed:", e?.message || e);
+          return [] as any[];
+        }),
+      ]);
+
+      if (listingsRes.error) throw new Error(listingsRes.error.message);
+      setListings((listingsRes.data || []) as HistoryListing[]);
+
+      if (requestsRes.error) throw new Error(requestsRes.error.message);
+      const reqs: HistoryAccessRequest[] = (requestsRes.data || []).map((r: any) => ({
+        id: r.id,
+        yacht_id: r.yacht_id,
+        yacht_name: r.yachts?.name || null,
+        status: r.status || null,
+        message: r.message || null,
+        created_at: r.created_at,
+      }));
+      setAccessRequests(reqs);
+
+      // dealRoomApi.byUser returns rooms where user is buyer OR seller
+      const rooms: HistoryDealRoom[] = (Array.isArray(roomsRes) ? roomsRes : []).map((r: any) => ({
+        id: r.id,
+        room_number: r.room_number || null,
+        yacht_id: r.yacht_id || null,
+        yacht_name: r.yacht_name || r.yacht?.name || null,
+        status: r.status || null,
+        created_at: r.created_at,
+        buyer_user_id: r.buyer_user_id || null,
+        seller_user_id: r.seller_user_id || null,
+        archived: r.archived ?? null,
+      }));
+      setDealRooms(rooms);
+    } catch (e: any) {
+      console.error("[AdminUserDetail] history load failed", e);
+      setHistoryError(e?.message || "Failed to load history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   useEffect(() => { if (userId) loadUser(); }, [userId]);
-  useEffect(() => { if (user) loadSignatures(user); }, [user?.id]);
+  useEffect(() => {
+    if (user) {
+      loadSignatures(user);
+      loadHistory(user);
+    }
+  }, [user?.id]);
 
   async function toggleApproval() {
     if (!user) return;
@@ -488,13 +592,204 @@ export default function AdminUserDetail() {
           )}
         </div>
 
-        {/* Placeholder for future sections */}
-        <div className="bg-[#0f1d33]/50 border border-dashed border-white/8 p-6 text-center">
-          <p className="text-white/30 text-xs font-sans uppercase tracking-widest mb-2">Coming Soon</p>
-          <p className="text-white/40 text-sm font-sans">
-            Deal rooms, deal-level NDAs, commission agreements and activity history for this client will appear here.
-          </p>
+        {/* Client history */}
+        <ClientHistorySection
+          user={user}
+          loading={historyLoading}
+          error={historyError}
+          listings={listings}
+          accessRequests={accessRequests}
+          dealRooms={dealRooms}
+          onNavigate={setLocation}
+        />
+      </div>
+    </div>
+  );
+}
+
+function listingStatusStyle(s: string | null | undefined) {
+  switch ((s || "").toLowerCase()) {
+    case "approved": return "text-green-400 border-green-500/30 bg-green-500/10";
+    case "pending":  return "text-yellow-400 border-yellow-500/30 bg-yellow-500/10";
+    case "rejected": return "text-red-400 border-red-500/30 bg-red-500/10";
+    case "draft":    return "text-white/50 border-white/15 bg-white/5";
+    default:         return "text-white/50 border-white/15 bg-white/5";
+  }
+}
+
+function requestStatusStyle(s: string | null | undefined) {
+  switch ((s || "").toLowerCase()) {
+    case "approved":
+    case "granted":  return "text-green-400 border-green-500/30 bg-green-500/10";
+    case "pending":  return "text-yellow-400 border-yellow-500/30 bg-yellow-500/10";
+    case "rejected":
+    case "denied":   return "text-red-400 border-red-500/30 bg-red-500/10";
+    default:         return "text-white/50 border-white/15 bg-white/5";
+  }
+}
+
+function ClientHistorySection({
+  user, loading, error, listings, accessRequests, dealRooms, onNavigate,
+}: {
+  user: UserRecord;
+  loading: boolean;
+  error: string;
+  listings: HistoryListing[];
+  accessRequests: HistoryAccessRequest[];
+  dealRooms: HistoryDealRoom[];
+  onNavigate: (to: string) => void;
+}) {
+  const isOwnerOrBroker = user.role === "owner" || user.role === "broker";
+  const isBuyerSide = user.role === "investor" || user.role === "buyer";
+
+  return (
+    <div className="bg-[#0f1d33] border border-white/8 p-6 space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg text-white">Client History</h2>
+        <span className="text-white/30 text-xs font-sans uppercase tracking-widest">
+          {loading ? "Loading…" : "All activity"}
+        </span>
+      </div>
+
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-300 text-sm p-3">
+          {error}
         </div>
+      )}
+
+      {/* Listings — relevant for owners and brokers */}
+      {isOwnerOrBroker && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-white/80 text-sm font-sans uppercase tracking-wider">
+              Listings <span className="text-white/40">({listings.length})</span>
+            </h3>
+          </div>
+          {loading ? (
+            <div className="text-white/30 text-xs font-sans">Loading…</div>
+          ) : listings.length === 0 ? (
+            <div className="text-white/40 text-sm font-sans italic">No listings yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {listings.map(l => (
+                <button
+                  key={l.id}
+                  onClick={() => onNavigate(`/yacht/${l.id}`)}
+                  className="w-full text-left bg-[#0a1426] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
+                  data-testid={`history-listing-${l.id}`}
+                >
+                  <div className="min-w-0">
+                    <div className="text-white text-sm font-sans truncate">{l.name || "Untitled"}</div>
+                    <div className="text-white/40 text-xs font-sans truncate">
+                      {[l.builder, l.length, l.year, l.price].filter(Boolean).join(" · ") || "—"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-[10px] px-2 py-0.5 border uppercase tracking-wider font-bold ${listingStatusStyle(l.listing_status)}`}>
+                      {l.listing_status || "draft"}
+                    </span>
+                    <span className="text-white/30 text-[10px] font-sans">
+                      {fmtDate(l.created_at)}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Access Requests — relevant for buyers/investors */}
+      {isBuyerSide && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-white/80 text-sm font-sans uppercase tracking-wider">
+              Access Requests <span className="text-white/40">({accessRequests.length})</span>
+            </h3>
+          </div>
+          {loading ? (
+            <div className="text-white/30 text-xs font-sans">Loading…</div>
+          ) : accessRequests.length === 0 ? (
+            <div className="text-white/40 text-sm font-sans italic">No access requests yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {accessRequests.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => onNavigate(`/yacht/${r.yacht_id}`)}
+                  className="w-full text-left bg-[#0a1426] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
+                  data-testid={`history-request-${r.id}`}
+                >
+                  <div className="min-w-0">
+                    <div className="text-white text-sm font-sans truncate">
+                      {r.yacht_name || "—"}
+                    </div>
+                    {r.message && (
+                      <div className="text-white/40 text-xs font-sans truncate">{r.message}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-[10px] px-2 py-0.5 border uppercase tracking-wider font-bold ${requestStatusStyle(r.status)}`}>
+                      {r.status || "pending"}
+                    </span>
+                    <span className="text-white/30 text-[10px] font-sans">
+                      {fmtDate(r.created_at)}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Deal Rooms — show for everyone (admin needs full picture) */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-white/80 text-sm font-sans uppercase tracking-wider">
+            Deal Rooms <span className="text-white/40">({dealRooms.length})</span>
+          </h3>
+        </div>
+        {loading ? (
+          <div className="text-white/30 text-xs font-sans">Loading…</div>
+        ) : dealRooms.length === 0 ? (
+          <div className="text-white/40 text-sm font-sans italic">No deal rooms.</div>
+        ) : (
+          <div className="space-y-2">
+            {dealRooms.map(room => {
+              const side =
+                room.buyer_user_id === user.id ? "Buyer" :
+                room.seller_user_id === user.id ? "Seller" :
+                "—";
+              return (
+                <button
+                  key={room.id}
+                  onClick={() => onNavigate(`/dealroom/${room.id}`)}
+                  className="w-full text-left bg-[#0a1426] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
+                  data-testid={`history-deal-${room.id}`}
+                >
+                  <div className="min-w-0">
+                    <div className="text-white text-sm font-sans truncate">
+                      Room #{room.room_number || room.id.slice(0, 8)}
+                      {room.yacht_name ? ` · ${room.yacht_name}` : ""}
+                    </div>
+                    <div className="text-white/40 text-xs font-sans truncate">
+                      Role: {side}{room.archived ? " · Archived" : ""}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[10px] px-2 py-0.5 border uppercase tracking-wider font-bold text-primary border-primary/30 bg-primary/10">
+                      {room.status || "active"}
+                    </span>
+                    <span className="text-white/30 text-[10px] font-sans">
+                      {fmtDate(room.created_at)}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

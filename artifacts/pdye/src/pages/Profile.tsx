@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { User, Lock, Mail, Shield, Eye, EyeOff, CheckCircle2 } from "lucide-react";
-import { BuyerDashboard, ListingsDashboard, OwnerDashboard } from "./Dashboard";
+import { BuyerDashboard, ListingsDashboard } from "./Dashboard";
 
 const ROLE_LABELS: Record<string, string> = {
   investor: "Private Buyer",
@@ -118,9 +118,8 @@ export default function Profile() {
           {/* Role-specific workspace (non-admin only — admin uses /dashboard) */}
           {!isAdmin && (
             <div className="mb-10">
-              {role === "broker" && <ListingsDashboard userId={user.id} role={role} />}
+              {(role === "broker" || role === "owner") && <ListingsDashboard userId={user.id} role={role} />}
               {(role === "investor" || role === "buyer") && <BuyerDashboard userId={user.id} />}
-              {role === "owner" && <OwnerDashboard userId={user.id} />}
             </div>
           )}
 

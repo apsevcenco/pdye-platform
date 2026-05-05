@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Link, Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { yachtModerationApi } from "@/lib/yachtModerationApi";
 import { Layout } from "@/components/layout/Layout";
 import {
   ArrowLeft, Upload, X, Plus, CheckCircle, Loader2, Camera, Sparkles, ChevronLeft, ChevronRight,
@@ -329,22 +330,39 @@ export default function AddYacht() {
       deal_status: "none",
     };
 
-    // For NEW listings, start as 'draft' so they don't appear publicly until the
-    // owner explicitly hits "Submit for Approval" from the dashboard. For EDITS
-    // we never touch listing_status here — once approved, edits go live and
-    // must not silently revert to 'draft'.
+    // For NEW listings, insert as 'draft' first, then immediately call the
+    // moderation submit endpoint — that flips status to 'pending' AND fires the
+    // admin email + audit trail. The owner does NOT have to click another
+    // "Submit for Approval" button on the dashboard. For EDITS we never touch
+    // listing_status here — once approved, edits go live and must not silently
+    // revert to 'draft'.
     if (!editId) {
       payload.listing_status = "draft";
     }
 
     let error;
+    let newId: string | null = null;
     if (editId) {
       ({ error } = await supabase.from("yachts").update(payload).eq("id", editId).eq("owner_id", user.id));
     } else {
-      ({ error } = await supabase.from("yachts").insert([payload]));
+      const ins = await supabase.from("yachts").insert([payload]).select("id").single();
+      error = ins.error;
+      newId = (ins.data as { id?: string } | null)?.id || null;
     }
 
     if (error) { setErr(error.message); setSaving(false); return; }
+
+    // Auto-submit new listings for admin approval (single-click flow).
+    if (!editId && newId) {
+      try {
+        await yachtModerationApi.submit(newId);
+      } catch (e: any) {
+        // Non-fatal — listing is saved as draft and the user can resubmit
+        // manually from the dashboard if the email/notification step failed.
+        console.warn("[AddYacht] auto-submit failed:", e?.message || e);
+      }
+    }
+
     setSaving(false);
     setSaved(true);
     setTimeout(() => navigate("/dashboard"), 1500);
