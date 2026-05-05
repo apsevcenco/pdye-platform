@@ -229,15 +229,27 @@ router.post("/deal-rooms", requireAdmin, validateBody(CreateDealRoomBody), async
   try {
     // Auto-resolve seller from yachts.owner_id when admin didn't pass one.
     // The owner is the authoritative seller — admin shouldn't have to type it.
+    console.log(`[deal-rooms:create] start yacht=${yacht_id} buyer=${buyer_user_id} seller_passed=${seller_user_id || "none"}`);
     if (!seller_user_id && yacht_id) {
       const sb = getSupabaseAdmin();
-      if (sb) {
+      if (!sb) {
+        console.warn("[deal-rooms:create] Supabase admin client not configured — cannot auto-resolve seller. Check SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY env vars on the API server.");
+      } else {
         try {
-          const { data: yacht } = await sb.from("yachts").select("owner_id").eq("id", yacht_id).maybeSingle();
+          const { data: yacht, error: yErr } = await sb.from("yachts").select("owner_id, name").eq("id", yacht_id).maybeSingle();
+          if (yErr) {
+            console.warn(`[deal-rooms:create] yacht lookup error: ${yErr.message}`);
+          }
           const ownerId = (yacht as any)?.owner_id;
-          if (ownerId) seller_user_id = ownerId;
+          const yachtName = (yacht as any)?.name;
+          if (ownerId) {
+            seller_user_id = ownerId;
+            console.log(`[deal-rooms:create] auto-resolved seller=${ownerId} from yacht "${yachtName || yacht_id}"`);
+          } else {
+            console.warn(`[deal-rooms:create] yacht ${yacht_id} ("${yachtName || "?"}") has NO owner_id — seller will NOT be attached. Set the owner on the yacht first.`);
+          }
         } catch (e) {
-          console.warn("[deal-rooms] auto-resolve seller from yacht failed:", (e as Error).message);
+          console.warn("[deal-rooms:create] auto-resolve seller from yacht failed:", (e as Error).message);
         }
       }
     }
@@ -291,11 +303,13 @@ router.post("/deal-rooms", requireAdmin, validateBody(CreateDealRoomBody), async
            VALUES ($1, $2, 'Vessel owner automatically attached to this Deal Room as Seller. NDA invitation sent.', true)`,
           [room.id, creatorId]
         );
+        console.log(`[deal-rooms:create] seller side-effects ok (room=${room.id}, seller=${seller_user_id}) — firing NDA email`);
         // Fire the email invite (non-blocking).
         void sendDealNdaInvite({ deal_room_id: room.id, user_id: seller_user_id, side: "seller" })
-          .catch(err => console.error("[deal-rooms] seller NDA invite failed:", err?.message || err));
+          .then(() => console.log(`[deal-rooms:create] seller NDA invite email path completed (room=${room.id})`))
+          .catch(err => console.error(`[deal-rooms:create] seller NDA invite FAILED (room=${room.id}):`, err?.message || err));
       } catch (sideErr: any) {
-        console.error("[deal-rooms] seller-side auto-setup failed:", sideErr?.message || sideErr);
+        console.error(`[deal-rooms:create] seller-side auto-setup FAILED (room=${room.id}):`, sideErr?.message || sideErr);
         // Non-fatal: room is already created; admin can retry via Send NDA button.
       }
     }
@@ -531,6 +545,7 @@ async function sendDealNdaInvite(opts: { deal_room_id: string; user_id: string; 
     console.warn(`[deal-rooms] No email found for user ${user_id} — skipping NDA invite`);
     return;
   }
+  console.log(`[deal-rooms] Sending NDA invite to ${toEmail} (side=${side}, room=${dealRoomCode})`);
 
   let yachtName: string | null = null;
   if (room.yacht_id) {
