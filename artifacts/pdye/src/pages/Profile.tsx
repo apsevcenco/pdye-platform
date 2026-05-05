@@ -108,7 +108,7 @@ export default function Profile() {
   return (
     <CabinetLayout>
       <div className="min-h-screen bg-background pt-8 pb-20">
-        <div className="max-w-5xl mx-auto px-3 sm:px-6">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
           <div className="mb-10">
             <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-2">Account</p>
             <h1 className="font-display text-4xl text-white font-normal">My Profile</h1>

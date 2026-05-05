@@ -142,7 +142,7 @@ export default function DealRoomPage() {
         <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-12">
             <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Secure Platform</span>
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-4">My Opportunities</h1>
+            <h1 className="font-display text-3xl md:text-4xl text-white mb-4">My Deal Rooms</h1>
             <p className="text-white/50 font-sans max-w-xl">
               Track your yacht access requests, approved specifications, and active deal rooms.
             </p>
@@ -191,7 +191,7 @@ export default function DealRoomPage() {
           ) : rooms.length === 0 && approvedSpecs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <Anchor size={40} className="text-white/15 mb-4" />
-              <p className="font-display text-xl text-white/30 mb-2">No Active Opportunities</p>
+              <p className="font-display text-xl text-white/30 mb-2">No Active Deal Rooms</p>
               <p className="text-white/25 text-sm font-sans mb-6">Browse yacht listings and request details to start.</p>
               <Link href="/yachts">
                 <div className="bg-primary text-background px-6 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors cursor-pointer">

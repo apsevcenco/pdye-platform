@@ -382,8 +382,8 @@ export default function AddYacht() {
 
   return (
     <CabinetLayout>
-      <div className="min-h-screen bg-background pt-8 pb-16">
-        <div className="max-w-5xl mx-auto px-6">
+      <div className="min-h-screen bg-background pt-8 pb-20">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
 
           {/* Back */}
           <div className="mb-8">

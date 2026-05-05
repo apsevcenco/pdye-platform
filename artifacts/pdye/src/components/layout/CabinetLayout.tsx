@@ -80,8 +80,19 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
   const isAdmin = userProfile?.role === "admin";
   const items = useMemo(() => getNavItems(userProfile?.role ?? null), [userProfile?.role]);
   const displayName = userProfile?.email || user?.email || "Account";
+  // Display label for the role badge in the header. Single source of truth so
+  // we never accidentally surface raw role keys (e.g. "investor", which we
+  // retired in favour of "Private Buyer") to end users. Falls back to a
+  // capitalised version of the role if it isn't in the map.
+  const ROLE_LABELS: Record<string, string> = {
+    investor: "Private Buyer",
+    buyer:    "Private Buyer",
+    broker:   "Broker",
+    owner:    "Owner",
+    admin:    "Admin",
+  };
   const roleLabel = userProfile?.role
-    ? userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)
+    ? (ROLE_LABELS[userProfile.role] ?? (userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)))
     : "";
 
   async function handleLogout() {

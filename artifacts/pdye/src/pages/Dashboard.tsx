@@ -447,10 +447,15 @@ export function ListingsDashboard({ userId, role }: { userId: string; role: stri
                       {lst.label}
                     </span>
 
-                    {/* Deal status */}
-                    <span className={`hidden lg:flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${dealCfg.style}`} title="Deal Room status">
-                      {dealCfg.label}
-                    </span>
+                    {/* Deal status — only show when there is an actual deal-room
+                        link (pending/approved/rejected). For "none" we hide the
+                        badge so the row doesn't carry a misleading "Not
+                        Submitted" notification next to the publication status. */}
+                    {yacht.deal_status && yacht.deal_status !== "none" && (
+                      <span className={`hidden lg:flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${dealCfg.style}`} title="Deal Room status">
+                        {dealCfg.label}
+                      </span>
+                    )}
 
                     {/* Private badge */}
                     {yacht.is_private && (
@@ -1014,8 +1019,8 @@ export default function Dashboard() {
 
   return (
     <CabinetLayout>
-      <div className="min-h-screen bg-background pt-28 pb-16">
-        <div className="max-w-5xl mx-auto px-3 sm:px-6">
+      <div className="min-h-screen bg-background pt-8 pb-20">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
 
           {/* Header */}
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
