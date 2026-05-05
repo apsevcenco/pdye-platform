@@ -1804,61 +1804,84 @@ function DealsManageView() {
 
   async function sendNda(room: RoomWithDetails) {
     setActionLoading(true);
-    const now = new Date().toISOString();
-    const updates: Record<string, any> = { updated_at: now };
-    if (room.buyer_nda_status === "not_sent") {
-      updates.buyer_nda_status = "sent";
-      updates.buyer_nda_sent_at = now;
-    }
-    if (room.seller_nda_status === "not_sent" && room.seller_user_id) {
-      updates.seller_nda_status = "sent";
-      updates.seller_nda_sent_at = now;
-    }
-    if (room.status === "draft") updates.status = "nda_pending";
+    try {
+      const now = new Date().toISOString();
+      const updates: Record<string, any> = { updated_at: now };
+      if (room.buyer_nda_status === "not_sent") {
+        updates.buyer_nda_status = "sent";
+        updates.buyer_nda_sent_at = now;
+      }
+      if (room.seller_nda_status === "not_sent" && room.seller_user_id) {
+        updates.seller_nda_status = "sent";
+        updates.seller_nda_sent_at = now;
+      }
+      if (room.status === "draft") updates.status = "nda_pending";
 
-    await dealRoomApi.update(room.id, updates);
+      await dealRoomApi.update(room.id, updates);
 
-    if (room.buyer_nda_status === "not_sent") {
-      await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now });
-    }
-    if (room.seller_nda_status === "not_sent" && room.seller_user_id) {
-      await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now });
-    }
+      if (room.buyer_nda_status === "not_sent") {
+        await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now });
+      }
+      if (room.seller_nda_status === "not_sent" && room.seller_user_id) {
+        await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now });
+      }
 
-    await dealRoomApi.createAuditLog({
-      entity_type: "deal_room",
-      entity_id: room.id,
-      user_id: room.created_by_admin_id || "",
-      action: "nda_sent_by_admin",
-      meta: { buyer: room.buyer_nda_status === "not_sent", seller: room.seller_nda_status === "not_sent" && !!room.seller_user_id },
-    });
-    await dealRoomApi.sendMessage(room.id, {
-      sender_id: room.created_by_admin_id || "",
-      message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.",
-      is_system: true,
-    });
-    setActionLoading(false);
-    setSelectedRoom(null);
-    load();
+      await dealRoomApi.createAuditLog({
+        entity_type: "deal_room",
+        entity_id: room.id,
+        user_id: room.created_by_admin_id || "",
+        action: "nda_sent_by_admin",
+        meta: { buyer: room.buyer_nda_status === "not_sent", seller: room.seller_nda_status === "not_sent" && !!room.seller_user_id },
+      });
+      await dealRoomApi.sendMessage(room.id, {
+        sender_id: room.created_by_admin_id || "",
+        message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.",
+        is_system: true,
+      });
+      setSelectedRoom(null);
+    } catch (e: any) {
+      // Without this catch, any failed await above (network, 4xx, 5xx) would
+      // leave actionLoading=true → admin stares at "Send NDA (Simulation)"
+      // button stuck spinning forever, can never deliver NDA to participants,
+      // which then looks to participants like "the deal NDA never arrives".
+      console.error("[Admin] sendNda failed:", e);
+      alert(`Failed to send NDA: ${e?.message || "Unknown error"}`);
+    } finally {
+      setActionLoading(false);
+    }
+    // Reload outside try so a slow reload can't keep the button spinning.
+    try { load(); } catch {}
   }
 
   async function closeRoom(room: RoomWithDetails) {
     setActionLoading(true);
-    await dealRoomApi.update(room.id, { status: "closed" });
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_closed", meta: {} });
-    setActionLoading(false);
-    setSelectedRoom(null);
-    load();
+    try {
+      await dealRoomApi.update(room.id, { status: "closed" });
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_closed", meta: {} });
+      setSelectedRoom(null);
+    } catch (e: any) {
+      console.error("[Admin] closeRoom failed:", e);
+      alert(`Failed to close room: ${e?.message || "Unknown error"}`);
+    } finally {
+      setActionLoading(false);
+    }
+    try { load(); } catch {}
   }
 
   async function cancelRoom(room: RoomWithDetails) {
     if (!confirm("Cancel this deal room?")) return;
     setActionLoading(true);
-    await dealRoomApi.update(room.id, { status: "cancelled" });
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_cancelled", meta: {} });
-    setActionLoading(false);
-    setSelectedRoom(null);
-    load();
+    try {
+      await dealRoomApi.update(room.id, { status: "cancelled" });
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_cancelled", meta: {} });
+      setSelectedRoom(null);
+    } catch (e: any) {
+      console.error("[Admin] cancelRoom failed:", e);
+      alert(`Failed to cancel room: ${e?.message || "Unknown error"}`);
+    } finally {
+      setActionLoading(false);
+    }
+    try { load(); } catch {}
   }
 
   const baseRooms = rooms.filter(r => showArchived ? r.archived : !r.archived);

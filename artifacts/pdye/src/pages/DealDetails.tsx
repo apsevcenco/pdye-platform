@@ -1859,37 +1859,64 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
   const [sending, setSending] = useState(false);
 
   const [ndaSent, setNdaSent] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
 
   async function sendNda() {
     setSending(true);
-    const now = new Date().toISOString();
-    const updates: Record<string, any> = {};
-    if (room.buyer_nda_status === "not_sent") { updates.buyer_nda_status = "sent"; updates.buyer_nda_sent_at = now; }
-    if (room.seller_nda_status === "not_sent" && room.seller_user_id) { updates.seller_nda_status = "sent"; updates.seller_nda_sent_at = now; }
-    if (room.status === "draft") updates.status = "nda_pending";
-    await dealRoomApi.update(room.id, updates);
-    if (room.buyer_user_id && room.buyer_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now });
-    if (room.seller_user_id && room.seller_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now });
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "nda_sent", meta: { mode: "simulation" } });
-    await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.", is_system: true });
-    setSending(false);
-    setNdaSent(true);
-    setTimeout(() => setNdaSent(false), 8000);
-    onReload();
+    setAdminError(null);
+    try {
+      const now = new Date().toISOString();
+      const updates: Record<string, any> = {};
+      if (room.buyer_nda_status === "not_sent") { updates.buyer_nda_status = "sent"; updates.buyer_nda_sent_at = now; }
+      if (room.seller_nda_status === "not_sent" && room.seller_user_id) { updates.seller_nda_status = "sent"; updates.seller_nda_sent_at = now; }
+      if (room.status === "draft") updates.status = "nda_pending";
+      await dealRoomApi.update(room.id, updates);
+      if (room.buyer_user_id && room.buyer_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now });
+      if (room.seller_user_id && room.seller_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now });
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "nda_sent", meta: { mode: "simulation" } });
+      await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.", is_system: true });
+      setNdaSent(true);
+      setTimeout(() => setNdaSent(false), 8000);
+    } catch (e: any) {
+      console.error("[DealDetails] sendNda failed:", e);
+      setAdminError(e?.message || "Failed to send NDA");
+    } finally {
+      setSending(false);
+    }
+    // Refresh outside the try so a slow reload can't leave the spinner frozen.
+    try { onReload(); } catch {}
   }
 
   async function closeRoom() {
     if (!confirm("Close this deal room?")) return;
-    await dealRoomApi.update(room.id, { status: "closed" });
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_closed", meta: {} });
-    onReload();
+    setSending(true);
+    setAdminError(null);
+    try {
+      await dealRoomApi.update(room.id, { status: "closed" });
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_closed", meta: {} });
+    } catch (e: any) {
+      console.error("[DealDetails] closeRoom failed:", e);
+      setAdminError(e?.message || "Failed to close room");
+    } finally {
+      setSending(false);
+    }
+    try { onReload(); } catch {}
   }
 
   async function cancelRoom() {
     if (!confirm("Cancel this deal room? This cannot be undone.")) return;
-    await dealRoomApi.update(room.id, { status: "cancelled" });
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_cancelled", meta: {} });
-    onReload();
+    setSending(true);
+    setAdminError(null);
+    try {
+      await dealRoomApi.update(room.id, { status: "cancelled" });
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_cancelled", meta: {} });
+    } catch (e: any) {
+      console.error("[DealDetails] cancelRoom failed:", e);
+      setAdminError(e?.message || "Failed to cancel room");
+    } finally {
+      setSending(false);
+    }
+    try { onReload(); } catch {}
   }
 
   const canSendNda = room.status === "draft" && (room.buyer_nda_status === "not_sent" || (room.seller_user_id && room.seller_nda_status === "not_sent"));
@@ -1897,18 +1924,34 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
 
   async function sendCommission() {
     setSending(true);
-    await dealRoomApi.sendCommission(room.id, user?.id || "");
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "commission_sent", meta: {} });
-    await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "Commission Agreement sent to both parties for review and signature.", is_system: true });
-    setSending(false);
-    onReload();
+    setAdminError(null);
+    try {
+      await dealRoomApi.sendCommission(room.id, user?.id || "");
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "commission_sent", meta: {} });
+      await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "Commission Agreement sent to both parties for review and signature.", is_system: true });
+    } catch (e: any) {
+      console.error("[DealDetails] sendCommission failed:", e);
+      setAdminError(e?.message || "Failed to send Commission Agreement");
+    } finally {
+      setSending(false);
+    }
+    try { onReload(); } catch {}
   }
 
   async function toggleArchive() {
-    const newArchived = !room.archived;
-    await dealRoomApi.archive(room.id, newArchived);
-    await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: newArchived ? "deal_room_archived" : "deal_room_unarchived", meta: {} });
-    onReload();
+    setSending(true);
+    setAdminError(null);
+    try {
+      const newArchived = !room.archived;
+      await dealRoomApi.archive(room.id, newArchived);
+      await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: newArchived ? "deal_room_archived" : "deal_room_unarchived", meta: {} });
+    } catch (e: any) {
+      console.error("[DealDetails] toggleArchive failed:", e);
+      setAdminError(e?.message || "Failed to update archive state");
+    } finally {
+      setSending(false);
+    }
+    try { onReload(); } catch {}
   }
 
   return (
@@ -1931,6 +1974,11 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
           <div className="bg-green-500/10 border border-green-500/30 p-3 text-center animate-pulse">
             <p className="text-green-400 text-xs font-bold">NDA Sent Successfully</p>
             <p className="text-white/40 text-[10px] font-sans mt-0.5">Participants will see the NDA in their Legal tab</p>
+          </div>
+        )}
+        {adminError && (
+          <div className="bg-red-500/10 border border-red-500/30 p-3">
+            <p className="text-red-300 text-[11px] font-sans break-words">{adminError}</p>
           </div>
         )}
         {canSendCommission && (
