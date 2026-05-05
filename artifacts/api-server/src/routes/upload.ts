@@ -25,7 +25,7 @@ function getSupabaseAdmin() {
 }
 
 // ✅ UPLOAD ROUTE
-router.post("/upload-photo", upload.single("file"), async (req, res) => {
+router.post("/", upload.single("photo"), async (req, res) => {
   try {
     console.log("🔥 UPLOAD HIT");
 
