@@ -11,6 +11,8 @@ const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-
 const labelCls = "block text-white/50 text-[10px] uppercase tracking-widest mb-2 font-sans font-bold";
 const unitInputCls = "w-full bg-[#070f1a] border border-white/10 text-white pl-4 pr-14 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
 
+const API_BASE = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
+
 type FormState = {
   name: string; type: string; status: string; condition: string; flag: string;
   builder: string; year: string; refit: string;
@@ -56,7 +58,18 @@ export default function AddYacht() {
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">("metric");
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; sources?: string } | null>(null);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function reorderPhotos(from: number, to: number) {
+    if (from === to || from < 0 || to < 0) return;
+    setPhotos(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
 
   const M = unitSystem === "metric";
 
@@ -206,7 +219,7 @@ export default function AddYacht() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/upload-photo", { method: "POST", body: fd });
+      const res = await fetch(`${API_BASE}/upload-photo`, { method: "POST", body: fd });
       const json = await res.json().catch(() => ({} as any));
       if (res.ok && json.url) {
         setPhotos(prev => [...prev, json.url]);
@@ -732,21 +745,38 @@ export default function AddYacht() {
                   </div>
 
                   {photos.length > 0 && (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2 mt-3">
-                      {photos.map((url, i) => (
-                        <div key={i} className="relative group/thumb aspect-square">
-                          <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                          {i === 0 && <span className="absolute bottom-0 left-0 right-0 text-center bg-primary text-background text-[8px] font-bold uppercase tracking-widest py-0.5">Main</span>}
-                          <button
-                            type="button"
-                            onClick={e => { e.stopPropagation(); removePhoto(i); }}
-                            className="absolute inset-0 bg-background/70 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity"
+                    <>
+                      <p className="text-white/30 text-[10px] font-sans mt-3 mb-2 tracking-wider uppercase">Drag to reorder · the first photo is the main one</p>
+                      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2">
+                        {photos.map((url, i) => (
+                          <div
+                            key={url + i}
+                            draggable
+                            onDragStart={() => setDraggedIdx(i)}
+                            onDragOver={e => { e.preventDefault(); }}
+                            onDrop={e => {
+                              e.preventDefault();
+                              if (draggedIdx !== null) reorderPhotos(draggedIdx, i);
+                              setDraggedIdx(null);
+                            }}
+                            onDragEnd={() => setDraggedIdx(null)}
+                            className={`relative group/thumb aspect-square cursor-move transition-opacity ${
+                              draggedIdx === i ? "opacity-40" : "opacity-100"
+                            }`}
                           >
-                            <X size={14} className="text-white" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                            <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover pointer-events-none" />
+                            {i === 0 && <span className="absolute bottom-0 left-0 right-0 text-center bg-primary text-background text-[8px] font-bold uppercase tracking-widest py-0.5">Main</span>}
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); removePhoto(i); }}
+                              className="absolute inset-0 bg-background/70 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity"
+                            >
+                              <X size={14} className="text-white" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
 

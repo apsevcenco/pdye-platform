@@ -316,6 +316,7 @@ function YachtsView() {
   const [formPhotoSaving, setFormPhotoSaving] = useState(false);
   const [formPhotoError, setFormPhotoError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [photoDraggedIdx, setPhotoDraggedIdx] = useState<number | null>(null);
   const formFileRef = useRef<HTMLInputElement>(null);
   const [formIsPrivate, setFormIsPrivate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -416,11 +417,12 @@ function YachtsView() {
 
   async function uploadFilesToServer(files: File[], yachtId = "new"): Promise<string[]> {
     const urls: string[] = [];
+    const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
     for (const file of files) {
       const form = new FormData();
       form.append("file", file);
       form.append("yachtId", yachtId);
-      const res = await fetch("/api/upload-photo", { method: "POST", body: form });
+      const res = await fetch(`${apiBase}/upload-photo`, { method: "POST", body: form });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
         throw new Error(err.error || "Upload failed");
@@ -712,7 +714,8 @@ function YachtsView() {
         fd.append("file", file);
         fd.append("yachtId", yacht.id);
         fd.append("folder", "docs");
-        const res = await fetch("/api/upload-photo", { method: "POST", body: fd });
+        const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
+        const res = await fetch(`${apiBase}/upload-photo`, { method: "POST", body: fd });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: res.statusText }));
           throw new Error(err.error || "Upload failed");
@@ -1152,19 +1155,44 @@ function YachtsView() {
 
                 {/* Preview thumbnails */}
                 {formPhotos.length > 0 && (
-                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2 mt-3">
-                    {formPhotos.map((url, i) => (
-                      <div key={i} className="relative group/thumb aspect-square">
-                        <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                        <button
-                          onClick={e => { e.stopPropagation(); setFormPhotos(prev => prev.filter((_, j) => j !== i)); }}
-                          className="absolute inset-0 bg-background/70 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity"
+                  <>
+                    <p className="text-white/30 text-[10px] font-sans mt-3 mb-2 tracking-wider uppercase">Drag to reorder · the first photo is the main one</p>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2">
+                      {formPhotos.map((url, i) => (
+                        <div
+                          key={url + i}
+                          draggable
+                          onDragStart={() => setPhotoDraggedIdx(i)}
+                          onDragOver={e => { e.preventDefault(); }}
+                          onDrop={e => {
+                            e.preventDefault();
+                            if (photoDraggedIdx !== null && photoDraggedIdx !== i) {
+                              setFormPhotos(prev => {
+                                const next = [...prev];
+                                const [moved] = next.splice(photoDraggedIdx, 1);
+                                next.splice(i, 0, moved);
+                                return next;
+                              });
+                            }
+                            setPhotoDraggedIdx(null);
+                          }}
+                          onDragEnd={() => setPhotoDraggedIdx(null)}
+                          className={`relative group/thumb aspect-square cursor-move transition-opacity ${
+                            photoDraggedIdx === i ? "opacity-40" : "opacity-100"
+                          }`}
                         >
-                          <X size={14} className="text-white" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                          <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover pointer-events-none" />
+                          {i === 0 && <span className="absolute bottom-0 left-0 right-0 text-center bg-primary text-background text-[8px] font-bold uppercase tracking-widest py-0.5">Main</span>}
+                          <button
+                            onClick={e => { e.stopPropagation(); setFormPhotos(prev => prev.filter((_, j) => j !== i)); }}
+                            className="absolute inset-0 bg-background/70 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity"
+                          >
+                            <X size={14} className="text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
 
