@@ -26,10 +26,13 @@ const upload = multer({
 const BUCKET = "yacht-photos";
 
 function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL;
+  // Accept either SUPABASE_URL (server-style) or VITE_SUPABASE_URL (the var
+  // the rest of this monorepo exposes). Mirrors upload.ts so PDF uploads
+  // work in any environment that has either name set.
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    throw new Error("Missing SUPABASE_URL/VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
   return createClient(url, key, { auth: { persistSession: false } });
 }
