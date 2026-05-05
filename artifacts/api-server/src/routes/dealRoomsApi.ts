@@ -1,7 +1,9 @@
 import { Router } from "express";
 import pg from "pg";
+import { createClient } from "@supabase/supabase-js";
 import { requireAdmin, requireUser, optionalUser } from "../middlewares/auth";
 import { requirePlatformNdaSigned } from "./platformNda";
+import { sendDealNdaInviteEmail } from "../lib/dealLegalEmail";
 import {
   ArchiveBody,
   AuditLogBody,
@@ -398,11 +400,86 @@ router.post("/nda-envelopes", requireAdmin, validateBody(NdaEnvelopeBody), async
        RETURNING *`,
       [deal_room_id, user_id, side, provider || 'internal', status || 'pending', sent_at, signed_at, completed_at, document_name]
     );
+    // Fire-and-forget invite email when this envelope represents a "send NDA" event.
+    // We send only on status='sent' (the create + manual-send paths) and only when
+    // the envelope hasn't already been signed/completed (idempotent retry safety).
+    const finalStatus = status || 'pending';
+    if (finalStatus === 'sent' && !signed_at && !completed_at) {
+      void sendDealNdaInvite({ deal_room_id, user_id, side })
+        .catch(err => console.error("[deal-rooms] NDA invite email failed:", err?.message || err));
+    }
     res.json(rows[0]);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
+
+/* ─────────── NDA invite email helper ─────────── */
+
+let supabaseAdminClient: ReturnType<typeof createClient> | null = null;
+function getSupabaseAdmin() {
+  if (supabaseAdminClient) return supabaseAdminClient;
+  const url = process.env["VITE_SUPABASE_URL"] || process.env["SUPABASE_URL"];
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !key) return null;
+  supabaseAdminClient = createClient(url, key, { auth: { persistSession: false } });
+  return supabaseAdminClient;
+}
+
+async function sendDealNdaInvite(opts: { deal_room_id: string; user_id: string; side: string }) {
+  const { deal_room_id, user_id, side } = opts;
+  if (!user_id || (side !== "buyer" && side !== "seller")) return;
+
+  const { rows: roomRows } = await db().query(
+    "SELECT id, room_number, yacht_id FROM deal_rooms WHERE id = $1",
+    [deal_room_id]
+  );
+  if (roomRows.length === 0) return;
+  const room = roomRows[0];
+  const dealRoomCode = room.room_number
+    ? `DR-${String(room.room_number).padStart(6, "0")}`
+    : String(room.id).slice(0, 8).toUpperCase();
+
+  const sb = getSupabaseAdmin();
+  if (!sb) {
+    console.warn("[deal-rooms] Supabase env not set — cannot look up email for NDA invite");
+    return;
+  }
+
+  let toEmail = "";
+  try {
+    const { data } = await sb.auth.admin.getUserById(user_id);
+    toEmail = data?.user?.email || "";
+  } catch (e) {
+    console.warn(`[deal-rooms] auth.getUserById(${user_id}) failed:`, (e as Error).message);
+  }
+  if (!toEmail) {
+    try {
+      const { data } = await sb.from("users").select("email").eq("id", user_id).maybeSingle();
+      toEmail = (data as any)?.email || "";
+    } catch { /* ignore */ }
+  }
+  if (!toEmail) {
+    console.warn(`[deal-rooms] No email found for user ${user_id} — skipping NDA invite`);
+    return;
+  }
+
+  let yachtName: string | null = null;
+  if (room.yacht_id) {
+    try {
+      const { data } = await sb.from("yachts").select("name").eq("id", room.yacht_id).maybeSingle();
+      yachtName = (data as any)?.name || null;
+    } catch { /* ignore */ }
+  }
+
+  await sendDealNdaInviteEmail({
+    toEmail,
+    side: side as "buyer" | "seller",
+    dealRoomCode,
+    dealRoomId: String(deal_room_id),
+    yachtName,
+  });
+}
 
 router.post("/audit-logs", requireUser, requirePlatformNdaSigned, validateBody(AuditLogBody), async (req, res) => {
   const { entity_type, entity_id, action, meta } = req.body;
