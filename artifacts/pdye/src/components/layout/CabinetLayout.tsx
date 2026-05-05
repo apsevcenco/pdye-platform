@@ -31,40 +31,29 @@ interface NavItem {
   icon: React.ElementType;
 }
 
-interface AdminGroup {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  items: NavItem[];
-}
+// Single unified Admin Menu — combines in-page admin views (which navigate
+// to /admin?view=<id>; Admin.tsx reads the query param via useSearch) with
+// dedicated admin route pages. Items are tagged `viewLink: true` when they
+// use the ?view= query-param mechanism so the active-state logic knows
+// which matcher to apply.
+type AdminMenuItem = NavItem & { viewLink?: boolean };
 
-// In-page admin views — navigate to /admin?view=<id>; Admin.tsx reads the
-// query param via wouter's useSearch and switches the rendered view.
-const ADMIN_DASHBOARD_GROUP: AdminGroup = {
-  id: "dashboard",
-  label: "Dashboard",
-  icon: LayoutDashboard,
-  items: [
-    { href: "/admin?view=dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin?view=yachts", label: "Yachts", icon: Ship },
-    { href: "/admin?view=dealroom", label: "Deal Room", icon: TrendingUp },
-    { href: "/admin?view=leads", label: "Leads", icon: Inbox },
-    { href: "/admin?view=investors", label: "Private Buyers", icon: Users },
-    { href: "/admin?view=brokers", label: "Brokers", icon: Briefcase },
-    { href: "/admin?view=owners", label: "Boat Owners", icon: Anchor },
-    { href: "/admin?view=documents", label: "Documents", icon: FileText },
-    { href: "/admin?view=messages", label: "Messages", icon: MessageSquare },
-    { href: "/admin?view=content", label: "Page Content", icon: PenLine },
-    { href: "/admin?view=fonts", label: "Fonts", icon: Type },
-  ],
-};
-
-// Separate admin pages with their own routes.
-const ADMIN_MENU_GROUP: AdminGroup = {
+const ADMIN_MENU_GROUP: { id: string; label: string; icon: React.ElementType; items: AdminMenuItem[] } = {
   id: "admin",
   label: "Admin Menu",
   icon: ShieldCheck,
   items: [
+    { href: "/admin?view=dashboard", label: "Dashboard", icon: LayoutDashboard, viewLink: true },
+    { href: "/admin?view=yachts", label: "Yachts", icon: Ship, viewLink: true },
+    { href: "/admin?view=dealroom", label: "Deal Room", icon: TrendingUp, viewLink: true },
+    { href: "/admin?view=leads", label: "Leads", icon: Inbox, viewLink: true },
+    { href: "/admin?view=investors", label: "Private Buyers", icon: Users, viewLink: true },
+    { href: "/admin?view=brokers", label: "Brokers", icon: Briefcase, viewLink: true },
+    { href: "/admin?view=owners", label: "Boat Owners", icon: Anchor, viewLink: true },
+    { href: "/admin?view=documents", label: "Documents", icon: FileText, viewLink: true },
+    { href: "/admin?view=messages", label: "Messages", icon: MessageSquare, viewLink: true },
+    { href: "/admin?view=content", label: "Page Content", icon: PenLine, viewLink: true },
+    { href: "/admin?view=fonts", label: "Fonts", icon: Type, viewLink: true },
     { href: "/admin-users", label: "Users", icon: Users },
     { href: "/admin-requests", label: "Access Requests", icon: Inbox },
     { href: "/admin-platform-nda", label: "Platform NDA", icon: ShieldCheck },
@@ -175,7 +164,8 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  function renderAccordion(group: AdminGroup, isViewGroup: boolean) {
+  function renderAdminMenu() {
+    const group = ADMIN_MENU_GROUP;
     const open = !!openGroups[group.id];
     const Icon = group.icon;
     return (
@@ -197,7 +187,7 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
         {open && (
           <div className="ml-4 pl-2 border-l border-white/8 space-y-0.5">
             {group.items.map((item) => {
-              const active = isViewGroup
+              const active = item.viewLink
                 ? isActiveAdminView(location, item.href)
                 : isActiveRoute(location, item.href);
               return renderNavLink(item, active);
@@ -222,8 +212,7 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {isAdmin ? (
           <>
-            {renderAccordion(ADMIN_DASHBOARD_GROUP, true)}
-            {renderAccordion(ADMIN_MENU_GROUP, false)}
+            {renderAdminMenu()}
             {renderNavLink(
               { href: "/profile", label: "Profile", icon: User },
               isActiveRoute(location, "/profile")

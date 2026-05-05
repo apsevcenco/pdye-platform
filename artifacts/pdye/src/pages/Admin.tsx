@@ -117,9 +117,13 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
+    // Phase 1: load fast, lightweight stats and reveal the dashboard UI as
+    // soon as they resolve. Previously the dashboard waited for getMessages
+    // × 3 deal rooms + audit logs (deferred to phase 2) before showing
+    // ANYTHING — slowest query blocked the entire page (often >2s).
+    async function loadPrimary() {
       try {
-        const [yRes, uRes, arRes, lRes, allRooms] = await Promise.all([
+        const [yRes, uRes, arRes, lRes, allRoomsRes] = await Promise.all([
           supabase.from("yachts").select("*", { count: "exact", head: true }),
           supabase.from("users").select("id, email, role, approved"),
           supabase.from("access_requests").select("id, requester_id, yacht_id, status, role, created_at").order("created_at", { ascending: false }).limit(5),
@@ -127,13 +131,14 @@ function Dashboard() {
           dealRoomApi.list().catch(() => []),
         ]);
         const users = (uRes.data || []) as any[];
+        const allRooms = (allRoomsRes || []) as any[];
         setStats({
           yachts: yRes.count || 0,
           buyers: users.filter(u => u.role === "investor" || u.role === "buyer").length,
           brokers: users.filter(u => u.role === "broker").length,
           owners: users.filter(u => u.role === "owner").length,
           pendingRequests: (arRes.data || []).filter((r: any) => r.status === "pending").length,
-          dealRooms: (allRooms || []).length,
+          dealRooms: allRooms.length,
           leads: lRes.count || 0,
         });
         const reqs = arRes.data || [];
@@ -144,18 +149,29 @@ function Dashboard() {
           (ru || []).forEach((u: any) => { reqEmails[u.id] = u.email; });
         }
         setRecentRequests(reqs.map((r: any) => ({ ...r, email: reqEmails[r.requester_id] || r.requester_id?.slice(0, 8) })));
+        // Reveal dashboard UI immediately. Phase 2 (recent messages /
+        // recent activity) fills in below the fold without blocking.
+        setLoading(false);
+        return allRooms;
+      } catch (e) {
+        console.error("Dashboard primary load error:", e);
+        setLoading(false);
+        return [];
+      }
+    }
 
-        let recentMsgs: any[] = [];
-        let recentAct: any[] = [];
-        if ((allRooms || []).length > 0) {
-          const roomIds = (allRooms || []).slice(0, 10).map((r: any) => r.id);
-          const [msgsArrays, actArrays] = await Promise.all([
-            Promise.all(roomIds.slice(0, 3).map((rid: string) => dealRoomApi.getMessages(rid).catch(() => []))),
-            dealRoomApi.getAuditLogs("deal_room", roomIds[0]).catch(() => []),
-          ]);
-          recentMsgs = msgsArrays.flat().filter((m: any) => !m.is_system).sort((a: any, b: any) => b.created_at.localeCompare(a.created_at)).slice(0, 5);
-          recentAct = (actArrays || []).slice(0, 8);
-        }
+    async function loadSecondary(allRooms: any[]) {
+      if (!allRooms.length) return;
+      try {
+        const roomIds = allRooms.slice(0, 10).map((r: any) => r.id);
+        const [msgsArrays, actArrays] = await Promise.all([
+          Promise.all(roomIds.slice(0, 3).map((rid: string) => dealRoomApi.getMessages(rid).catch(() => []))),
+          dealRoomApi.getAuditLogs("deal_room", roomIds[0]).catch(() => []),
+        ]);
+        const recentMsgs = msgsArrays.flat()
+          .filter((m: any) => !m.is_system)
+          .sort((a: any, b: any) => b.created_at.localeCompare(a.created_at))
+          .slice(0, 5);
         const msgSenderIds = [...new Set(recentMsgs.map((m: any) => m.sender_id))];
         let senderEmails: Record<string, string> = {};
         if (msgSenderIds.length) {
@@ -163,13 +179,17 @@ function Dashboard() {
           (su || []).forEach((u: any) => { senderEmails[u.id] = u.email; });
         }
         setRecentMessages(recentMsgs.map((m: any) => ({ ...m, sender_email: senderEmails[m.sender_id] || "System" })));
-        setRecentActivity(recentAct);
+        setRecentActivity(((actArrays as any[]) || []).slice(0, 8));
       } catch (e) {
-        console.error("Dashboard load error:", e);
+        console.error("Dashboard secondary load error:", e);
       }
-      setLoading(false);
     }
-    load();
+
+    (async () => {
+      const allRooms = await loadPrimary();
+      // Don't await — let primary stats render first; secondary fills in.
+      void loadSecondary(allRooms);
+    })();
   }, []);
 
   const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
@@ -3928,20 +3948,28 @@ export default function Admin() {
     return "dashboard";
   });
   useEffect(() => {
-    // URL is the source of truth: if `?view=` is present use it, otherwise
-    // canonical fallback is "dashboard". This keeps the rendered view, URL,
-    // and sidebar active-state highlight in sync — including the case where
-    // the user navigates back to bare /admin (e.g. clicking the PDYE logo).
-    const next = viewFromUrl || "dashboard";
-    if (next !== activeView) setActiveView(next);
+    // URL is the source of truth ONLY when `?view=` is explicitly present.
+    // Bare `/admin` (e.g. Dashboard's "Open Deal Room" card which sets
+    // sessionStorage `pdye_admin_view` then navigates to `/admin`) must NOT
+    // be force-reset to "dashboard" — that would override the stored intent
+    // captured by the activeView initializer. So we only react when the
+    // URL actually carries a view param.
+    if (viewFromUrl && viewFromUrl !== activeView) setActiveView(viewFromUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewFromUrl]);
   const [, setLocation] = useLocation();
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
-  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
+  // Only fire the dashboard banner-count queries when the dashboard view is
+  // actually visible. Other admin views (yachts/dealroom/etc.) don't need
+  // these counts, so skipping them on those views avoids wasted round-trips
+  // on every navigation. Removed the previous `/deal-room-messages-all`
+  // fetch entirely — it was used only by the old top sub-tab badge which
+  // no longer exists, and on rooms with many messages it could add 1+s of
+  // load time on every admin page mount.
   useEffect(() => {
+    if (activeView !== "dashboard") return;
     supabase
       .from("access_requests")
       .select("*", { count: "exact", head: true })
@@ -3952,28 +3980,7 @@ export default function Admin() {
       .select("*", { count: "exact", head: true })
       .eq("approved", false)
       .then(({ count }) => { if (count !== null) setPendingUsersCount(count); });
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (!token) return;
-        const apiBase = (import.meta.env.VITE_API_URL as string | undefined) || "/api";
-        const res = await fetch(`${apiBase}/deal-room-messages-all`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const rows = await res.json();
-        const count = Array.isArray(rows) ? rows.filter((r: any) => !r.is_system).length : 0;
-        setUnreadMsgCount(Math.min(count, 9));
-      } catch {
-        // silent
-      }
-    })();
-  }, []);
-
-  // Suppress unused-var warning — kept for potential future use (badges,
-  // notifications) without re-introducing the top sub-tab bar.
-  void unreadMsgCount;
+  }, [activeView]);
 
   return (
     <CabinetLayout>
