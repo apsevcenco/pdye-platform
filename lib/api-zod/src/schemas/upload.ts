@@ -11,3 +11,12 @@ import { z } from "zod";
 export const UploadPhotoBody = z.object({}).strict();
 
 export type UploadPhotoBody = z.infer<typeof UploadPhotoBody>;
+
+/**
+ * The /api/upload-document endpoint takes a single multipart "document" file
+ * (PDF only). Like UploadPhotoBody, the file is validated by multer + magic
+ * bytes in the route handler. No extra text fields are expected.
+ */
+export const UploadDocumentBody = z.object({}).strict();
+
+export type UploadDocumentBody = z.infer<typeof UploadDocumentBody>;

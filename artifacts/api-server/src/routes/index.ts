@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import uploadRouter from "./upload";
+import uploadDocumentRouter from "./uploadDocument";
 import estimateRouter from "./estimate";
 import dealRoomsRouter from "./dealRoomsApi";
 import leadsRouter from "./leads";
@@ -17,6 +18,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/upload-photo", uploadRouter);
+router.use("/upload-document", uploadDocumentRouter);
 router.use(estimateRouter);
 router.use(dealRoomsRouter);
 router.use("/leads", leadsRouter);

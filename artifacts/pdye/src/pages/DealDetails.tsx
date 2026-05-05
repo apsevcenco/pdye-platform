@@ -114,12 +114,38 @@ export default function DealDetails() {
       }
 
       const isRoomActive = data.status === "active" || data.status === "closed";
-      const isUserAdmin = participantIds.includes(data.created_by_admin_id);
-      if (isRoomActive || isUserAdmin) {
+      // Use the actual current-user admin role (already computed at the top
+      // of the component as `isAdmin`) instead of checking whether the room
+      // has an admin creator — the previous heuristic was always true when
+      // `created_by_admin_id` was non-null because participantIds itself
+      // always contains that id.
+      if (isRoomActive || isAdmin) {
         const msgs = await dealRoomApi.getMessages(roomId!);
         setMessages((msgs as DealRoomMessage[]) || []);
         const docs = await dealRoomApi.getDocuments(roomId!);
-        setDocuments((docs as DealRoomDocument[]) || []);
+        // Merge listing-level documents (uploaded by the owner/broker on the
+        // yacht card) with deal-room-specific documents. Listing docs are
+        // synthesised into the same DealRoomDocument shape so the existing
+        // DocumentsTab can render them transparently. They get a stable
+        // `listing-` id prefix and a `_source: "listing"` marker the tab
+        // uses to render a small badge so users can tell them apart.
+        const listingDocs: DealRoomDocument[] = Array.isArray(y?.documents)
+          ? (y!.documents as Array<{ name?: string; url?: string; type?: string }>)
+              .filter(d => !!d?.url)
+              .map((d, i) => ({
+                id: `listing-${i}-${d.url}`,
+                deal_room_id: roomId!,
+                title: d.name || "Document",
+                file_path: d.url!,
+                file_type: d.type || "PDF",
+                uploaded_by: data.seller_user_id || "",
+                visible_to_buyer: true,
+                visible_to_seller: true,
+                created_at: y?.created_at || new Date().toISOString(),
+                _source: "listing",
+              } as DealRoomDocument & { _source: "listing" }))
+          : [];
+        setDocuments([...(listingDocs as DealRoomDocument[]), ...((docs as DealRoomDocument[]) || [])]);
       }
 
       const logs = await dealRoomApi.getAuditLogs("deal_room", roomId!);
@@ -702,23 +728,34 @@ function DocumentsTab({ documents, isAdmin, isTerminal }: { documents: DealRoomD
   if (documents.length === 0) return <EmptyState icon={FileText} text="No documents uploaded yet" sub="Documents will appear here once uploaded by the admin or participants." />;
   return (
     <div className="space-y-3">
-      {documents.map(doc => (
-        <div key={doc.id} className="bg-[#0f1d33] border border-white/8 flex items-center gap-4 px-5 py-4">
-          <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <FileText size={16} className="text-primary/60" />
+      {documents.map(doc => {
+        // Listing docs are merged in by loadRoom() and tagged via _source.
+        const fromListing = (doc as DealRoomDocument & { _source?: string })._source === "listing";
+        return (
+          <div key={doc.id} className="bg-[#0f1d33] border border-white/8 flex items-center gap-4 px-5 py-4">
+            <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <FileText size={16} className="text-primary/60" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-white text-sm truncate">{doc.title || "Untitled"}</p>
+                {fromListing && (
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-primary/70 border border-primary/30 px-1.5 py-0.5 flex-shrink-0">
+                    Listing
+                  </span>
+                )}
+              </div>
+              <p className="text-white/30 text-xs font-sans">{doc.file_type || "Document"} · {fmtDate(doc.created_at)}</p>
+            </div>
+            {doc.file_path && (
+              <a href={doc.file_path} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-primary text-xs font-bold uppercase tracking-widest hover:text-white transition-colors flex-shrink-0">
+                <Download size={12} /> View
+              </a>
+            )}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm truncate">{doc.title || "Untitled"}</p>
-            <p className="text-white/30 text-xs font-sans">{doc.file_type || "Document"} · {fmtDate(doc.created_at)}</p>
-          </div>
-          {doc.file_path && (
-            <a href={doc.file_path} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-primary text-xs font-bold uppercase tracking-widest hover:text-white transition-colors flex-shrink-0">
-              <Download size={12} /> View
-            </a>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

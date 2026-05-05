@@ -6,7 +6,16 @@ import { yachtModerationApi } from "@/lib/yachtModerationApi";
 import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import {
   ArrowLeft, Upload, X, Plus, CheckCircle, Loader2, Camera, Sparkles, ChevronLeft, ChevronRight,
+  FileText,
 } from "lucide-react";
+
+/** PDF documents attached to the yacht listing. Stored verbatim into the
+ *  `yachts.documents` JSONB column — same shape the admin panel writes,
+ *  so admins and owners share one source of truth. These are surfaced to
+ *  buyers inside the Deal Room "Documents" tab. */
+type YachtDoc = { name: string; url: string; size: string; type: string };
+const MAX_DOCS = 20;
+const MAX_DOC_BYTES = 25 * 1024 * 1024;
 
 const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
 const labelCls = "block text-white/50 text-[10px] uppercase tracking-widest mb-2 font-sans font-bold";
@@ -61,6 +70,12 @@ export default function AddYacht() {
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; sources?: string } | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Documents (PDF) — independent from photos. They flow through to the
+  // Deal Room "Documents" tab once a deal room is opened on the yacht.
+  const [docs, setDocs] = useState<YachtDoc[]>([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [dragOverDoc, setDragOverDoc] = useState(false);
+  const docFileInputRef = useRef<HTMLInputElement>(null);
 
   function reorderPhotos(from: number, to: number) {
     if (from === to || from < 0 || to < 0) return;
@@ -153,6 +168,8 @@ export default function AddYacht() {
       else if (data.image) setPhotos([data.image]);
       else if (data.main_image) setPhotos([data.main_image]);
       else setPhotos([]);
+      // Documents JSONB may be null on legacy listings — coerce to [].
+      setDocs(Array.isArray(data.documents) ? (data.documents as YachtDoc[]) : []);
     }
 
     syncFromUrl();
@@ -256,6 +273,60 @@ export default function AddYacht() {
     setPhotos(prev => prev.filter((_, i) => i !== idx));
   }
 
+  /** Upload a single PDF via the dedicated /upload-document endpoint and
+   *  append it to the yacht's documents list. The endpoint enforces PDF MIME,
+   *  magic-byte sniff, and 25MB size cap server-side; the client checks
+   *  here are early-exit niceties only — never the security boundary. */
+  async function uploadDoc(file: File): Promise<boolean> {
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    if (!isPdf) { setErr("Only PDF documents are allowed."); return false; }
+    if (file.size > MAX_DOC_BYTES) { setErr("PDF must be under 25 MB."); return false; }
+    setErr("");
+    try {
+      const fd = new FormData();
+      fd.append("document", file);
+      const res = await fetch(`${API_BASE}/upload-document`, { method: "POST", body: fd, credentials: "include" });
+      const json = await res.json().catch(() => ({} as any));
+      if (res.ok && json.url) {
+        const sizeKB = Math.round(file.size / 1024);
+        const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+        const cleanName = file.name.replace(/\.[^/.]+$/, "");
+        setDocs(prev => [...prev, { name: cleanName, url: json.url, size: sizeStr, type: "PDF" }]);
+        return true;
+      }
+      setErr(json.error || `Upload failed (HTTP ${res.status}).`);
+      return false;
+    } catch (e: any) {
+      setErr("Upload error: " + (e?.message || "please try again."));
+      return false;
+    }
+  }
+
+  async function uploadDocFiles(files: File[]) {
+    if (files.length === 0) return;
+    if (docs.length + files.length > MAX_DOCS) {
+      setErr(`Maximum ${MAX_DOCS} documents.`);
+      return;
+    }
+    setUploadingDoc(true);
+    for (const f of files) {
+      // eslint-disable-next-line no-await-in-loop
+      const ok = await uploadDoc(f);
+      if (!ok) break;
+    }
+    setUploadingDoc(false);
+  }
+
+  function removeDoc(idx: number) {
+    setDocs(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function renameDoc(idx: number, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setDocs(prev => prev.map((d, i) => (i === idx ? { ...d, name: trimmed } : d)));
+  }
+
   async function estimateWithAI() {
     setAiEstimating(true);
     setAiNote(null);
@@ -324,6 +395,9 @@ export default function AddYacht() {
       description: str(form.description),
       photos: photos.length > 0 ? photos : null,
       main_image: photos[0] || str(form.image) || null,
+      // Persist PDF documents on the yacht record. Always send the array
+      // (even when empty) so removals are honoured during edits.
+      documents: docs,
       is_private: isPrivate,
       owner_id: user.id,
       is_locked: true,
@@ -823,6 +897,95 @@ export default function AddYacht() {
                 <div>
                   <label className={labelCls}>Image URL (if no photos uploaded)</label>
                   <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
+                </div>
+
+                {/* PDF documents — surveys, specifications, brochures.
+                 *  Visible to buyers in the Deal Room → Documents tab once
+                 *  a deal room is opened on this yacht. */}
+                <div>
+                  <label className={labelCls}>Documents — PDF ({docs.length}/{MAX_DOCS})</label>
+                  <p className="text-white/40 text-xs font-sans mb-3">
+                    Surveys, specifications, brochures, registration. These appear in the Deal Room Documents tab for buyers who have signed the NDA.
+                  </p>
+                  <input
+                    ref={docFileInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    multiple
+                    className="hidden"
+                    onChange={e => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) uploadDocFiles(files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <div
+                    onDragOver={e => { e.preventDefault(); setDragOverDoc(true); }}
+                    onDragLeave={() => setDragOverDoc(false)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      setDragOverDoc(false);
+                      const files = Array.from(e.dataTransfer.files).filter(
+                        f => f.type === "application/pdf" || /\.pdf$/i.test(f.name)
+                      );
+                      if (files.length > 0) uploadDocFiles(files);
+                    }}
+                    onClick={() => docFileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center py-8 gap-3 ${
+                      dragOverDoc ? "border-primary bg-primary/5" : "border-white/10 hover:border-primary/50 hover:bg-white/5"
+                    }`}
+                  >
+                    {uploadingDoc ? (
+                      <>
+                        <Loader2 size={28} className="text-primary animate-spin" />
+                        <p className="text-white/50 text-sm font-sans">Uploading...</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={28} className="text-primary/50" />
+                        <div className="text-center">
+                          <p className="text-white/70 text-sm font-sans">Drag PDFs here or <span className="text-primary">click to choose</span></p>
+                          <p className="text-white/30 text-xs font-sans mt-1">PDF only — up to 25 MB each, {MAX_DOCS} files max</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {docs.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {docs.map((d, i) => (
+                        <div key={d.url + i} className="flex items-center gap-3 bg-[#0f1d33] border border-white/8 px-3 py-2.5">
+                          <div className="w-8 h-8 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <FileText size={14} className="text-primary/70" />
+                          </div>
+                          <input
+                            type="text"
+                            value={d.name}
+                            onChange={e => renameDoc(i, e.target.value)}
+                            className="flex-1 min-w-0 bg-transparent text-white text-sm font-sans focus:outline-none focus:bg-white/5 px-2 py-1 truncate"
+                          />
+                          <span className="text-white/40 text-xs font-sans flex-shrink-0">{d.type} · {d.size}</span>
+                          <a
+                            href={d.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="text-primary/70 hover:text-primary text-[10px] font-bold uppercase tracking-widest flex-shrink-0"
+                          >
+                            View
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => removeDoc(i)}
+                            title="Remove"
+                            className="text-white/40 hover:text-white transition-colors flex-shrink-0"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
