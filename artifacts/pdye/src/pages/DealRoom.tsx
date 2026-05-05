@@ -3,9 +3,8 @@ import { Link, useLocation } from "wouter";
 import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Lock, ArrowRight, ShieldAlert, Anchor, RefreshCw, Ship, Clock,
+  Lock, ArrowRight, Anchor, RefreshCw, Clock,
   CheckCircle, FileText, AlertTriangle, Eye, Shield, ChevronRight,
-  ArrowLeft, X, Hash, Users, Calendar, ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -209,25 +208,23 @@ export default function DealRoomPage() {
                   <p className="text-white/30 text-xs font-sans mb-4">
                     These vessels have granted you extended specification access. Deal rooms have not been opened yet.
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-[#0f1d33] border border-blue-500/15">
                     {approvedSpecs.map(spec => (
                       <Link key={spec.id} href={`/yacht/${spec.yacht_id}`}>
-                        <div className="group border border-blue-500/15 bg-blue-500/3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-300 cursor-pointer p-5">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Eye size={13} className="text-blue-400" />
-                                <span className="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Spec Access</span>
-                              </div>
-                              <p className="text-white/50 text-xs font-sans mb-1">{spec.yacht_builder}</p>
-                              {spec.approved_spec_access_at && (
-                                <p className="text-white/20 text-[10px] font-sans">Approved {new Date(spec.approved_spec_access_at).toLocaleDateString("en-GB")}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-blue-400 text-xs font-bold uppercase tracking-widest group-hover:gap-3 transition-all">
-                              View Specs <ArrowRight size={13} />
+                        <div className="group flex items-center justify-between px-6 py-4 border-b border-white/5 last:border-b-0 hover:bg-blue-500/5 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Eye size={14} className="text-blue-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-white text-sm font-medium font-sans truncate">{spec.yacht_name}</p>
+                              <p className="text-white/40 text-xs font-sans truncate">
+                                {spec.yacht_builder}
+                                {spec.approved_spec_access_at && ` · Approved ${new Date(spec.approved_spec_access_at).toLocaleDateString("en-GB")}`}
+                              </p>
                             </div>
                           </div>
+                          <span className="text-blue-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 group-hover:gap-2 transition-all flex-shrink-0">
+                            View Specs <ArrowRight size={11} />
+                          </span>
                         </div>
                       </Link>
                     ))}
@@ -236,39 +233,35 @@ export default function DealRoomPage() {
               )}
 
               {activeRooms.length > 0 && (
-                <div>
-                  <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2">
-                    <CheckCircle size={16} className="text-green-400" /> Active Deal Rooms
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {activeRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => goToFullView(room.id)} />)}
-                  </div>
-                </div>
+                <RoomSection
+                  title="Active Deal Rooms"
+                  icon={<CheckCircle size={16} className="text-green-400" />}
+                  rooms={activeRooms}
+                  userId={user?.id}
+                  onSelect={goToFullView}
+                />
               )}
 
               {ndaPendingRooms.length > 0 && (
-                <div>
-                  <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2">
-                    <Clock size={16} className="text-orange-400" /> NDA Pending
-                  </h2>
-                  <p className="text-white/30 text-xs font-sans mb-4">
-                    Deal rooms awaiting NDA signature from one or both parties.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {ndaPendingRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => goToFullView(room.id)} />)}
-                  </div>
-                </div>
+                <RoomSection
+                  title="NDA Pending"
+                  icon={<Clock size={16} className="text-orange-400" />}
+                  rooms={ndaPendingRooms}
+                  userId={user?.id}
+                  onSelect={goToFullView}
+                  hint="Deal rooms awaiting NDA signature from one or both parties."
+                />
               )}
 
               {closedRooms.length > 0 && (
-                <div>
-                  <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2 opacity-60">
-                    <Shield size={16} className="text-white/30" /> Closed
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-60">
-                    {closedRooms.map(room => <RoomCard key={room.id} room={room} userId={user?.id} onSelect={() => goToFullView(room.id)} />)}
-                  </div>
-                </div>
+                <RoomSection
+                  title="Closed"
+                  icon={<Shield size={16} className="text-white/30" />}
+                  rooms={closedRooms}
+                  userId={user?.id}
+                  onSelect={goToFullView}
+                  dim
+                />
               )}
             </div>
           )}
@@ -278,73 +271,100 @@ export default function DealRoomPage() {
   );
 }
 
-function RoomCard({ room, userId, onSelect }: { room: RoomWithYacht; userId?: string; onSelect: () => void }) {
+function RoomSection({
+  title, icon, rooms, userId, onSelect, hint, dim,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  rooms: RoomWithYacht[];
+  userId?: string;
+  onSelect: (id: string) => void;
+  hint?: string;
+  dim?: boolean;
+}) {
+  return (
+    <div className={dim ? "opacity-60" : ""}>
+      <h2 className="font-display text-lg text-white mb-4 flex items-center gap-2">
+        {icon} {title}
+      </h2>
+      {hint && <p className="text-white/30 text-xs font-sans mb-4">{hint}</p>}
+      <div className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+        {/* Compact single-line rows: yacht name, room number, status, my side,
+         *  NDA badges, action arrow. Click anywhere on the row → open detail.
+         *  Mirrors the admin yacht-list layout the user asked for. */}
+        <div className="hidden md:grid grid-cols-[1fr_120px_140px_100px_1fr_60px] gap-3 px-6 py-3 border-b border-white/5 text-white/30 text-[10px] uppercase tracking-wider font-bold font-sans">
+          <span>Vessel</span>
+          <span>Room</span>
+          <span>Status</span>
+          <span>Side</span>
+          <span>Signatures</span>
+          <span className="text-right">Open</span>
+        </div>
+        {rooms.map(room => <RoomRow key={room.id} room={room} userId={userId} onSelect={() => onSelect(room.id)} />)}
+      </div>
+    </div>
+  );
+}
+
+function RoomRow({ room, userId: _userId, onSelect }: { room: RoomWithYacht; userId?: string; onSelect: () => void }) {
   const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
   const isNdaPending = room.status === "nda_pending" || room.status === "partially_signed";
-  const label = room.room_number ? `DR-${String(room.room_number).padStart(6, "0")}` : "";
+  const label = room.room_number ? `DR-${String(room.room_number).padStart(6, "0")}` : "—";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       onClick={onSelect}
-      className="group border border-white/8 bg-white/2 hover:border-primary/40 hover:bg-white/4 transition-all duration-300 cursor-pointer"
+      className="group border-b border-white/5 last:border-b-0 hover:bg-white/3 transition-colors cursor-pointer"
     >
-      <div className="relative h-36 overflow-hidden bg-[#0a1526]">
-        {room.yacht_image ? (
-          <img src={room.yacht_image} alt={room.yacht_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Ship size={28} className="text-white/10" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#070f1a] via-[#070f1a]/30 to-transparent" />
-        <div className="absolute top-3 left-3 flex items-center gap-2">
-          <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 border bg-black/50 ${cfg.color} border-current/20`}>
-            {cfg.label}
-          </span>
-          {room.my_side && (
-            <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 bg-black/50 text-white/50 border border-white/10">
-              {room.my_side}
+      {/* Desktop: single row */}
+      <div className="hidden md:grid grid-cols-[1fr_120px_140px_100px_1fr_60px] gap-3 items-center px-6 py-4">
+        <div className="min-w-0">
+          <p className="text-white text-sm font-medium font-sans truncate group-hover:text-primary transition-colors">{room.yacht_name}</p>
+          {room.yacht_builder && <p className="text-white/40 text-xs font-sans truncate">{room.yacht_builder}</p>}
+        </div>
+        <span className="text-primary/60 text-xs font-mono">{label}</span>
+        <span className={`inline-flex w-fit items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border bg-black/30 ${cfg.color} border-current/20`}>
+          {isNdaPending && <AlertTriangle size={9} className="mr-1" />}
+          {cfg.label}
+        </span>
+        <span className="text-white/50 text-xs font-sans uppercase tracking-wide">{room.my_side || "—"}</span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {room.buyer_nda_status === "signed" && (
+            <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-1.5 py-0.5 flex items-center gap-1">
+              <FileText size={8} /> Buyer
             </span>
           )}
+          {room.seller_nda_status === "signed" && (
+            <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-1.5 py-0.5 flex items-center gap-1">
+              <FileText size={8} /> Seller
+            </span>
+          )}
+          {room.identities_revealed && (
+            <span className="text-[9px] text-emerald-400 border border-emerald-500/20 bg-emerald-500/5 px-1.5 py-0.5 flex items-center gap-1">
+              <CheckCircle size={8} /> Unlocked
+            </span>
+          )}
+          {!room.buyer_nda_status && !room.seller_nda_status && !room.identities_revealed && (
+            <span className="text-white/20 text-[10px]">—</span>
+          )}
         </div>
-        {isNdaPending && (
-          <div className="absolute top-3 right-3 bg-orange-500/90 text-white text-[10px] font-bold px-2 py-1 flex items-center gap-1">
-            <AlertTriangle size={10} /> NDA Required
-          </div>
-        )}
+        <div className="flex items-center justify-end text-primary text-xs font-bold uppercase tracking-widest group-hover:gap-2 transition-all">
+          <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+        </div>
       </div>
 
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-display text-lg text-white group-hover:text-primary transition-colors">{room.yacht_name}</h3>
-          {label && <span className="text-primary/40 text-[10px] font-mono">{label}</span>}
+      {/* Mobile: stacked compact card */}
+      <div className="md:hidden px-4 py-3">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-white text-sm font-medium truncate">{room.yacht_name}</p>
+          <ChevronRight size={14} className="text-primary flex-shrink-0" />
         </div>
-        {room.yacht_builder && (
-          <p className="text-white/40 text-xs font-sans mb-3">{room.yacht_builder}</p>
-        )}
-        <div className="flex items-center justify-between pt-3 border-t border-white/5">
-          <div className="flex items-center gap-3">
-            {room.buyer_nda_status === "signed" && (
-              <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-0.5 flex items-center gap-1">
-                <FileText size={8} /> Buyer NDA
-              </span>
-            )}
-            {room.seller_nda_status === "signed" && (
-              <span className="text-[9px] text-green-400 border border-green-500/20 bg-green-500/5 px-2 py-0.5 flex items-center gap-1">
-                <FileText size={8} /> Seller NDA
-              </span>
-            )}
-            {room.identities_revealed && (
-              <span className="text-[9px] text-emerald-400 border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 flex items-center gap-1">
-                <CheckCircle size={8} /> Unlocked
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 text-primary text-xs font-bold uppercase tracking-widest group-hover:gap-3 transition-all">
-            View <ArrowRight size={13} />
-          </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border ${cfg.color} border-current/20`}>{cfg.label}</span>
+          <span className="text-primary/60 text-[10px] font-mono">{label}</span>
+          {room.my_side && <span className="text-white/40 text-[10px] uppercase">{room.my_side}</span>}
         </div>
       </div>
     </motion.div>

@@ -24,11 +24,16 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
+import { useUnreadCounts, type SectionKey } from "@/lib/useUnreadCounts";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
+  /** Optional unread-badge section key. When set, the sidebar renders a
+   *  numeric badge driven by `useUnreadCounts` and bumps "last seen" on
+   *  click so the badge clears immediately. */
+  section?: SectionKey;
 }
 
 // Single unified Admin Menu — combines in-page admin views (which navigate
@@ -44,8 +49,8 @@ const ADMIN_MENU_GROUP: { id: string; label: string; icon: React.ElementType; it
   icon: ShieldCheck,
   items: [
     { href: "/admin?view=dashboard", label: "Dashboard", icon: LayoutDashboard, viewLink: true },
-    { href: "/admin?view=yachts", label: "Yachts", icon: Ship, viewLink: true },
-    { href: "/admin?view=dealroom", label: "Deal Room", icon: TrendingUp, viewLink: true },
+    { href: "/admin?view=yachts", label: "Yachts", icon: Ship, viewLink: true, section: "adminYachts" },
+    { href: "/admin?view=dealroom", label: "Deal Room", icon: TrendingUp, viewLink: true, section: "adminDealRoom" },
     { href: "/admin?view=leads", label: "Leads", icon: Inbox, viewLink: true },
     { href: "/admin?view=investors", label: "Private Buyers", icon: Users, viewLink: true },
     { href: "/admin?view=brokers", label: "Brokers", icon: Briefcase, viewLink: true },
@@ -54,8 +59,8 @@ const ADMIN_MENU_GROUP: { id: string; label: string; icon: React.ElementType; it
     { href: "/admin?view=messages", label: "Messages", icon: MessageSquare, viewLink: true },
     { href: "/admin?view=content", label: "Page Content", icon: PenLine, viewLink: true },
     { href: "/admin?view=fonts", label: "Fonts", icon: Type, viewLink: true },
-    { href: "/admin-users", label: "Users", icon: Users },
-    { href: "/admin-requests", label: "Access Requests", icon: Inbox },
+    { href: "/admin-users", label: "Users", icon: Users, section: "adminUsers" },
+    { href: "/admin-requests", label: "Access Requests", icon: Inbox, section: "adminAccessRequests" },
     { href: "/admin-platform-nda", label: "Platform NDA", icon: ShieldCheck },
     { href: "/admin-deal-nda", label: "Deal NDA", icon: FileText },
     { href: "/admin-deal-commission", label: "Commission", icon: Scale },
@@ -68,14 +73,14 @@ function getNavItems(role: string | null): NavItem[] {
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/yachts", label: "Yacht Catalog", icon: Ship },
       { href: "/add-yacht", label: "Add Yacht", icon: Plus },
-      { href: "/dealroom", label: "Deal Rooms", icon: Briefcase },
+      { href: "/dealroom", label: "Deal Rooms", icon: Briefcase, section: "dealroom" },
       { href: "/profile", label: "Profile", icon: User },
     ];
   }
   return [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/yachts", label: "Yacht Catalog", icon: Ship },
-    { href: "/dealroom", label: "Deal Rooms", icon: Briefcase },
+    { href: "/dealroom", label: "Deal Rooms", icon: Briefcase, section: "dealroom" },
     { href: "/profile", label: "Profile", icon: User },
   ];
 }
@@ -120,6 +125,18 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const isAdmin = userProfile?.role === "admin";
   const items = useMemo(() => getNavItems(userProfile?.role ?? null), [userProfile?.role]);
+  const { counts, markSeen } = useUnreadCounts(userProfile?.role ?? null, user?.id ?? null);
+
+  // Sum of all admin-section badges — shown on the collapsed Admin Menu
+  // accordion header so admins notice activity without expanding the menu.
+  const adminMenuBadgeTotal = useMemo(() => {
+    if (!isAdmin) return 0;
+    let sum = 0;
+    for (const item of ADMIN_MENU_GROUP.items) {
+      if (item.section) sum += counts[item.section] || 0;
+    }
+    return sum;
+  }, [isAdmin, counts]);
   const displayName = userProfile?.email || user?.email || "Account";
   // Display label for the role badge in the header. Single source of truth so
   // we never accidentally surface raw role keys (e.g. "investor", which we
@@ -145,13 +162,26 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
+  function renderBadge(n: number) {
+    if (!n || n <= 0) return null;
+    return (
+      <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-primary text-background text-[10px] font-bold leading-none">
+        {n > 99 ? "99+" : n}
+      </span>
+    );
+  }
+
   function renderNavLink(item: NavItem, active: boolean) {
     const Icon = item.icon;
+    const badge = item.section ? counts[item.section] || 0 : 0;
     return (
       <Link
         key={item.href}
         href={item.href}
-        onClick={() => setMobileOpen(false)}
+        onClick={() => {
+          setMobileOpen(false);
+          if (item.section) markSeen(item.section);
+        }}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-sans transition-all border-l-2 ${
           active
             ? "bg-primary/10 text-primary border-primary"
@@ -160,6 +190,7 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
       >
         <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
         <span className={`tracking-wide ${active ? "font-semibold" : ""}`}>{item.label}</span>
+        {renderBadge(badge)}
       </Link>
     );
   }
@@ -178,6 +209,7 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
         >
           <Icon size={16} strokeWidth={1.8} />
           <span className="tracking-wide flex-1 text-left">{group.label}</span>
+          {!open && renderBadge(adminMenuBadgeTotal)}
           <ChevronDown
             size={14}
             strokeWidth={2}
