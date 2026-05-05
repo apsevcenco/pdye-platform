@@ -128,8 +128,15 @@ export default function DealDetails() {
       try {
         const blk = await dealRoomApi.getBlocks(roomId!);
         setBlocks(blk as BlockVisibility);
-      } catch {}
-    } catch (e) {}
+      } catch (e) {
+        // Block visibility is best-effort — don't fail the whole load on it.
+        console.warn("[DealDetails] getBlocks failed:", e);
+      }
+    } catch (e) {
+      // Surface the failure in the console so we can diagnose hangs / 403s
+      // / network issues during room refresh instead of swallowing silently.
+      console.error("[DealDetails] loadRoom failed:", e);
+    }
     setLoading(false);
   }
 
@@ -146,11 +153,12 @@ export default function DealDetails() {
     setAcceptingCommission(true);
     setCommissionSignError(null);
     setCommissionVersionStale(false);
+    let result;
     try {
-      const result = await dealCommissionApi.sign(room.id, payload);
+      result = await dealCommissionApi.sign(room.id, payload);
+      // Optimistic UI update so the form flips to "signed" instantly even if
+      // the post-sign room refresh below is slow.
       setSignedCommissionSignatureSide(mySide as "buyer" | "seller");
-      await loadRoom();
-      return result;
     } catch (e: any) {
       const msg = e?.message || "Failed to sign Commission Agreement";
       if (msg === "DEAL_COMMISSION_VERSION_CHANGED") {
@@ -161,10 +169,17 @@ export default function DealDetails() {
       } else {
         setCommissionSignError(msg);
       }
-      throw e;
-    } finally {
       setAcceptingCommission(false);
+      throw e;
     }
+    // ALWAYS reset the spinner before kicking off the room refresh — otherwise
+    // a slow or hung loadRoom() would leave the "Signing…" button frozen even
+    // though the signature already succeeded on the server.
+    setAcceptingCommission(false);
+    // Non-blocking refresh of the room state. If it fails, the optimistic UI
+    // above keeps the user unblocked; we just log so we can debug later.
+    loadRoom().catch(err => console.error("[DealDetails] loadRoom after commission sign failed:", err));
+    return result;
   }
 
   async function downloadSignedCommission() {
@@ -200,11 +215,12 @@ export default function DealDetails() {
     setAcceptingNda(true);
     setNdaSignError(null);
     setNdaVersionStale(false);
+    let result;
     try {
-      const result = await dealLegalApi.signNda(room.id, payload);
+      result = await dealLegalApi.signNda(room.id, payload);
+      // Optimistic UI update so the form flips to "signed" instantly even if
+      // the post-sign room refresh below is slow.
       setSignedNdaSignatureSide(mySide as "buyer" | "seller");
-      await loadRoom();
-      return result;
     } catch (e: any) {
       const msg = e?.message || "Failed to sign NDA";
       if (msg === "DEAL_NDA_VERSION_CHANGED") {
@@ -215,10 +231,20 @@ export default function DealDetails() {
       } else {
         setNdaSignError(msg);
       }
-      throw e;
-    } finally {
       setAcceptingNda(false);
+      throw e;
     }
+    // ALWAYS reset the spinner before kicking off the room refresh — otherwise
+    // a slow or hung loadRoom() would leave the "Signing…" button frozen even
+    // though the signature already succeeded on the server. Critical for the
+    // SECOND signer because that path also runs the activation side-effects on
+    // the server (status flip, participant permission updates) and the room
+    // refresh that follows can take longer than the sign itself.
+    setAcceptingNda(false);
+    // Non-blocking refresh of the room state. If it fails, the optimistic UI
+    // above keeps the user unblocked; we just log so we can debug later.
+    loadRoom().catch(err => console.error("[DealDetails] loadRoom after NDA sign failed:", err));
+    return result;
   }
 
   async function downloadSignedNda() {

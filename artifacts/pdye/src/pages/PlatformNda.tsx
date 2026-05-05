@@ -81,8 +81,9 @@ export default function PlatformNda() {
     if (!doc) return;
     setSubmitting(true);
     setSubmitError(null);
+    let result;
     try {
-      const result = await platformNdaApi.sign({
+      result = await platformNdaApi.sign({
         signature_name: signatureName.trim(),
         accepted_read: acceptedRead,
         accepted_understand: acceptedUnderstand,
@@ -91,15 +92,22 @@ export default function PlatformNda() {
         content_hash: doc.content_hash,
       });
       setSignedSignatureId(result?.signature_id || null);
-      await refreshNdaStatus();
       setSuccess(true);
-      // Give the user a moment to see the success state and download link.
-      setTimeout(() => setLocation("/profile"), 6000);
     } catch (e: any) {
       setSubmitError(e?.message || "Failed to sign agreement");
-    } finally {
       setSubmitting(false);
+      return;
     }
+    // ALWAYS reset the spinner before the auth-context refresh / redirect.
+    // refreshNdaStatus() touches the AuthContext and a slow / hung response
+    // would otherwise leave the user staring at "Signing…" forever even
+    // though their signature is already saved on the server.
+    setSubmitting(false);
+    // Non-blocking refresh of NDA status. The redirect below uses the
+    // optimistic `success` state which we already set above.
+    refreshNdaStatus().catch(err => console.error("[PlatformNda] refreshNdaStatus after sign failed:", err));
+    // Give the user a moment to see the success state and download link.
+    setTimeout(() => setLocation("/profile"), 6000);
   }
 
   return (
