@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { getSupabaseAdmin } from "../middlewares/auth";
+import { authLimiter } from "../middlewares/rateLimit";
 
 const router = Router();
 
-router.get("/auth/check-email", async (req, res) => {
+router.get("/auth/check-email", authLimiter, async (req, res) => {
   try {
     const email = String(req.query["email"] || "").trim().toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

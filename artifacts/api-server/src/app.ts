@@ -1,11 +1,27 @@
 import express, { type Express } from "express";
 import cors, { type CorsOptions } from "cors";
+import helmet from "helmet";
 import router from "./routes";
 import OpenAI from "openai";
+import { requireUser } from "./middlewares/auth";
+import { globalLimiter, strictLimiter } from "./middlewares/rateLimit";
 
 const app: Express = express();
 
 const isProd = process.env["NODE_ENV"] === "production";
+
+app.set("trust proxy", 1);
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: false,
+    hsts: isProd
+      ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+      : false,
+  }),
+);
 
 const defaultAllowed = [
   /^https?:\/\/localhost(:\d+)?$/,
@@ -13,7 +29,11 @@ const defaultAllowed = [
   /\.replit\.app$/,
   /\.replit\.dev$/,
   /\.kirk\.replit\.dev$/,
-  /\.onrender\.com$/,
+];
+
+const prodAllowed = [
+  "https://pdye-platform-1.onrender.com",
+  "https://pdye-platform.onrender.com",
 ];
 
 const envAllowed = (process.env["ALLOWED_ORIGINS"] || "")
@@ -23,6 +43,7 @@ const envAllowed = (process.env["ALLOWED_ORIGINS"] || "")
 
 function isOriginAllowed(origin: string): boolean {
   if (envAllowed.includes(origin)) return true;
+  if (prodAllowed.includes(origin)) return true;
   let hostname: string;
   try {
     hostname = new URL(origin).hostname;
@@ -50,8 +71,10 @@ const corsOptions: CorsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
+app.use(globalLimiter);
 
 if (!isProd) {
   app.use((req, _res, next) => {
@@ -66,7 +89,7 @@ const openai = new OpenAI({
   apiKey: process.env["OPENAI_API_KEY"],
 });
 
-app.post("/api/valuation", async (req, res) => {
+app.post("/api/valuation", strictLimiter, requireUser, async (req, res) => {
   try {
     const data = req.body;
 

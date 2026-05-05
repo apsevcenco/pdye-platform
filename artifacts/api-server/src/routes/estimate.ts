@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { requireUser } from "../middlewares/auth";
+import { strictLimiter } from "../middlewares/rateLimit";
 
 const router = Router();
 
@@ -197,7 +199,7 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
   }
 });
 
-router.post("/valuation", async (req, res) => {
+router.post("/valuation", strictLimiter, requireUser, async (req, res) => {
   try {
     const b = req.body as Record<string, unknown>;
     const { mode, units } = b;

@@ -29,6 +29,15 @@ The project is a pnpm workspace monorepo utilizing TypeScript.
 
 **Backend (artifacts/api-server):**
 -   **Framework:** Express 5 API server.
+-   **Security Hardening:**
+    -   `helmet` middleware applied (X-Content-Type-Options, X-Frame-Options=SAMEORIGIN, Referrer-Policy=no-referrer, X-Permitted-Cross-Domain-Policies=none; HSTS 1y/includeSubdomains/preload in prod). CSP/COOP intentionally off (API doesn't serve HTML, avoids breaking cross-origin previews).
+    -   `app.set("trust proxy", 1)` so rate limiter reads X-Forwarded-For from Render's TLS terminator.
+    -   `express-rate-limit` (`middlewares/rateLimit.ts`): `globalLimiter` (300 req/15min prod, 1000 dev, skips /health), `strictLimiter` (10 req/min for sensitive ops — applied to `/api/upload-photo`, both `/api/valuation` endpoints), `authLimiter` (30 req/15min on `/auth/check-email`).
+    -   CORS: explicit prod allowlist (`pdye-platform-1.onrender.com`, `pdye-platform.onrender.com`) + `ALLOWED_ORIGINS` env CSV; dropped broad `/\.onrender\.com$/` regex; dev still allows `localhost`, `*.replit.app/.dev/.kirk.replit.dev`.
+    -   JSON/urlencoded body limit reduced from 10mb → 2mb (DoS hardening).
+    -   `/api/upload-photo` and both `/api/valuation` endpoints now require authenticated user (`requireUser`); previously open to the internet.
+    -   Upload (`routes/upload.ts`): magic-byte sniffing (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WebP `RIFF…WEBP`); rejects 415 if content doesn't match declared mimetype; max 15MB; filename randomised via `crypto.randomBytes` (no path traversal); extension derived from sniffed mime; `upsert: false` (no overwrite); error messages no longer leak Supabase internals to client.
+    -   `routes/leads.ts buildEmailHtml`: user-provided `name`, `label`, and `email` are run through `escapeHtml` to prevent HTML injection in welcome emails. Temporary password generation already used `crypto.randomInt` (cryptographically secure) and is NOT logged.
 -   **Core Functionality:** Handles yacht photo uploads, market price estimations, public valuations, NDA processing (send, sign, status, webhooks), lead approval, access request rejection, and comprehensive CRUD operations for deal rooms, participants, messages, and documents.
 -   **Deal Flow Logic:** Implements a two-stage access and deal flow:
     1.  **Spec Access:** Initial limited yacht browsing, followed by access requests and admin approval to view anonymized full specifications.

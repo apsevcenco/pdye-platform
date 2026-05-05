@@ -2,8 +2,18 @@ import { Router } from "express";
 import { Resend } from "resend";
 import { randomInt } from "crypto";
 import { getSupabaseAdmin, requireAdmin } from "../middlewares/auth";
+import { strictLimiter } from "../middlewares/rateLimit";
 
 const router = Router();
+
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function generatePassword(length = 12): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -64,9 +74,9 @@ function buildEmailHtml({
           <div style="font-family:Arial,sans-serif;color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:0.25em;text-transform:uppercase;margin-top:6px;">Private Distressed Yacht Exchange</div>
         </td></tr>
         <tr><td style="padding:40px 48px 24px 48px;">
-          <h1 style="font-family:Georgia,serif;color:#ffffff;font-size:24px;font-weight:normal;margin:0 0 16px 0;">Welcome${name ? ", " + name : ""}.</h1>
+          <h1 style="font-family:Georgia,serif;color:#ffffff;font-size:24px;font-weight:normal;margin:0 0 16px 0;">Welcome${name ? ", " + escapeHtml(name) : ""}.</h1>
           <p style="font-family:Arial,sans-serif;color:rgba(255,255,255,0.7);font-size:14px;line-height:1.7;margin:0 0 12px 0;">
-            Your application has been reviewed and approved. You now have access to the PDYE network as a <strong style="color:#c8a46b;">${label}</strong>.
+            Your application has been reviewed and approved. You now have access to the PDYE network as a <strong style="color:#c8a46b;">${escapeHtml(label)}</strong>.
           </p>
           <p style="font-family:Arial,sans-serif;color:rgba(255,255,255,0.55);font-size:13px;line-height:1.7;margin:0 0 28px 0;">
             Use the credentials below to sign in. We strongly recommend changing your password after your first login from your account settings.
@@ -74,7 +84,7 @@ function buildEmailHtml({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(200,164,107,0.06);border:1px solid rgba(200,164,107,0.25);margin-bottom:28px;">
             <tr><td style="padding:24px;">
               <div style="font-family:Arial,sans-serif;color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:6px;">Email</div>
-              <div style="font-family:'Courier New',monospace;color:#ffffff;font-size:15px;margin-bottom:18px;word-break:break-all;">${email}</div>
+              <div style="font-family:'Courier New',monospace;color:#ffffff;font-size:15px;margin-bottom:18px;word-break:break-all;">${escapeHtml(email)}</div>
               <div style="font-family:Arial,sans-serif;color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:6px;">Temporary Password</div>
               <div style="font-family:'Courier New',monospace;color:#c8a46b;font-size:18px;letter-spacing:0.05em;font-weight:bold;">${password}</div>
             </td></tr>
