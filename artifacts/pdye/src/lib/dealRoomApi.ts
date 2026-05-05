@@ -32,6 +32,8 @@ export const dealRoomApi = {
   byUser: (userId: string) => request(`/deal-rooms/by-user/${userId}`),
 
   getParticipants: (roomId: string) => request(`/deal-rooms/${roomId}/participants`),
+  getParticipantsInfo: (roomId: string): Promise<Record<string, { email: string; role: string }>> =>
+    request(`/deal-rooms/${roomId}/participants-info`),
   addParticipant: (roomId: string, data: Record<string, any>) => request(`/deal-rooms/${roomId}/participants`, { method: "POST", body: JSON.stringify(data) }),
   updateParticipants: (roomId: string, data: Record<string, any>) => request(`/deal-rooms/${roomId}/participants`, { method: "PATCH", body: JSON.stringify(data) }),
 

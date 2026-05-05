@@ -219,6 +219,61 @@ router.get("/deal-rooms/:id", optionalUser, validateParams(DealRoomIdParams), as
   }
 });
 
+/**
+ * GET /deal-rooms/:id/participants-info
+ *
+ * Returns {id, email, role} for buyer_user_id / seller_user_id /
+ * created_by_admin_id of the room. Resolved server-side via the Supabase
+ * service-role key so that non-admin clients can render participant names
+ * without needing direct SELECT permission on the public.users table
+ * (anon-key RLS typically restricts that to the caller's own row, which is
+ * why the sidebar previously rendered every other party as "Unknown").
+ *
+ * Caller must be an admin OR the buyer / seller of the room — anyone else
+ * gets 403 to avoid leaking participant identities.
+ */
+router.get("/deal-rooms/:id/participants-info", requireUser, validateParams(DealRoomIdParams), async (req, res) => {
+  try {
+    const { rows } = await db().query(
+      "SELECT buyer_user_id, seller_user_id, created_by_admin_id FROM deal_rooms WHERE id = $1",
+      [req.params.id]
+    );
+    if (rows.length === 0) { res.status(404).json({ error: "Not found" }); return; }
+    const room = rows[0];
+    const callerId = req.authUser!.id;
+    const isAdmin = req.authUser!.role === "admin";
+    const isParty =
+      callerId === room.buyer_user_id ||
+      callerId === room.seller_user_id ||
+      callerId === room.created_by_admin_id;
+    if (!isAdmin && !isParty) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    const ids = [room.buyer_user_id, room.seller_user_id, room.created_by_admin_id].filter(Boolean) as string[];
+    if (ids.length === 0) { res.json({}); return; }
+
+    const sb = getSupabaseAdmin();
+    if (!sb) {
+      console.warn("[participants-info] Supabase admin client not configured");
+      res.status(500).json({ error: "Server misconfigured" });
+      return;
+    }
+    const { data, error } = await sb.from("users").select("id, email, role").in("id", ids);
+    if (error) {
+      console.error("[participants-info] supabase users lookup failed:", error.message);
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    const map: Record<string, { email: string; role: string }> = {};
+    (data || []).forEach((u: any) => { map[u.id] = { email: u.email, role: u.role }; });
+    res.json(map);
+  } catch (e: any) {
+    console.error("[participants-info] unexpected error:", e?.message || e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post("/deal-rooms", requireAdmin, validateBody(CreateDealRoomBody), async (req, res) => {
   // Always use the authenticated admin as creator (route is requireAdmin-gated).
   // We deliberately ignore any `created_by_admin_id` from the body to prevent spoofing

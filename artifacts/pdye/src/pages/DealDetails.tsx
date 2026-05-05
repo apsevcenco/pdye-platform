@@ -105,12 +105,23 @@ export default function DealDetails() {
       const { data: y } = await supabase.from("yachts").select("*").eq("id", data.yacht_id).single();
       if (y) setYacht(y as YachtFull);
 
-      const participantIds = [data.buyer_user_id, data.seller_user_id, data.created_by_admin_id].filter(Boolean) as string[];
-      if (participantIds.length > 0) {
-        const { data: pUsers } = await supabase.from("users").select("id, email, role").in("id", participantIds);
-        const pMap: Record<string, { email: string; role: string }> = {};
-        (pUsers || []).forEach((u: any) => { pMap[u.id] = { email: u.email, role: u.role }; });
-        setParticipantMap(pMap);
+      // Resolve participant identities via the backend (service-role) instead
+      // of querying public.users with the user's anon JWT — RLS on that table
+      // restricts non-admins to their own row, which made every other party
+      // render as "Unknown" in the sidebar. The endpoint enforces that the
+      // caller must be an admin or a party of the room.
+      try {
+        const pMap = await dealRoomApi.getParticipantsInfo(roomId!);
+        setParticipantMap(pMap || {});
+      } catch (e) {
+        console.warn("[DealDetails] getParticipantsInfo failed, falling back to direct supabase lookup:", e);
+        const participantIds = [data.buyer_user_id, data.seller_user_id, data.created_by_admin_id].filter(Boolean) as string[];
+        if (participantIds.length > 0) {
+          const { data: pUsers } = await supabase.from("users").select("id, email, role").in("id", participantIds);
+          const pMap: Record<string, { email: string; role: string }> = {};
+          (pUsers || []).forEach((u: any) => { pMap[u.id] = { email: u.email, role: u.role }; });
+          setParticipantMap(pMap);
+        }
       }
 
       const isRoomActive = data.status === "active" || data.status === "closed";
