@@ -223,16 +223,84 @@ router.post("/deal-rooms", requireAdmin, validateBody(CreateDealRoomBody), async
   // Always use the authenticated admin as creator (route is requireAdmin-gated).
   // We deliberately ignore any `created_by_admin_id` from the body to prevent spoofing
   // and to avoid the previous nil-UUID fallback.
-  const { yacht_id, buyer_user_id, seller_user_id, notes, status, nda_required } = req.body;
+  const { yacht_id, buyer_user_id, notes, status, nda_required } = req.body;
+  let { seller_user_id } = req.body;
   const creatorId = req.authUser!.id;
   try {
+    // Auto-resolve seller from yachts.owner_id when admin didn't pass one.
+    // The owner is the authoritative seller — admin shouldn't have to type it.
+    if (!seller_user_id && yacht_id) {
+      const sb = getSupabaseAdmin();
+      if (sb) {
+        try {
+          const { data: yacht } = await sb.from("yachts").select("owner_id").eq("id", yacht_id).maybeSingle();
+          const ownerId = (yacht as any)?.owner_id;
+          if (ownerId) seller_user_id = ownerId;
+        } catch (e) {
+          console.warn("[deal-rooms] auto-resolve seller from yacht failed:", (e as Error).message);
+        }
+      }
+    }
+
+    const initialStatus = status || 'draft';
+    const now = new Date().toISOString();
+    // If we know the seller, kick the room straight into nda_pending and mark
+    // seller_nda_status='sent' so the cabinet immediately shows the action card.
+    const autoSellerNda = !!seller_user_id;
+    const roomStatus = autoSellerNda && initialStatus === 'draft' ? 'nda_pending' : initialStatus;
+
     const { rows } = await db().query(
-      `INSERT INTO deal_rooms (yacht_id, created_by_admin_id, buyer_user_id, seller_user_id, notes, status, nda_required)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO deal_rooms
+         (yacht_id, created_by_admin_id, buyer_user_id, seller_user_id, notes, status, nda_required,
+          seller_nda_status, seller_nda_sent_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [yacht_id, creatorId, buyer_user_id, seller_user_id, notes, status || 'draft', nda_required !== false]
+      [
+        yacht_id, creatorId, buyer_user_id, seller_user_id, notes, roomStatus, nda_required !== false,
+        autoSellerNda ? 'sent' : 'not_sent',
+        autoSellerNda ? now : null,
+      ]
     );
-    res.json(rows[0]);
+    const room = rows[0];
+
+    // Side-effects for the seller side — fire here on the server so it cannot
+    // be skipped by an admin who didn't fill the seller field. Buyer side is
+    // still owned by the existing Admin.tsx flow (unchanged behaviour).
+    if (seller_user_id) {
+      try {
+        await db().query(
+          `INSERT INTO deal_room_participants (deal_room_id, user_id, role, side, can_view, can_message, can_download)
+           VALUES ($1, $2, 'seller', 'seller', true, true, true)
+           ON CONFLICT (deal_room_id, user_id) DO UPDATE
+             SET role = 'seller', side = 'seller', can_view = true, can_message = true, can_download = true`,
+          [room.id, seller_user_id]
+        );
+        await db().query(
+          `INSERT INTO nda_envelopes
+             (deal_room_id, user_id, side, provider, status, sent_at, document_name)
+           VALUES ($1, $2, 'seller', 'internal', 'sent', $3, $4)`,
+          [room.id, seller_user_id, now, "Deal Room NDA — auto-sent on room creation"]
+        );
+        await db().query(
+          `INSERT INTO audit_logs (entity_type, entity_id, user_id, action, meta)
+           VALUES ('deal_room', $1, $2, 'seller_auto_attached', $3)`,
+          [room.id, creatorId, JSON.stringify({ seller_user_id, source: "yachts.owner_id", auto: true })]
+        );
+        await db().query(
+          `INSERT INTO deal_room_messages (deal_room_id, sender_id, message, is_system)
+           VALUES ($1, $2, 'Vessel owner automatically attached to this Deal Room as Seller. NDA invitation sent.', true)`,
+          [room.id, creatorId]
+        );
+        // Fire the email invite (non-blocking).
+        void sendDealNdaInvite({ deal_room_id: room.id, user_id: seller_user_id, side: "seller" })
+          .catch(err => console.error("[deal-rooms] seller NDA invite failed:", err?.message || err));
+      } catch (sideErr: any) {
+        console.error("[deal-rooms] seller-side auto-setup failed:", sideErr?.message || sideErr);
+        // Non-fatal: room is already created; admin can retry via Send NDA button.
+      }
+    }
+
+    res.json(room);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

@@ -1693,49 +1693,37 @@ function DealsManageView() {
   }, []);
 
   async function createDealRoom() {
-    const { buyerEmail, sellerEmail, yachtId, notes } = createForm;
+    const { buyerEmail, yachtId, notes } = createForm;
     if (!yachtId) { setCreateError("Please select a yacht."); return; }
-    if (!buyerEmail.trim() && !sellerEmail.trim()) { setCreateError("Enter at least one participant email."); return; }
+    if (!buyerEmail.trim()) { setCreateError("Please enter the buyer email."); return; }
     setCreating(true);
     setCreateError("");
 
     try {
-      let buyerUserId: string | null = null;
-      let sellerUserId: string | null = null;
+      // Buyer side: admin enters email manually (existing flow).
+      const { data: bu } = await supabase.from("users").select("id").eq("email", buyerEmail.trim().toLowerCase()).maybeSingle();
+      if (!bu) { setCreateError(`Buyer email "${buyerEmail}" not found. The user must register first.`); setCreating(false); return; }
+      const buyerUserId = bu.id;
 
-      if (buyerEmail.trim()) {
-        const { data: bu } = await supabase.from("users").select("id").eq("email", buyerEmail.trim().toLowerCase()).maybeSingle();
-        if (!bu) { setCreateError(`Buyer email "${buyerEmail}" not found. The user must register first.`); setCreating(false); return; }
-        buyerUserId = bu.id;
-      }
-      if (sellerEmail.trim()) {
-        const { data: su } = await supabase.from("users").select("id").eq("email", sellerEmail.trim().toLowerCase()).maybeSingle();
-        if (!su) { setCreateError(`Seller email "${sellerEmail}" not found. The user must register first.`); setCreating(false); return; }
-        sellerUserId = su.id;
-      }
-
+      // Seller side: NOT sent — backend auto-resolves from yachts.owner_id
+      // and handles participant + NDA envelope + nda_pending status itself.
       const room = await dealRoomApi.create({
         yacht_id: yachtId,
         created_by_admin_id: user?.id || "",
         status: "draft",
         buyer_user_id: buyerUserId,
-        seller_user_id: sellerUserId,
         nda_required: true,
         notes: notes.trim() || null,
       });
 
       if (!room?.id) throw new Error("Failed to create room");
 
-      if (buyerUserId) {
-        await dealRoomApi.addParticipant(room.id, { user_id: buyerUserId, role: "buyer", side: "buyer", can_view: true, can_message: true, can_download: true });
-      }
-      if (sellerUserId) {
-        await dealRoomApi.addParticipant(room.id, { user_id: sellerUserId, role: "seller", side: "seller", can_view: true, can_message: true, can_download: true });
-      }
+      // Buyer participant + audit log + creation system message.
+      await dealRoomApi.addParticipant(room.id, { user_id: buyerUserId, role: "buyer", side: "buyer", can_view: true, can_message: true, can_download: true });
 
       await dealRoomApi.sendMessage(room.id, {
         sender_id: user?.id || "",
-        message: `Deal room created. ${buyerEmail ? "Buyer: " + buyerEmail + ". " : ""}${sellerEmail ? "Seller: " + sellerEmail + "." : ""}`,
+        message: `Deal room created. Buyer: ${buyerEmail}.`,
         is_system: true,
       });
 
@@ -1744,78 +1732,47 @@ function DealsManageView() {
         entity_id: room.id,
         user_id: user?.id || "",
         action: "deal_room_created",
-        meta: { buyer_email: buyerEmail || null, seller_email: sellerEmail || null, yacht_id: yachtId },
+        meta: { buyer_email: buyerEmail, yacht_id: yachtId },
       });
 
-      // Auto-send Deal NDA on creation. Without this the room stays in
-      // 'draft' with nda_status='not_sent' and seller/buyer would see
-      // no NDA form in their Legal tab — admin used to click a separate
-      // "Send NDA" button. Now the NDA goes out immediately on create.
-      //
-      // Order matters for partial-failure recovery: envelopes + per-side
-      // status flags first; the room-level `status: nda_pending` flip
-      // is LAST. If any earlier step fails the room stays `status:
-      // draft`, which is exactly what canSendNda gates on — so the
-      // manual "Send NDA" button remains available for retry.
+      // Buyer-side NDA envelope + status flip. Seller side is handled by
+      // the backend during POST /deal-rooms (auto-resolved from yacht owner).
       let ndaSentOk = true;
       try {
         const now = new Date().toISOString();
-
-        if (buyerUserId) {
-          await dealRoomApi.createNdaEnvelope({
-            deal_room_id: room.id,
-            user_id: buyerUserId,
-            side: "buyer",
-            provider: "internal",
-            status: "sent",
-            sent_at: now,
-          });
-        }
-        if (sellerUserId) {
-          await dealRoomApi.createNdaEnvelope({
-            deal_room_id: room.id,
-            user_id: sellerUserId,
-            side: "seller",
-            provider: "internal",
-            status: "sent",
-            sent_at: now,
-          });
-        }
-
-        const ndaUpdates: Record<string, any> = { status: "nda_pending" };
-        if (buyerUserId) {
-          ndaUpdates.buyer_nda_status = "sent";
-          ndaUpdates.buyer_nda_sent_at = now;
-        }
-        if (sellerUserId) {
-          ndaUpdates.seller_nda_status = "sent";
-          ndaUpdates.seller_nda_sent_at = now;
-        }
-        await dealRoomApi.update(room.id, ndaUpdates);
-
+        await dealRoomApi.createNdaEnvelope({
+          deal_room_id: room.id,
+          user_id: buyerUserId,
+          side: "buyer",
+          provider: "internal",
+          status: "sent",
+          sent_at: now,
+        });
+        await dealRoomApi.update(room.id, {
+          status: "nda_pending",
+          buyer_nda_status: "sent",
+          buyer_nda_sent_at: now,
+        });
         await dealRoomApi.createAuditLog({
           entity_type: "deal_room",
           entity_id: room.id,
           user_id: user?.id || "",
           action: "nda_sent_by_admin",
-          meta: { buyer: !!buyerUserId, seller: !!sellerUserId, auto: true },
+          meta: { buyer: true, auto: true },
         });
         await dealRoomApi.sendMessage(room.id, {
           sender_id: user?.id || "",
-          message: "[SIMULATION] NDA documents sent automatically on room creation. Participants can sign from their Deal Room → Legal tab.",
+          message: "NDA invitation sent to Buyer. Seller (vessel owner) was auto-attached and notified by the system.",
           is_system: true,
         });
       } catch (ndaErr: any) {
         ndaSentOk = false;
-        console.warn("[Admin] auto-send NDA on createRoom failed:", ndaErr);
+        console.warn("[Admin] buyer-side NDA send failed:", ndaErr);
         setCreateError(
-          `Deal room created, but auto-sending NDA failed: ${ndaErr?.message || "Unknown error"}. Open the room and click "Send NDA" to retry.`
+          `Deal room created, but buyer NDA send failed: ${ndaErr?.message || "Unknown error"}. Open the room and click "Send NDA" to retry.`
         );
       }
 
-      // Only close the modal if everything succeeded. On NDA failure we
-      // keep the modal open so the red error block stays visible — admin
-      // can dismiss it manually after reading the message.
       if (ndaSentOk) {
         setShowCreate(false);
         setCreateForm({ buyerEmail: "", sellerEmail: "", yachtId: "", notes: "" });
@@ -2249,12 +2206,17 @@ function DealsManageView() {
                 <p className="text-white/20 text-[10px] mt-1 font-sans">Must be a registered user</p>
               </div>
               <div>
-                <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Seller Email</label>
-                <input type="email" value={createForm.sellerEmail} onChange={e => setCreateForm(f => ({ ...f, sellerEmail: e.target.value }))} className="w-full bg-background border border-white/10 focus:border-primary px-4 py-2.5 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans" placeholder="seller@example.com" />
-                <p className="text-white/20 text-[10px] mt-1 font-sans">
-                  {createForm.yachtId && yachtOptions.find(y => y.id === createForm.yachtId)?.owner_email
-                    ? "Auto-filled from yacht owner"
-                    : "Must be a registered user (optional — can be added later)"}
+                <label className="block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-bold">Seller (auto)</label>
+                <input
+                  type="email"
+                  value={createForm.yachtId ? (yachtOptions.find(y => y.id === createForm.yachtId)?.owner_email || "—") : ""}
+                  readOnly
+                  disabled
+                  className="w-full bg-white/5 border border-white/10 px-4 py-2.5 text-white/60 text-sm font-sans cursor-not-allowed"
+                  placeholder="Will be auto-attached from selected yacht"
+                />
+                <p className="text-white/30 text-[10px] mt-1 font-sans">
+                  The vessel owner is auto-attached as Seller and receives the NDA automatically. No manual entry needed.
                 </p>
               </div>
               <div>
