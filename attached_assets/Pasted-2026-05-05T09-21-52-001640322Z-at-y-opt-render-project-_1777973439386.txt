@@ -1,0 +1,100 @@
+2026-05-05T09:21:52.001640322Z     at y (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30679)
+2026-05-05T09:21:52.001644742Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30278
+2026-05-05T09:21:52.001649242Z     at cP (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:32269)
+2026-05-05T09:21:52.001653702Z     at g (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30211)
+2026-05-05T09:21:52.001658603Z     at en.handle (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:29569)
+2026-05-05T09:21:52.002170232Z clientIP="176.137.223.5" requestID="c75bc4b1-5144-410b" responseTimeMS=2 responseBytes=402 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:22:14.068015079Z ❌ CORS blocked: https://example.com
+2026-05-05T09:22:14.068755936Z Error: Not allowed by CORS
+2026-05-05T09:22:14.068776627Z     at origin (/opt/render/project/src/artifacts/api-server/dist/index.cjs:809:9162)
+2026-05-05T09:22:14.068782197Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4423
+2026-05-05T09:22:14.068785377Z     at h (/opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4243)
+2026-05-05T09:22:14.068788527Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4270
+2026-05-05T09:22:14.068792097Z     at vi.handleRequest (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:25648)
+2026-05-05T09:22:14.068797108Z     at y (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30679)
+2026-05-05T09:22:14.068814059Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30278
+2026-05-05T09:22:14.068817589Z     at cP (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:32269)
+2026-05-05T09:22:14.068820639Z     at g (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30211)
+2026-05-05T09:22:14.068823799Z     at en.handle (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:29569)
+2026-05-05T09:22:14.069496272Z clientIP="8.231.245.55" requestID="f0a06706-ea08-49bd" responseTimeMS=2 responseBytes=402 userAgent="curl/8.14.1"
+2026-05-05T09:22:14.32991156Z ❌ CORS blocked: https://example.com
+2026-05-05T09:22:14.330587084Z Error: Not allowed by CORS
+2026-05-05T09:22:14.330594174Z     at origin (/opt/render/project/src/artifacts/api-server/dist/index.cjs:809:9162)
+2026-05-05T09:22:14.330597454Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4423
+2026-05-05T09:22:14.330599674Z     at h (/opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4243)
+2026-05-05T09:22:14.330601624Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4270
+2026-05-05T09:22:14.330603674Z     at vi.handleRequest (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:25648)
+2026-05-05T09:22:14.330605965Z     at y (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30679)
+2026-05-05T09:22:14.330608045Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30278
+2026-05-05T09:22:14.330610015Z     at cP (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:32269)
+2026-05-05T09:22:14.330612165Z     at g (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30211)
+2026-05-05T09:22:14.330614275Z     at en.handle (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:29569)
+2026-05-05T09:22:14.331108305Z clientIP="8.231.245.55" requestID="c1af8fd1-91aa-4166" responseTimeMS=2 responseBytes=402 userAgent="curl/8.14.1"
+2026-05-05T09:23:37.575467085Z ==> Deploying...
+2026-05-05T09:23:37.798361078Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-05-05T09:23:59.122558777Z ==> Running 'node artifacts/api-server/dist/index.cjs'
+2026-05-05T09:24:02.02863401Z Server listening on port 10000
+2026-05-05T09:24:02.41990998Z REQ: HEAD /
+2026-05-05T09:24:02.663310335Z [platform-nda] Migration complete
+2026-05-05T09:24:02.741665579Z [deal-commission] Migration complete
+2026-05-05T09:24:02.835636099Z [deal-legal] Migration complete
+2026-05-05T09:24:08.754260293Z ==> Your service is live 🎉
+2026-05-05T09:24:08.800143807Z REQ: GET /
+2026-05-05T09:24:08.801152888Z clientIP="34.82.57.203" requestID="fd96c75e-e227-4855" responseTimeMS=4 responseBytes=451 userAgent="Go-http-client/2.0"
+2026-05-05T09:24:08.977539525Z ==> 
+2026-05-05T09:24:08.980138033Z ==> ///////////////////////////////////////////////////////////
+2026-05-05T09:24:08.982695019Z ==> 
+2026-05-05T09:24:08.985167331Z ==> Available at your primary URL https://pdye-platform.onrender.com
+2026-05-05T09:24:08.987720617Z ==> 
+2026-05-05T09:24:08.990723888Z ==> ///////////////////////////////////////////////////////////
+2026-05-05T09:26:11.357910692Z REQ: GET /api/fx/rates
+2026-05-05T09:26:11.721198635Z clientIP="176.137.223.5" requestID="80ca94ea-5ca7-4ea4" responseTimeMS=367 responseBytes=481 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:26:21.369206898Z clientIP="176.137.223.5" requestID="a447b14c-9fe7-4bde" responseTimeMS=3 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:26:21.427025883Z REQ: GET /api/deal-rooms
+2026-05-05T09:26:21.434248527Z clientIP="176.137.223.5" requestID="f18db8b4-2d61-40ae" responseTimeMS=2 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:26:21.516212589Z REQ: GET /api/deal-room-messages-all
+2026-05-05T09:26:22.792221963Z clientIP="176.137.223.5" requestID="16d2a7ab-9e84-454f" responseTimeMS=1279 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:26:22.99092467Z clientIP="176.137.223.5" requestID="577faf93-476d-43b5" responseTimeMS=1566 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:26:26.602503451Z clientIP="176.137.223.5" requestID="4c783b9f-fa89-48ee" responseTimeMS=2 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:26:26.690323781Z REQ: POST /api/api/leads/ebdce7d2-bc5e-4ff3-8c90-004d36a9039a/approve
+2026-05-05T09:26:26.690848782Z clientIP="176.137.223.5" requestID="12444ea4-f1d3-4309" responseTimeMS=7 responseBytes=564 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:19.234380126Z clientIP="176.137.223.5" requestID="21a6df07-728e-4a47" responseTimeMS=3 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:19.241600017Z clientIP="176.137.223.5" requestID="2ad1798e-648d-4eca" responseTimeMS=1 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:19.283971111Z REQ: GET /api/admin/platform-nda
+2026-05-05T09:28:19.298408855Z REQ: GET /api/admin/platform-nda/signatures
+2026-05-05T09:28:19.913836568Z clientIP="176.137.223.5" requestID="68fb20ec-06cb-4ca2" responseTimeMS=617 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:19.966236766Z clientIP="176.137.223.5" requestID="41a234fc-59d2-49ed" responseTimeMS=684 responseBytes=302 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:27.734145497Z clientIP="176.137.223.5" requestID="7fe7310d-fa95-4184" responseTimeMS=2 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:27.761455178Z clientIP="176.137.223.5" requestID="67892a14-4136-4305" responseTimeMS=2 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:27.824013498Z REQ: GET /api/deal-rooms
+2026-05-05T09:28:27.868766878Z REQ: GET /api/deal-room-messages-all
+2026-05-05T09:28:28.260082219Z clientIP="176.137.223.5" requestID="f82ff8ec-901a-40ae" responseTimeMS=437 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:28:28.269300874Z clientIP="176.137.223.5" requestID="dd48e40d-1d51-4482" responseTimeMS=403 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:29:07.22596858Z ==> Detected service running on port 10000
+2026-05-05T09:29:07.555619076Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-05-05T09:29:17.5266054Z clientIP="176.137.223.5" requestID="d13478ca-6890-4fac" responseTimeMS=2 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:29:17.567432068Z clientIP="176.137.223.5" requestID="d5f7921f-4541-4e01" responseTimeMS=1 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:29:17.616162601Z REQ: GET /api/deal-rooms
+2026-05-05T09:29:17.627419072Z REQ: GET /api/deal-room-messages-all
+2026-05-05T09:29:18.174689629Z clientIP="176.137.223.5" requestID="ba597890-fa58-49b4" responseTimeMS=560 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:29:18.217827816Z clientIP="176.137.223.5" requestID="333bf8fa-367f-4dcd" responseTimeMS=591 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:29:23.66745833Z clientIP="176.137.223.5" requestID="afea1228-b505-482e" responseTimeMS=1 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:29:23.719413733Z REQ: POST /api/api/leads/da9f55aa-b601-44e7-aa31-8b9b99e49afb/approve
+2026-05-05T09:29:23.720588458Z clientIP="176.137.223.5" requestID="d3e48447-824e-427c" responseTimeMS=3 responseBytes=563 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T09:29:43.971928233Z ❌ CORS blocked: https://example.com
+2026-05-05T09:29:43.972791443Z clientIP="8.231.245.55" requestID="e782a01e-ebd0-4cd3" responseTimeMS=3 responseBytes=402 userAgent="curl/8.14.1"
+2026-05-05T09:29:43.973007414Z Error: Not allowed by CORS
+2026-05-05T09:29:43.973023455Z     at origin (/opt/render/project/src/artifacts/api-server/dist/index.cjs:809:9162)
+2026-05-05T09:29:43.973028095Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4423
+2026-05-05T09:29:43.973032095Z     at h (/opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4243)
+2026-05-05T09:29:43.973037225Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:51:4270
+2026-05-05T09:29:43.973041155Z     at vi.handleRequest (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:25648)
+2026-05-05T09:29:43.973045815Z     at y (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30679)
+2026-05-05T09:29:43.973049985Z     at /opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30278
+2026-05-05T09:29:43.973053775Z     at cP (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:32269)
+2026-05-05T09:29:43.973057515Z     at g (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:30211)
+2026-05-05T09:29:43.973061286Z     at en.handle (/opt/render/project/src/artifacts/api-server/dist/index.cjs:31:29569)
+2026-05-05T09:29:44.239472604Z REQ: POST /api/leads/1/approve
+2026-05-05T09:29:44.241020509Z clientIP="8.231.245.55" requestID="dadf03d4-e67e-4e99" responseTimeMS=3 responseBytes=363 userAgent="curl/8.14.1"
+2026-05-05T09:29:44.513931661Z REQ: GET /api/leads
+2026-05-05T09:29:44.514494911Z clientIP="8.231.245.55" requestID="2481fd23-42da-40ad" responseTimeMS=2 responseBytes=363 userAgent="curl/8.14.1"
