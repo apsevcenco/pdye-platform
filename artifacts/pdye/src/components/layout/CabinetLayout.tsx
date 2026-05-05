@@ -174,10 +174,17 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
   function renderNavLink(item: NavItem, active: boolean) {
     const Icon = item.icon;
     const badge = item.section ? counts[item.section] || 0 : 0;
+    // Defensive: only allow same-origin/relative paths in nav hrefs.
+    // Blocks `javascript:` / `data:` URIs and protocol-relative `//evil.com`
+    // even if config is ever populated from user-controlled data.
+    const safeHref =
+      item.href.startsWith("/") && !item.href.startsWith("//")
+        ? item.href
+        : "/";
     return (
       <Link
-        key={item.href}
-        href={item.href}
+        key={safeHref}
+        href={safeHref}
         onClick={() => {
           setMobileOpen(false);
           if (item.section) markSeen(item.section);

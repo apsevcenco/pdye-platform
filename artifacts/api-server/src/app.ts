@@ -14,15 +14,83 @@ const isProd = process.env["NODE_ENV"] === "production";
 
 app.set("trust proxy", 1);
 
+// Content Security Policy.
+// We start in *Report-Only* mode in production so violations are logged to the
+// browser console (and reported to /api/csp-report below) without blocking
+// anything. After observing 1–2 days of clean reports, flip CSP_ENFORCE=1 in
+// the Render env to switch from Report-Only to enforcing.
+//
+// In dev we leave CSP off entirely — Vite injects inline scripts, HMR opens
+// websockets, and React error overlays evaluate code; enabling CSP locally
+// would be more noise than signal.
+const cspEnforce = process.env["CSP_ENFORCE"] === "1";
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  // Supabase (auth + storage) + Render API (this server) + AI integrations.
+  // Add new origins here as the platform integrates more services.
+  connectSrc: [
+    "'self'",
+    "https://*.supabase.co",
+    "wss://*.supabase.co",
+    "https://pdye-platform.onrender.com",
+    "https://*.replit.dev",
+    "https://*.replit.app",
+  ],
+  // 'unsafe-inline' is needed for Tailwind/inlined critical CSS. We accept
+  // this because style-only XSS is far less severe than script XSS, and
+  // CSP-Hashing every Tailwind utility class is impractical.
+  styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+  imgSrc: ["'self'", "data:", "blob:", "https:"],
+  // No third-party scripts. If we ever add Stripe / GTM / etc., add their
+  // origins here explicitly — never relax to '*'.
+  scriptSrc: ["'self'"],
+  frameSrc: ["'self'", "https://*.replit.dev", "https://*.replit.app"],
+  frameAncestors: ["'self'", "https://*.replit.dev", "https://*.replit.app"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+  reportUri: ["/api/csp-report"],
+};
+
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: isProd
+      ? {
+          useDefaults: true,
+          directives: cspDirectives,
+          reportOnly: !cspEnforce,
+        }
+      : false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginOpenerPolicy: false,
     hsts: isProd
       ? { maxAge: 31536000, includeSubDomains: true, preload: true }
       : false,
   }),
+);
+
+// CSP violation reports — log only, never block. Helmet's reportUri above
+// makes browsers POST violation reports here as JSON.
+app.post(
+  "/api/csp-report",
+  express.json({ type: ["application/csp-report", "application/json"], limit: "64kb" }),
+  (req, res) => {
+    try {
+      const r = (req.body && (req.body["csp-report"] || req.body)) as Record<string, unknown>;
+      console.warn(
+        "[csp]",
+        r?.["violated-directive"] || r?.["effective-directive"],
+        "blocked:",
+        r?.["blocked-uri"],
+        "from:",
+        r?.["document-uri"],
+      );
+    } catch {
+      // Don't let a malformed report crash the route.
+    }
+    res.status(204).end();
+  },
 );
 
 const defaultAllowed = [
