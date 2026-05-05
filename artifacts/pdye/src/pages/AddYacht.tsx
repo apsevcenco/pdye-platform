@@ -239,7 +239,17 @@ export default function AddYacht() {
     try {
       const fd = new FormData();
       fd.append("photo", file);
-      const res = await fetch(`${API_BASE}/upload-photo`, { method: "POST", body: fd });
+      // Upload endpoints are gated by requireUser middleware → must send the
+      // current Supabase access token as a Bearer header. Without this the
+      // server returns 401 Unauthorized before multer even sees the file.
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { setErr("Your session has expired — please sign in again."); return false; }
+      const res = await fetch(`${API_BASE}/upload-photo`, {
+        method: "POST",
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const json = await res.json().catch(() => ({} as any));
       if (res.ok && json.url) {
         setPhotos(prev => [...prev, json.url]);
@@ -285,7 +295,15 @@ export default function AddYacht() {
     try {
       const fd = new FormData();
       fd.append("document", file);
-      const res = await fetch(`${API_BASE}/upload-document`, { method: "POST", body: fd, credentials: "include" });
+      // Same Bearer-token requirement as /upload-photo (requireUser middleware).
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { setErr("Your session has expired — please sign in again."); return false; }
+      const res = await fetch(`${API_BASE}/upload-document`, {
+        method: "POST",
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const json = await res.json().catch(() => ({} as any));
       if (res.ok && json.url) {
         const sizeKB = Math.round(file.size / 1024);

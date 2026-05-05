@@ -425,11 +425,19 @@ function YachtsView() {
   async function uploadFilesToServer(files: File[], yachtId = "new"): Promise<string[]> {
     const urls: string[] = [];
     const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
+    // Bearer token required by requireUser middleware on /upload-photo.
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) throw new Error("Your session has expired — please sign in again.");
     for (const file of files) {
       const form = new FormData();
       form.append("photo", file);
       form.append("yachtId", yachtId);
-      const res = await fetch(`${apiBase}/upload-photo`, { method: "POST", body: form });
+      const res = await fetch(`${apiBase}/upload-photo`, {
+        method: "POST",
+        body: form,
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
         throw new Error(err.error || "Upload failed");
@@ -715,6 +723,10 @@ function YachtsView() {
     try {
       const current: YachtDocument[] = yacht.documents || [];
       const newDocs: YachtDocument[] = [];
+      // Bearer token required by requireUser middleware on /upload-photo.
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Your session has expired — please sign in again.");
       for (const file of files) {
         const ext = (file.name.split(".").pop() || "bin").toUpperCase();
         const fd = new FormData();
@@ -722,7 +734,11 @@ function YachtsView() {
         fd.append("yachtId", yacht.id);
         fd.append("folder", "docs");
         const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
-        const res = await fetch(`${apiBase}/upload-photo`, { method: "POST", body: fd });
+        const res = await fetch(`${apiBase}/upload-photo`, {
+          method: "POST",
+          body: fd,
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: res.statusText }));
           throw new Error(err.error || "Upload failed");
