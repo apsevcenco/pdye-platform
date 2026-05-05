@@ -2,6 +2,29 @@ import { Router } from "express";
 import pg from "pg";
 import { requireAdmin, requireUser, optionalUser } from "../middlewares/auth";
 import { requirePlatformNdaSigned } from "./platformNda";
+import {
+  ArchiveBody,
+  AuditLogBody,
+  AuditLogParams,
+  BlockUpdateBody,
+  CreateDealRoomBody,
+  CreateParticipantBody,
+  DEAL_ROOM_BLOCK_KEYS,
+  DealRoomBlockParams,
+  DealRoomByUserParams,
+  DealRoomIdParams,
+  DealRoomListQuery,
+  DealRoomRoomIdParams,
+  NdaEnvelopeBody,
+  PostMessageBody,
+  UpdateDealRoomBody,
+  UpdateParticipantBody,
+} from "@workspace/api-zod";
+import {
+  validateBody,
+  validateParams,
+  validateQuery,
+} from "../middlewares/validate";
 
 const router = Router();
 
@@ -139,9 +162,9 @@ async function runMigration() {
   }
 }
 
-const BLOCK_KEYS = ["specs", "photos", "documents", "chat", "location", "yacht_name", "identities"];
+const BLOCK_KEYS = DEAL_ROOM_BLOCK_KEYS as readonly string[];
 
-router.get("/deal-rooms", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.get("/deal-rooms", requireUser, requirePlatformNdaSigned, validateQuery(DealRoomListQuery), async (req, res) => {
   try {
     const includeArchived = req.query.include_archived === "true";
     const viewer = req.authUser!;
@@ -167,7 +190,7 @@ router.get("/deal-rooms", requireUser, requirePlatformNdaSigned, async (req, res
   }
 });
 
-router.get("/deal-rooms/by-user/:userId", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.get("/deal-rooms/by-user/:userId", requireUser, requirePlatformNdaSigned, validateParams(DealRoomByUserParams), async (req, res) => {
   try {
     const viewer = req.authUser!;
     if (viewer.role !== "admin" && viewer.id !== req.params.userId) {
@@ -184,7 +207,7 @@ router.get("/deal-rooms/by-user/:userId", requireUser, requirePlatformNdaSigned,
   }
 });
 
-router.get("/deal-rooms/:id", optionalUser, async (req, res) => {
+router.get("/deal-rooms/:id", optionalUser, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     const { rows } = await db().query("SELECT * FROM deal_rooms WHERE id = $1", [req.params.id]);
     if (rows.length === 0) { res.status(404).json({ error: "Not found" }); return; }
@@ -194,7 +217,7 @@ router.get("/deal-rooms/:id", optionalUser, async (req, res) => {
   }
 });
 
-router.post("/deal-rooms", requireAdmin, async (req, res) => {
+router.post("/deal-rooms", requireAdmin, validateBody(CreateDealRoomBody), async (req, res) => {
   // Always use the authenticated admin as creator (route is requireAdmin-gated).
   // We deliberately ignore any `created_by_admin_id` from the body to prevent spoofing
   // and to avoid the previous nil-UUID fallback.
@@ -213,7 +236,7 @@ router.post("/deal-rooms", requireAdmin, async (req, res) => {
   }
 });
 
-router.patch("/deal-rooms/:id", requireAdmin, async (req, res) => {
+router.patch("/deal-rooms/:id", requireAdmin, validateParams(DealRoomIdParams), validateBody(UpdateDealRoomBody), async (req, res) => {
   const fields = req.body || {};
   const keys = Object.keys(fields).filter(k => ALLOWED_PATCH_FIELDS.has(k));
   if (keys.length === 0) { res.status(400).json({ error: "No allowed fields to update" }); return; }
@@ -227,7 +250,7 @@ router.patch("/deal-rooms/:id", requireAdmin, async (req, res) => {
   }
 });
 
-router.delete("/deal-rooms/:id", requireAdmin, async (req, res) => {
+router.delete("/deal-rooms/:id", requireAdmin, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     const id = req.params.id;
     await db().query("DELETE FROM deal_room_blocks WHERE deal_room_id = $1", [id]);
@@ -243,7 +266,7 @@ router.delete("/deal-rooms/:id", requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/deal-rooms/:id/participants", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.get("/deal-rooms/:id/participants", requireUser, requirePlatformNdaSigned, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -259,7 +282,7 @@ router.get("/deal-rooms/:id/participants", requireUser, requirePlatformNdaSigned
   }
 });
 
-router.post("/deal-rooms/:id/participants", requireAdmin, async (req, res) => {
+router.post("/deal-rooms/:id/participants", requireAdmin, validateParams(DealRoomIdParams), validateBody(CreateParticipantBody), async (req, res) => {
   const { user_id, role, side, can_view, can_message, can_download } = req.body;
   try {
     const { rows } = await db().query(
@@ -275,7 +298,7 @@ router.post("/deal-rooms/:id/participants", requireAdmin, async (req, res) => {
   }
 });
 
-router.patch("/deal-rooms/:roomId/participants", requireAdmin, async (req, res) => {
+router.patch("/deal-rooms/:roomId/participants", requireAdmin, validateParams(DealRoomRoomIdParams), validateBody(UpdateParticipantBody), async (req, res) => {
   const fields = req.body || {};
   const keys = Object.keys(fields).filter(k => ALLOWED_PARTICIPANT_FIELDS.has(k));
   if (keys.length === 0) { res.status(400).json({ error: "No allowed fields to update" }); return; }
@@ -289,7 +312,7 @@ router.patch("/deal-rooms/:roomId/participants", requireAdmin, async (req, res) 
   }
 });
 
-router.get("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.get("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -300,12 +323,8 @@ router.get("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, as
   }
 });
 
-router.post("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.post("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, validateParams(DealRoomIdParams), validateBody(PostMessageBody), async (req, res) => {
   const { message, is_system } = req.body;
-  if (typeof message !== "string" || !message.trim()) {
-    res.status(400).json({ error: "Message text required" });
-    return;
-  }
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -323,7 +342,7 @@ router.post("/deal-rooms/:id/messages", requireUser, requirePlatformNdaSigned, a
   }
 });
 
-router.get("/deal-rooms/:id/documents", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.get("/deal-rooms/:id/documents", requireUser, requirePlatformNdaSigned, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -343,7 +362,7 @@ router.get("/deal-room-documents", requireAdmin, async (_req, res) => {
   }
 });
 
-router.delete("/deal-room-documents/:id", requireAdmin, async (req, res) => {
+router.delete("/deal-room-documents/:id", requireAdmin, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     await db().query("DELETE FROM deal_room_documents WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
@@ -361,7 +380,7 @@ router.get("/deal-room-messages-all", requireAdmin, async (_req, res) => {
   }
 });
 
-router.delete("/deal-room-messages/:id", requireAdmin, async (req, res) => {
+router.delete("/deal-room-messages/:id", requireAdmin, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     await db().query("DELETE FROM deal_room_messages WHERE id = $1", [req.params.id]);
     res.json({ ok: true });
@@ -370,7 +389,7 @@ router.delete("/deal-room-messages/:id", requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/nda-envelopes", requireAdmin, async (req, res) => {
+router.post("/nda-envelopes", requireAdmin, validateBody(NdaEnvelopeBody), async (req, res) => {
   const { deal_room_id, user_id, side, provider, status, sent_at, signed_at, completed_at, document_name } = req.body;
   try {
     const { rows } = await db().query(
@@ -385,7 +404,7 @@ router.post("/nda-envelopes", requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/audit-logs", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.post("/audit-logs", requireUser, requirePlatformNdaSigned, validateBody(AuditLogBody), async (req, res) => {
   const { entity_type, entity_id, action, meta } = req.body;
   try {
     // Server-side participation check for deal_room audits (non-admins)
@@ -405,7 +424,7 @@ router.post("/audit-logs", requireUser, requirePlatformNdaSigned, async (req, re
   }
 });
 
-router.get("/audit-logs/:entityType/:entityId", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.get("/audit-logs/:entityType/:entityId", requireUser, requirePlatformNdaSigned, validateParams(AuditLogParams), async (req, res) => {
   try {
     if (req.authUser!.role !== "admin" && req.params.entityType === "deal_room") {
       const auth = await isParticipantOrAdmin(String(req.params.entityId), req.authUser);
@@ -425,7 +444,7 @@ router.get("/audit-logs/:entityType/:entityId", requireUser, requirePlatformNdaS
   }
 });
 
-router.get("/deal-rooms/:id/blocks", requireUser, requirePlatformNdaSigned, async (req, res) => {
+router.get("/deal-rooms/:id/blocks", requireUser, requirePlatformNdaSigned, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     const auth = await isParticipantOrAdmin(String(req.params.id), req.authUser);
     if (!auth.ok) { res.status(403).json({ error: "Access denied" }); return; }
@@ -446,10 +465,9 @@ router.get("/deal-rooms/:id/blocks", requireUser, requirePlatformNdaSigned, asyn
   }
 });
 
-router.put("/deal-rooms/:id/blocks/:blockKey", requireAdmin, async (req, res) => {
+router.put("/deal-rooms/:id/blocks/:blockKey", requireAdmin, validateParams(DealRoomBlockParams), validateBody(BlockUpdateBody), async (req, res) => {
   const blockKey = String(req.params.blockKey || "");
   const { is_unlocked } = req.body;
-  if (!BLOCK_KEYS.includes(blockKey)) { res.status(400).json({ error: "Invalid block key" }); return; }
   try {
     const adminId = req.authUser!.id;
     const { rows } = await db().query(
@@ -466,7 +484,7 @@ router.put("/deal-rooms/:id/blocks/:blockKey", requireAdmin, async (req, res) =>
   }
 });
 
-router.patch("/deal-rooms/:id/archive", requireAdmin, async (req, res) => {
+router.patch("/deal-rooms/:id/archive", requireAdmin, validateParams(DealRoomIdParams), validateBody(ArchiveBody), async (req, res) => {
   const { archived } = req.body;
   try {
     const { rows } = await db().query(
@@ -479,7 +497,7 @@ router.patch("/deal-rooms/:id/archive", requireAdmin, async (req, res) => {
   }
 });
 
-router.post("/deal-rooms/:id/commission/send", requireAdmin, async (req, res) => {
+router.post("/deal-rooms/:id/commission/send", requireAdmin, validateParams(DealRoomIdParams), async (req, res) => {
   try {
     // Only initiate commission if not already in progress / completed (state regression guard)
     const { rows } = await db().query(

@@ -24,7 +24,8 @@
     "openai": "^6.32.0",
     "pdfkit": "^0.18.0",
     "pg": "^8.20.0",
-    "resend": "^6.12.2"
+    "resend": "^6.12.2",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

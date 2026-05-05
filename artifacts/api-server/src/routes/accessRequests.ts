@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { Resend } from "resend";
 import { getSupabaseAdmin, requireAdmin } from "../middlewares/auth";
+import {
+  RejectAccessRequestBody,
+  RejectAccessRequestParams,
+} from "@workspace/api-zod";
+import { validateBody, validateParams } from "../middlewares/validate";
 
 const router = Router();
 
@@ -73,13 +78,14 @@ function escapeHtml(s: string): string {
 }
 
 // POST /api/access-requests/:id/reject
-router.post("/:id/reject", requireAdmin, async (req, res) => {
+router.post(
+  "/:id/reject",
+  requireAdmin,
+  validateParams(RejectAccessRequestParams),
+  validateBody(RejectAccessRequestBody),
+  async (req, res) => {
   try {
     const id = String(req.params["id"] || "").trim();
-    if (!id) {
-      res.status(400).json({ error: "Missing access request id" });
-      return;
-    }
 
     const reason = String(req.body?.reason || "").trim();
     const siteUrl =
@@ -219,6 +225,7 @@ router.post("/:id/reject", requireAdmin, async (req, res) => {
     console.error("[POST /access-requests/:id/reject] error:", err);
     res.status(500).json({ error: err?.message || "Internal server error" });
   }
-});
+  }
+);
 
 export default router;

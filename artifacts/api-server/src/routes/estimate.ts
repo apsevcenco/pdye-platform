@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requireUser } from "../middlewares/auth";
 import { strictLimiter } from "../middlewares/rateLimit";
+import { EstimateMarketPriceBody, ValuationBody } from "@workspace/api-zod";
+import { validateBody } from "../middlewares/validate";
 
 const router = Router();
 
@@ -135,13 +137,9 @@ function briefYacht(y: Record<string, unknown>): string {
     .join(", ");
 }
 
-router.post("/estimate-market-price", async (req, res) => {
+router.post("/estimate-market-price", validateBody(EstimateMarketPriceBody), async (req, res) => {
   try {
     const yacht = req.body as Record<string, unknown>;
-    if (!yacht || !yacht.name) {
-      res.status(400).json({ error: "Yacht data required" });
-      return;
-    }
 
     const targetDesc = briefYacht(yacht);
 
@@ -199,7 +197,7 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
   }
 });
 
-router.post("/valuation", strictLimiter, requireUser, async (req, res) => {
+router.post("/valuation", strictLimiter, requireUser, validateBody(ValuationBody), async (req, res) => {
   try {
     const b = req.body as Record<string, unknown>;
     const { mode, units } = b;

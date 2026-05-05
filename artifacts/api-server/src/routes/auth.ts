@@ -1,15 +1,14 @@
 import { Router } from "express";
 import { getSupabaseAdmin } from "../middlewares/auth";
 import { authLimiter } from "../middlewares/rateLimit";
+import { CheckEmailQuery } from "@workspace/api-zod";
+import { validateQuery } from "../middlewares/validate";
 
 const router = Router();
 
-router.get("/auth/check-email", authLimiter, async (req, res) => {
+router.get("/auth/check-email", authLimiter, validateQuery(CheckEmailQuery), async (req, res) => {
   try {
     const email = String(req.query["email"] || "").trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ error: "Invalid email" });
-    }
 
     const admin = getSupabaseAdmin();
 

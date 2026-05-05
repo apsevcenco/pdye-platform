@@ -3,6 +3,8 @@ import { Resend } from "resend";
 import { randomInt } from "crypto";
 import { getSupabaseAdmin, requireAdmin } from "../middlewares/auth";
 import { strictLimiter } from "../middlewares/rateLimit";
+import { ApproveLeadBody, ApproveLeadParams } from "@workspace/api-zod";
+import { validateBody, validateParams } from "../middlewares/validate";
 
 const router = Router();
 
@@ -128,20 +130,14 @@ router.get("/", requireAdmin, async (req, res) => {
 });
 
 // POST /api/leads/:id/approve
-router.post("/:id/approve", requireAdmin, async (req, res) => {
+router.post(
+  "/:id/approve",
+  requireAdmin,
+  validateParams(ApproveLeadParams),
+  validateBody(ApproveLeadBody),
+  async (req, res) => {
   try {
     const leadId = String(req.params["id"] || "").trim();
-
-    const isInt = /^\d+$/.test(leadId) && Number(leadId) > 0;
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        leadId
-      );
-
-    if (!leadId || (!isInt && !isUuid)) {
-      res.status(400).json({ error: "Invalid lead id" });
-      return;
-    }
 
     const overrideRole = (req.body?.role as string | undefined)?.trim();
     const siteUrl =
@@ -331,6 +327,7 @@ router.post("/:id/approve", requireAdmin, async (req, res) => {
     console.error("[POST /leads/:id/approve] error:", err);
     res.status(500).json({ error: err?.message || "Internal server error" });
   }
-});
+  }
+);
 
 export default router;

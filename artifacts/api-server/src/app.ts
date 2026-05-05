@@ -5,6 +5,8 @@ import router from "./routes";
 import OpenAI from "openai";
 import { requireUser } from "./middlewares/auth";
 import { globalLimiter, strictLimiter } from "./middlewares/rateLimit";
+import { ValuationBody } from "@workspace/api-zod";
+import { validateBody } from "./middlewares/validate";
 
 const app: Express = express();
 
@@ -89,7 +91,7 @@ const openai = new OpenAI({
   apiKey: process.env["OPENAI_API_KEY"],
 });
 
-app.post("/api/valuation", strictLimiter, requireUser, async (req, res) => {
+app.post("/api/valuation", strictLimiter, requireUser, validateBody(ValuationBody), async (req, res) => {
   try {
     const data = req.body;
 

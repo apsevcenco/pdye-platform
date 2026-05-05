@@ -4,6 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
 import { requireUser } from "../middlewares/auth";
 import { strictLimiter } from "../middlewares/rateLimit";
+import { validateBody } from "../middlewares/validate";
+import { UploadPhotoBody } from "@workspace/api-zod";
 
 const router = Router();
 
@@ -52,7 +54,7 @@ function safeExtension(mime: string): string {
   return "bin";
 }
 
-router.post("/", strictLimiter, requireUser, upload.single("photo"), async (req, res) => {
+router.post("/", strictLimiter, requireUser, upload.single("photo"), validateBody(UploadPhotoBody), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: "No file received" });
