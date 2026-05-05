@@ -62,6 +62,7 @@ export default function AdminRequests() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [creatingRoom, setCreatingRoom] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [sellerModal, setSellerModal] = useState<{ reqId: string; yachtId: string } | null>(null);
   const [sellerEmail, setSellerEmail] = useState("");
   const [sellerType, setSellerType] = useState<"broker" | "owner">("broker");
@@ -184,86 +185,104 @@ export default function AdminRequests() {
     setSellerModal({ reqId, yachtId });
     setSellerEmail("");
     setSellerType("broker");
+    setCreateError(null);
+  }
+
+  function closeCreateRoomModal() {
+    setSellerModal(null);
+    setCreateError(null);
   }
 
   async function createDealRoom() {
     if (!sellerModal || !user) return;
-    setCreatingRoom(sellerModal.reqId);
     const req = requests.find(r => r.id === sellerModal.reqId);
-    if (!req) { setCreatingRoom(null); return; }
+    if (!req) return;
 
     const sellerUser = allUsers.find(u => u.email === sellerEmail);
     const now = new Date().toISOString();
 
-    const room = await dealRoomApi.create({
-      yacht_id: req.yacht_id,
-      created_by_admin_id: user.id,
-      buyer_user_id: req.requester_id,
-      seller_user_id: sellerUser?.id || null,
-      notes: "",
-      status: "draft",
-      nda_required: true,
-    });
+    setCreateError(null);
+    setCreatingRoom(sellerModal.reqId);
 
-    if (!room?.id) { setCreatingRoom(null); return; }
-
-    await dealRoomApi.addParticipant(room.id, { user_id: req.requester_id, role: "buyer", side: "buyer", can_view: false, can_message: false, can_download: false });
-    await dealRoomApi.addParticipant(room.id, { user_id: user.id, role: "admin", side: "platform", can_view: true, can_message: true, can_download: true });
-    if (sellerUser) {
-      await dealRoomApi.addParticipant(room.id, { user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false });
-    }
-
-    // Write the audit log FIRST so provenance from deal_room → access_request
-    // is durable even if the subsequent delete fails or is interrupted.
-    await dealRoomApi.createAuditLog({
-      entity_type: "deal_room",
-      entity_id: room.id,
-      user_id: user.id,
-      action: "deal_room_created",
-      meta: {
+    try {
+      const room = await dealRoomApi.create({
         yacht_id: req.yacht_id,
-        buyer_id: req.requester_id,
-        seller_id: sellerUser?.id,
-        access_request_id: req.id,
-        created_at: now,
-      },
-    });
+        buyer_user_id: req.requester_id,
+        seller_user_id: sellerUser?.id || null,
+        notes: "",
+        status: "draft",
+        nda_required: true,
+      });
+      if (!room?.id) throw new Error("Server did not return a deal room id.");
 
-    await dealRoomApi.sendMessage(room.id, {
-      sender_id: user.id,
-      message: "Deal room created. NDA will be sent to both parties for review and signature.",
-      is_system: true,
-    });
+      await dealRoomApi.addParticipant(room.id, { user_id: req.requester_id, role: "buyer", side: "buyer", can_view: false, can_message: false, can_download: false });
+      await dealRoomApi.addParticipant(room.id, { user_id: user.id, role: "admin", side: "platform", can_view: true, can_message: true, can_download: true });
+      if (sellerUser) {
+        await dealRoomApi.addParticipant(room.id, { user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false });
+      }
 
-    // Last step: delete the access request now that all dependent records exist
-    // (same pattern as leads on approve). Best-effort — if it fails we keep the
-    // row in the UI so the admin can retry, and we record the failure in audit.
-    const { error: delErr } = await supabase
-      .from("access_requests")
-      .delete()
-      .eq("id", req.id);
+      // Write the audit log FIRST so provenance from deal_room → access_request
+      // is durable even if the subsequent delete fails or is interrupted.
+      await dealRoomApi.createAuditLog({
+        entity_type: "deal_room",
+        entity_id: room.id,
+        user_id: user.id,
+        action: "deal_room_created",
+        meta: {
+          yacht_id: req.yacht_id,
+          buyer_id: req.requester_id,
+          seller_id: sellerUser?.id,
+          access_request_id: req.id,
+          created_at: now,
+        },
+      });
 
-    if (delErr) {
-      console.warn(
-        "[AdminRequests] failed to delete access_request after deal room creation:",
-        delErr.message
-      );
-      try {
-        await dealRoomApi.createAuditLog({
-          entity_type: "access_request",
-          entity_id: req.id,
-          user_id: user.id,
-          action: "access_request_delete_failed",
-          meta: { deal_room_id: room.id, error: delErr.message },
-        });
-      } catch {}
-      // Keep the row visible so admin sees something needs attention.
-    } else {
-      setRequests(prev => prev.filter(r => r.id !== req.id));
+      await dealRoomApi.sendMessage(room.id, {
+        sender_id: user.id,
+        message: "Deal room created. NDA will be sent to both parties for review and signature.",
+        is_system: true,
+      });
+
+      // Last step: delete the access request now that all dependent records exist
+      // (same pattern as leads on approve). Best-effort — if it fails we keep the
+      // row in the UI so the admin can retry, and we record the failure in audit.
+      const { error: delErr } = await supabase
+        .from("access_requests")
+        .delete()
+        .eq("id", req.id);
+
+      if (delErr) {
+        console.warn(
+          "[AdminRequests] failed to delete access_request after deal room creation:",
+          delErr.message
+        );
+        try {
+          await dealRoomApi.createAuditLog({
+            entity_type: "access_request",
+            entity_id: req.id,
+            user_id: user.id,
+            action: "access_request_delete_failed",
+            meta: { deal_room_id: room.id, error: delErr.message },
+          });
+        } catch {}
+        // Keep the row visible so admin sees something needs attention.
+      } else {
+        setRequests(prev => prev.filter(r => r.id !== req.id));
+      }
+
+      // Success — close the modal.
+      setSellerModal(null);
+    } catch (e: any) {
+      // Surface the error to the admin instead of silently spinning. Keep the
+      // modal open so they can see what went wrong and retry.
+      console.error("[AdminRequests] createDealRoom failed:", e);
+      setCreateError(e?.message || "Failed to create deal room. Please try again.");
+    } finally {
+      // Always reset the spinner — previously this ran outside try/catch and
+      // would never execute when the API threw, leaving the button in a
+      // permanent "Creating…" state with no error shown.
+      setCreatingRoom(null);
     }
-
-    setSellerModal(null);
-    setCreatingRoom(null);
   }
 
   const filtered = (() => {
@@ -492,13 +511,27 @@ export default function AdminRequests() {
       )}
 
       {sellerModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6" onClick={() => setSellerModal(null)}>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6" onClick={closeCreateRoomModal}>
           <div className="bg-[#0f1d33] border border-white/10 max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
             <h3 className="font-display text-xl text-white">Create Deal Room</h3>
             <p className="text-white/50 text-sm font-sans">
               This will create a dedicated deal room. The buyer (requester) is added automatically.
               Assign the seller below. NDA will be sent to both parties.
             </p>
+
+            {createError && (
+              <div className="bg-red-500/8 border border-red-500/20 px-4 py-3 text-red-400 text-xs font-sans flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-bold uppercase tracking-widest text-[10px] mb-1">Could not create deal room</p>
+                  <p className="text-red-400/90 font-sans break-words whitespace-pre-wrap">{createError}</p>
+                </div>
+                <button
+                  onClick={() => setCreateError(null)}
+                  className="text-red-400/60 hover:text-red-400 text-base leading-none flex-shrink-0"
+                  aria-label="Dismiss error"
+                >×</button>
+              </div>
+            )}
 
             <div>
               <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-2 font-sans">Seller Type</label>
@@ -543,7 +576,7 @@ export default function AdminRequests() {
                 {creatingRoom ? <><RefreshCw size={12} className="animate-spin" /> Creating…</> : <><Plus size={12} /> Create Deal Room</>}
               </button>
               <button
-                onClick={() => setSellerModal(null)}
+                onClick={closeCreateRoomModal}
                 className="px-6 py-3 border border-white/10 text-white/50 text-xs uppercase tracking-widest hover:text-white hover:border-white/30 transition-colors"
               >
                 Cancel
