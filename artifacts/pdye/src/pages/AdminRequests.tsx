@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { dealRoomApi } from "@/lib/dealRoomApi";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import {
-  CheckCircle, XCircle, Clock, ArrowLeft, Ship, User,
-  Calendar, Filter, RefreshCw, Eye, Plus, ArrowRight, Users,
+  CheckCircle, XCircle, Clock, Inbox, Ship, User,
+  Calendar, Filter, RefreshCw, Plus, ArrowRight,
 } from "lucide-react";
-import type { AccessRequestStatus, DealRoom } from "@/lib/dealTypes";
-import { ACCESS_STATUS_CONFIG } from "@/lib/dealTypes";
 import { useAuth } from "@/context/AuthContext";
 
 type FilterTab = "all" | "pending" | "rejected" | "escalated";
@@ -283,23 +282,24 @@ export default function AdminRequests() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b border-white/5 bg-secondary">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 py-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin" className="flex items-center gap-2 text-white/40 hover:text-white text-sm font-sans transition-colors">
-              <ArrowLeft size={14} /> Admin
-            </Link>
-            <span className="text-white/20 text-sm">/</span>
-            <h1 className="font-display text-2xl text-white">Access Requests</h1>
+    <CabinetLayout>
+      <div className="min-h-screen bg-background">
+        <div className="border-b border-white/5 bg-secondary">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-8 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <Inbox size={18} className="text-primary" />
+              <div>
+                <p className="text-white/40 text-[10px] font-sans uppercase tracking-widest">Admin</p>
+                <h1 className="font-display text-2xl text-white">Access Requests</h1>
+              </div>
+            </div>
+            <button onClick={load} className="flex items-center gap-2 text-white/30 hover:text-primary text-xs font-sans uppercase tracking-widest transition-colors">
+              <RefreshCw size={13} /> Refresh
+            </button>
           </div>
-          <button onClick={load} className="flex items-center gap-2 text-white/30 hover:text-primary text-xs font-sans uppercase tracking-widest transition-colors">
-            <RefreshCw size={13} /> Refresh
-          </button>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-6 md:px-12 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-10">
         <div className="flex gap-2 mb-8 border-b border-white/5 pb-4 flex-wrap">
           {([
             { key: "all", label: "All", icon: <Filter size={11} /> },
@@ -552,6 +552,7 @@ export default function AdminRequests() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </CabinetLayout>
   );
 }

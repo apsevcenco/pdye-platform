@@ -25,6 +25,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import { platformNdaApi, triggerBlobDownload, type PlatformNdaSignature } from "@/lib/platformNdaApi";
 import { archiveUserAction, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
 import { dealRoomApi } from "@/lib/dealRoomApi";
@@ -151,7 +152,7 @@ export default function AdminUserDetail() {
     if (!user) return;
     setDeleting(true);
     const ok = await confirmAndDeleteUserInteractive(user.id, user.email);
-    if (ok) setLocation("/admin");
+    if (ok) setLocation("/admin-users");
     else setDeleting(false);
   }
 
@@ -337,25 +338,29 @@ export default function AdminUserDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#070f1a] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
+      <CabinetLayout>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      </CabinetLayout>
     );
   }
 
   if (error || !user) {
     return (
-      <div className="min-h-screen bg-[#070f1a] text-white flex items-center justify-center px-6">
-        <div className="max-w-md text-center">
-          <p className="text-white/60 mb-6">{error || "User not found."}</p>
-          <button
-            onClick={() => setLocation("/admin")}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors text-sm font-sans uppercase tracking-wider"
-          >
-            <ArrowLeft size={14} /> Back to Admin
-          </button>
+      <CabinetLayout>
+        <div className="min-h-screen bg-background text-white flex items-center justify-center px-6">
+          <div className="max-w-md text-center">
+            <p className="text-white/60 mb-6">{error || "User not found."}</p>
+            <button
+              onClick={() => setLocation("/admin-users")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors text-sm font-sans uppercase tracking-wider"
+            >
+              <ArrowLeft size={14} /> Back to Users
+            </button>
+          </div>
         </div>
-      </div>
+      </CabinetLayout>
     );
   }
 
@@ -365,30 +370,31 @@ export default function AdminUserDetail() {
   const ndaSigned = !!latestNda;
 
   return (
-    <div className="min-h-screen bg-[#070f1a] text-white">
-      {/* Top bar with Back */}
-      <div className="border-b border-white/5 bg-[#0a1426] sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <button
-            onClick={() => setLocation("/admin")}
-            className="inline-flex items-center gap-2 px-3 py-2 text-white/70 hover:text-white border border-white/10 hover:border-white/20 transition-colors text-xs font-sans uppercase tracking-wider"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          <div className="text-white/30 text-xs font-sans uppercase tracking-widest">
-            Client File · {meta.label}
+    <CabinetLayout>
+      <div className="min-h-screen bg-background text-white">
+        {/* Top bar with Back */}
+        <div className="border-b border-white/5 bg-secondary">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between gap-4 flex-wrap">
+            <button
+              onClick={() => setLocation("/admin-users")}
+              className="inline-flex items-center gap-2 px-3 py-2 text-white/70 hover:text-white border border-white/10 hover:border-white/20 transition-colors text-xs font-sans uppercase tracking-wider"
+            >
+              <ArrowLeft size={14} /> Back to Users
+            </button>
+            <div className="text-white/30 text-xs font-sans uppercase tracking-widest">
+              Client File · {meta.label}
+            </div>
+            <button
+              onClick={() => { loadUser(); if (user) loadSignatures(user); }}
+              className="inline-flex items-center gap-2 px-3 py-2 text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-colors text-xs font-sans uppercase tracking-wider"
+              title="Refresh"
+            >
+              <RefreshCw size={12} />
+            </button>
           </div>
-          <button
-            onClick={() => { loadUser(); if (user) loadSignatures(user); }}
-            className="inline-flex items-center gap-2 px-3 py-2 text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-colors text-xs font-sans uppercase tracking-wider"
-            title="Refresh"
-          >
-            <RefreshCw size={12} />
-          </button>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-6">
         {/* Identity header */}
         <div className="bg-[#0f1d33] border border-white/8 p-8">
           <div className="flex flex-col sm:flex-row gap-6 sm:items-center sm:justify-between">
@@ -602,8 +608,9 @@ export default function AdminUserDetail() {
           dealRooms={dealRooms}
           onNavigate={setLocation}
         />
+        </div>
       </div>
-    </div>
+    </CabinetLayout>
   );
 }
 

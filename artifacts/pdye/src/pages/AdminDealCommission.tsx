@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
-import { Anchor, ArrowLeft, FileText, Loader2, Save, History, Download, Scale, Briefcase, Crown } from "lucide-react";
+import { Percent, FileText, Loader2, Save, History, Download, Scale, Briefcase, Crown } from "lucide-react";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import {
   dealCommissionApi,
   triggerBlobDownload,
@@ -135,21 +135,19 @@ export default function AdminDealCommission() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070f1a] text-white">
-      <header className="border-b border-white/10 bg-[#0a1426]/90 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Anchor size={22} className="text-[#c8a46b]" strokeWidth={2} />
-            <span className="font-display text-xl tracking-widest">PDYE</span>
-            <span className="ml-3 text-[10px] uppercase tracking-widest text-white/40">Admin · Commission Agreement</span>
+    <CabinetLayout>
+      <div className="min-h-screen bg-background text-white">
+        <div className="border-b border-white/5 bg-secondary">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex items-center gap-3">
+            <Percent size={18} className="text-primary" />
+            <div>
+              <p className="text-white/40 text-[10px] font-sans uppercase tracking-widest">Admin</p>
+              <h1 className="font-display text-2xl text-white">Commission Agreement</h1>
+            </div>
           </div>
-          <Link href="/admin" className="text-xs uppercase tracking-widest text-white/50 hover:text-white flex items-center gap-2">
-            <ArrowLeft size={14} /> Back to Admin
-          </Link>
         </div>
-      </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-12">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-12">
         {loading && (
           <div className="flex flex-col items-center py-20 text-white/40">
             <Loader2 size={28} className="animate-spin mb-3" />
@@ -383,7 +381,8 @@ export default function AdminDealCommission() {
             </section>
           </>
         )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </CabinetLayout>
   );
 }

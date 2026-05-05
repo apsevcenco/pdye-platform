@@ -56,8 +56,17 @@ function getNavItems(role: string | null): NavItem[] {
   ];
 }
 
+// Maps deep-link route prefixes that should highlight a sidebar item whose
+// href doesn't share the same URL prefix (e.g. nested admin detail pages).
+const ROUTE_ALIASES: Record<string, string[]> = {
+  "/admin-users": ["/admin/users/"],
+  "/admin": ["/admin/yachts/"],
+};
+
 function isActiveRoute(current: string, href: string): boolean {
   if (current === href) return true;
+  const aliases = ROUTE_ALIASES[href];
+  if (aliases && aliases.some((p) => current.startsWith(p))) return true;
   if (href === "/dashboard" || href === "/admin" || href === "/profile" || href === "/add-yacht") {
     return false;
   }
