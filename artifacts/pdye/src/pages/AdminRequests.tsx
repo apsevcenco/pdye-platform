@@ -64,8 +64,6 @@ export default function AdminRequests() {
   const [creatingRoom, setCreatingRoom] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [sellerModal, setSellerModal] = useState<{ reqId: string; yachtId: string } | null>(null);
-  const [sellerEmail, setSellerEmail] = useState("");
-  const [sellerType, setSellerType] = useState<"broker" | "owner">("broker");
   const [allUsers, setAllUsers] = useState<{ id: string; email: string; role: string }[]>([]);
   const [rejectModal, setRejectModal] = useState<{ reqId: string; userEmail: string; yachtName: string } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -183,8 +181,6 @@ export default function AdminRequests() {
 
   function openCreateRoomModal(reqId: string, yachtId: string) {
     setSellerModal({ reqId, yachtId });
-    setSellerEmail("");
-    setSellerType("broker");
     setCreateError(null);
   }
 
@@ -198,27 +194,46 @@ export default function AdminRequests() {
     const req = requests.find(r => r.id === sellerModal.reqId);
     if (!req) return;
 
-    const sellerUser = allUsers.find(u => u.email === sellerEmail);
     const now = new Date().toISOString();
 
     setCreateError(null);
     setCreatingRoom(sellerModal.reqId);
 
     try {
+      // Seller is auto-resolved by the backend from yachts.owner_id and the
+      // seller-side participant + NDA envelope + nda_pending status are all
+      // created server-side. We only handle the buyer side here, plus the
+      // admin participant for the platform.
       const room = await dealRoomApi.create({
         yacht_id: req.yacht_id,
         buyer_user_id: req.requester_id,
-        seller_user_id: sellerUser?.id || null,
         notes: "",
         status: "draft",
         nda_required: true,
       });
       if (!room?.id) throw new Error("Server did not return a deal room id.");
 
-      await dealRoomApi.addParticipant(room.id, { user_id: req.requester_id, role: "buyer", side: "buyer", can_view: false, can_message: false, can_download: false });
+      // Buyer needs can_view=true so the room appears in their cabinet.
+      await dealRoomApi.addParticipant(room.id, { user_id: req.requester_id, role: "buyer", side: "buyer", can_view: true, can_message: true, can_download: true });
       await dealRoomApi.addParticipant(room.id, { user_id: user.id, role: "admin", side: "platform", can_view: true, can_message: true, can_download: true });
-      if (sellerUser) {
-        await dealRoomApi.addParticipant(room.id, { user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false });
+
+      // Buyer-side NDA envelope + status flip (mirrors Admin.tsx).
+      try {
+        await dealRoomApi.createNdaEnvelope({
+          deal_room_id: room.id,
+          user_id: req.requester_id,
+          side: "buyer",
+          provider: "internal",
+          status: "sent",
+          sent_at: now,
+        });
+        await dealRoomApi.update(room.id, {
+          status: "nda_pending",
+          buyer_nda_status: "sent",
+          buyer_nda_sent_at: now,
+        });
+      } catch (ndaErr: any) {
+        console.warn("[AdminRequests] buyer-side NDA send failed:", ndaErr?.message || ndaErr);
       }
 
       // Write the audit log FIRST so provenance from deal_room → access_request
@@ -231,15 +246,15 @@ export default function AdminRequests() {
         meta: {
           yacht_id: req.yacht_id,
           buyer_id: req.requester_id,
-          seller_id: sellerUser?.id,
           access_request_id: req.id,
           created_at: now,
+          seller_auto_attach: true,
         },
       });
 
       await dealRoomApi.sendMessage(room.id, {
         sender_id: user.id,
-        message: "Deal room created. NDA will be sent to both parties for review and signature.",
+        message: "Deal room created. NDA invitations are being sent to both parties for review and signature.",
         is_system: true,
       });
 
@@ -533,38 +548,9 @@ export default function AdminRequests() {
               </div>
             )}
 
-            <div>
-              <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-2 font-sans">Seller Type</label>
-              <div className="flex gap-2">
-                {(["broker", "owner"] as const).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setSellerType(t)}
-                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-colors ${
-                      sellerType === t ? "bg-primary/20 border-primary/40 text-primary" : "border-white/10 text-white/40 hover:text-white/70"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-2 font-sans">Seller Email (Platform User)</label>
-              <input
-                value={sellerEmail}
-                onChange={e => setSellerEmail(e.target.value)}
-                placeholder="seller@example.com"
-                className="w-full bg-background border border-white/10 px-4 py-3 text-white text-sm font-sans focus:outline-none focus:border-primary/40"
-                list="user-emails"
-              />
-              <datalist id="user-emails">
-                {allUsers.filter(u => u.role !== "admin").map(u => (
-                  <option key={u.id} value={u.email}>{u.email} ({u.role})</option>
-                ))}
-              </datalist>
-              <p className="text-white/25 text-xs font-sans mt-1">Leave empty if seller is not yet on the platform.</p>
+            <div className="bg-primary/5 border border-primary/20 px-4 py-3 text-white/70 text-xs font-sans">
+              <p className="font-bold uppercase tracking-widest text-[10px] text-primary/80 mb-1">Seller — automatic</p>
+              <p>The vessel owner is auto-attached as Seller and receives the NDA invitation in their cabinet automatically. No manual entry needed.</p>
             </div>
 
             <div className="flex gap-3 pt-2">
