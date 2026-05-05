@@ -1,0 +1,100 @@
+2026-05-05T10:19:27.281963156Z [deal-legal] Migration complete
+2026-05-05T10:19:31.226381005Z REQ: GET /
+2026-05-05T10:19:31.228124707Z clientIP="34.145.120.165" requestID="0a8aa6d9-31bd-4142" responseTimeMS=4 responseBytes=451 userAgent="Go-http-client/2.0"
+2026-05-05T10:19:31.251025865Z ==> Your service is live 🎉
+2026-05-05T10:19:31.438710084Z ==> 
+2026-05-05T10:19:31.441091511Z ==> ///////////////////////////////////////////////////////////
+2026-05-05T10:19:31.443069254Z ==> 
+2026-05-05T10:19:31.44527214Z ==> Available at your primary URL https://pdye-platform.onrender.com
+2026-05-05T10:19:31.44720205Z ==> 
+2026-05-05T10:19:31.449383075Z ==> ///////////////////////////////////////////////////////////
+2026-05-05T10:19:44.765174108Z REQ: GET /api/fx/rates
+2026-05-05T10:19:45.461566803Z clientIP="176.137.223.5" requestID="07638b9c-c27c-43a5" responseTimeMS=702 responseBytes=481 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:19:47.669586731Z REQ: GET /api/fx/rates
+2026-05-05T10:19:47.670174872Z clientIP="176.137.223.5" requestID="c079b9ce-e2ba-48d5" responseTimeMS=3 responseBytes=478 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:19:56.139717764Z clientIP="176.137.223.5" requestID="9b9ff6e0-0f02-4c99" responseTimeMS=3 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:19:56.145427295Z clientIP="176.137.223.5" requestID="393ad1c8-eff4-4bbf" responseTimeMS=1 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:19:56.181481744Z REQ: GET /api/deal-room-messages-all
+2026-05-05T10:19:56.190499107Z REQ: GET /api/deal-rooms
+2026-05-05T10:19:58.642642136Z clientIP="176.137.223.5" requestID="621ff55d-12c8-432e" responseTimeMS=2463 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:19:58.745792161Z clientIP="176.137.223.5" requestID="3403fd33-4cfc-44c2" responseTimeMS=2558 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:20:02.332601521Z clientIP="176.137.223.5" requestID="87b695b7-a272-4c45" responseTimeMS=3 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:20:02.386559145Z REQ: POST /api/api/leads/da9f55aa-b601-44e7-aa31-8b9b99e49afb/approve
+2026-05-05T10:20:02.38783229Z clientIP="176.137.223.5" requestID="65ce2d46-d39c-4eac" responseTimeMS=8 responseBytes=563 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:20:13.691463344Z clientIP="176.137.223.5" requestID="c893d6a7-38e5-432d" responseTimeMS=2 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:20:13.744386266Z REQ: POST /api/api/leads/da9f55aa-b601-44e7-aa31-8b9b99e49afb/approve
+2026-05-05T10:20:13.744916975Z clientIP="176.137.223.5" requestID="adb25ca7-df13-4b74" responseTimeMS=3 responseBytes=563 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:20:28.230824584Z clientIP="176.137.223.5" requestID="b8eac113-1bc3-4e4c" responseTimeMS=2 responseBytes=375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:20:28.275961294Z REQ: POST /api/api/leads/da9f55aa-b601-44e7-aa31-8b9b99e49afb/approve
+2026-05-05T10:20:28.276076589Z clientIP="176.137.223.5" requestID="665bed98-dd6f-42ad" responseTimeMS=2 responseBytes=563 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T10:24:35.245928394Z ==> Detected service running on port 10000
+2026-05-05T10:24:35.570266134Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-05-05T11:02:21.216717428Z ==> Deploying...
+2026-05-05T11:02:21.47090067Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-05-05T11:02:42.706397209Z ==> Running 'node artifacts/api-server/dist/index.cjs'
+2026-05-05T11:02:45.394804474Z Server listening on port 10000
+2026-05-05T11:02:45.929659458Z [platform-nda] Migration complete
+2026-05-05T11:02:46.022072529Z [deal-commission] Migration complete
+2026-05-05T11:02:46.101697363Z [deal-legal] Migration complete
+2026-05-05T11:02:52.349031049Z ==> Your service is live 🎉
+2026-05-05T11:02:52.63464204Z ==> 
+2026-05-05T11:02:52.637358044Z ==> ///////////////////////////////////////////////////////////
+2026-05-05T11:02:52.640349405Z ==> 
+2026-05-05T11:02:52.642994156Z ==> Available at your primary URL https://pdye-platform.onrender.com
+2026-05-05T11:02:52.645321029Z ==> 
+2026-05-05T11:02:52.647912027Z ==> ///////////////////////////////////////////////////////////
+2026-05-05T11:02:52.66326994Z clientIP="35.230.74.10" requestID="d2f28572-5d86-4daa" responseTimeMS=3 responseBytes=451 userAgent="Go-http-client/2.0"
+2026-05-05T11:04:17.997673449Z clientIP="176.137.223.5" requestID="d03ea2eb-9c8e-4a15" responseTimeMS=546 responseBytes=481 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:04:28.600841302Z clientIP="176.137.223.5" requestID="4bedd6e8-f680-44f5" responseTimeMS=6 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:04:28.634597569Z clientIP="176.137.223.5" requestID="a56913bb-523f-46a1" responseTimeMS=1 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:04:29.529607526Z clientIP="176.137.223.5" requestID="19daf3ee-2fdd-43a3" responseTimeMS=837 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:04:29.589556857Z clientIP="176.137.223.5" requestID="d7d01c04-868e-4ea9" responseTimeMS=908 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:04:36.95281096Z clientIP="176.137.223.5" requestID="dc7e6ad1-72ae-4955" responseTimeMS=3 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:04:37.902366155Z [approve] Resend → to=shapp.aps@gmail.com from=onboarding@resend.dev id=b9959c4d-55fc-4f39-83ef-7f3715c4be06 err=none
+2026-05-05T11:04:38.005168556Z clientIP="176.137.223.5" requestID="409c42b4-08ac-4c6f" responseTimeMS=1007 responseBytes=486 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:05:06.691295758Z clientIP="176.137.223.5" requestID="4b93f694-1d1e-4961" responseTimeMS=278 responseBytes=534 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:06:46.454462335Z clientIP="176.137.223.5" requestID="0507aa02-1c25-4da4" responseTimeMS=612 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:06:46.46471777Z clientIP="176.137.223.5" requestID="8449e714-55b9-46cb" responseTimeMS=588 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:07:49.885317427Z clientIP="176.137.223.5" requestID="ef502278-6ef4-44a8" responseTimeMS=3 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:07:50.572608491Z clientIP="176.137.223.5" requestID="ca06bd04-707a-4e49" responseTimeMS=642 responseBytes=429 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:07:51.258613981Z clientIP="176.137.223.5" requestID="7ee32650-5b45-491d" responseTimeMS=636 responseBytes=300 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:07:51.439531799Z clientIP="176.137.223.5" requestID="5cdd17cc-632c-4f0f" responseTimeMS=140 responseBytes=300 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:07:51.603522193Z ==> Detected service running on port 10000
+2026-05-05T11:07:51.871644977Z clientIP="176.137.223.5" requestID="12e79c9c-7428-4d54" responseTimeMS=1 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:07:52.102962239Z clientIP="176.137.223.5" requestID="d68398b8-8db2-4d18" responseTimeMS=188 responseBytes=302 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:07:52.121638232Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-05-05T11:08:05.538328462Z clientIP="176.137.223.5" requestID="68a31835-4db7-4611" responseTimeMS=2 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:08:06.444974545Z [platform-nda] User shapp.aps@gmail.com signed vv1.0 from 176.137.223.5
+2026-05-05T11:08:06.446070856Z clientIP="176.137.223.5" requestID="2001dd88-48ce-4f3b" responseTimeMS=863 responseBytes=501 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:08:07.703066392Z clientIP="176.137.223.5" requestID="070004db-5f70-4a9d" responseTimeMS=1213 responseBytes=583 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:08:07.86389172Z [platform-nda] Emailed signed PDF to shapp.aps@gmail.com (resend id=7e0c78b2-4f20-4d87-b597-b064582abed1)
+2026-05-05T11:08:13.819866293Z clientIP="176.137.223.5" requestID="2931afe0-1d75-45d5" responseTimeMS=2 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:08:14.404795252Z clientIP="176.137.223.5" requestID="fbd5f03a-7930-4173" responseTimeMS=543 responseBytes=397 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:08:22.521519712Z clientIP="176.137.223.5" requestID="b5eafdd9-c1b2-4c06" responseTimeMS=117 responseBytes=534 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:08:38.587048809Z clientIP="176.137.223.5" requestID="5bd1b847-b793-4cf5" responseTimeMS=661 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:09:30.051649375Z clientIP="176.137.223.5" requestID="bb25e077-6a68-453c" responseTimeMS=530 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:09:30.348292075Z clientIP="176.137.223.5" requestID="b19b0b5f-23c0-4a18" responseTimeMS=258 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:09:30.601845904Z clientIP="176.137.223.5" requestID="d7b0e54b-a0fa-4751" responseTimeMS=127 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:09:35.465078445Z clientIP="176.137.223.5" requestID="c6bf4c9c-781b-473e" responseTimeMS=493 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:14.632048511Z clientIP="176.137.223.5" requestID="10b9a7a9-1255-4c9a" responseTimeMS=588 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:14.913690468Z clientIP="176.137.223.5" requestID="5f3e877d-022e-42e6" responseTimeMS=242 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:15.155324751Z clientIP="176.137.223.5" requestID="321a6421-f52b-48c2" responseTimeMS=202 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:20.35812403Z clientIP="176.137.223.5" requestID="f116e574-3b10-4c0d" responseTimeMS=232 responseBytes=301 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:20.616595621Z clientIP="176.137.223.5" requestID="62072282-0615-4cc1" responseTimeMS=489 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:31.601852769Z clientIP="176.137.223.5" requestID="41754587-e96a-4b3d" responseTimeMS=384 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:31.654051862Z clientIP="176.137.223.5" requestID="959c9946-b431-44fa" responseTimeMS=429 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:35.824615444Z clientIP="176.137.223.5" requestID="0634cd04-54f5-4d6a" responseTimeMS=2 responseBytes=417 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:36.190110007Z clientIP="176.137.223.5" requestID="9d363f1a-ae82-46f9" responseTimeMS=326 responseBytes=759 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:42.02298968Z clientIP="176.137.223.5" requestID="0da5e374-a902-4e7a" responseTimeMS=298 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:42.058372704Z clientIP="176.137.223.5" requestID="f02a6680-b1d2-46c0" responseTimeMS=344 responseBytes=299 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:10:55.543862874Z clientIP="176.137.223.5" requestID="b8b88a3a-b361-47b4" responseTimeMS=269 responseBytes=534 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-05T11:12:06.373775388Z clientIP="8.231.245.55" requestID="99932a23-5d2c-4dd4" responseTimeMS=4 responseBytes=459 userAgent="curl/8.14.1"
+2026-05-05T11:12:06.644172816Z clientIP="8.231.245.55" requestID="4eee3fdb-688f-4f3c" responseTimeMS=2 responseBytes=467 userAgent="curl/8.14.1"
+2026-05-05T11:12:06.910107935Z clientIP="8.231.245.55" requestID="57afe1af-48d2-405b" responseTimeMS=1 responseBytes=417 userAgent="curl/8.14.1"
+2026-05-05T11:12:07.180889007Z clientIP="8.231.245.55" requestID="2a3750ba-28b8-46b2" responseTimeMS=2 responseBytes=467 userAgent="curl/8.14.1"
+2026-05-05T11:12:36.687130691Z clientIP="8.231.245.55" requestID="8ae680c7-11f3-4d67" responseTimeMS=3 responseBytes=451 userAgent="curl/8.14.1"
+2026-05-05T11:12:36.931506611Z clientIP="8.231.245.55" requestID="e3c853c2-32e1-4524" responseTimeMS=2 responseBytes=454 userAgent="curl/8.14.1"
+2026-05-05T11:12:37.17345629Z clientIP="8.231.245.55" requestID="89ee21ec-1e6b-4be7" responseTimeMS=2 responseBytes=363 userAgent="curl/8.14.1"
+2026-05-05T11:12:37.417930104Z clientIP="8.231.245.55" requestID="fc26687b-00c3-476c" responseTimeMS=2 responseBytes=463 userAgent="curl/8.14.1"
+2026-05-05T11:12:37.661384553Z clientIP="8.231.245.55" requestID="a9065073-8d6c-46b6" responseTimeMS=3 responseBytes=372 userAgent="curl/8.14.1"
+2026-05-05T11:12:37.919624522Z clientIP="8.231.245.55" requestID="9e8a1cab-a4fc-48ec" responseTimeMS=2 responseBytes=355 userAgent="curl/8.14.1"

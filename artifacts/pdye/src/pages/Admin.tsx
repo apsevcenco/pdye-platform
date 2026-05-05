@@ -420,7 +420,7 @@ function YachtsView() {
     const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
     for (const file of files) {
       const form = new FormData();
-      form.append("file", file);
+      form.append("photo", file);
       form.append("yachtId", yachtId);
       const res = await fetch(`${apiBase}/upload-photo`, { method: "POST", body: form });
       if (!res.ok) {
@@ -711,7 +711,7 @@ function YachtsView() {
       for (const file of files) {
         const ext = (file.name.split(".").pop() || "bin").toUpperCase();
         const fd = new FormData();
-        fd.append("file", file);
+        fd.append("photo", file);
         fd.append("yachtId", yacht.id);
         fd.append("folder", "docs");
         const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";

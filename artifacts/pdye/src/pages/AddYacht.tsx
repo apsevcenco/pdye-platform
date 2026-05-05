@@ -218,7 +218,7 @@ export default function AddYacht() {
     setErr("");
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("photo", file);
       const res = await fetch(`${API_BASE}/upload-photo`, { method: "POST", body: fd });
       const json = await res.json().catch(() => ({} as any));
       if (res.ok && json.url) {
