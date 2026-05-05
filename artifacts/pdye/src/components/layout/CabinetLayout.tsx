@@ -15,6 +15,12 @@ import {
   ShieldCheck,
   FileText,
   Percent,
+  ChevronDown,
+  TrendingUp,
+  PenLine,
+  Type,
+  MessageSquare,
+  Scale,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
@@ -25,20 +31,49 @@ interface NavItem {
   icon: React.ElementType;
 }
 
+interface AdminGroup {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  items: NavItem[];
+}
+
+// In-page admin views — navigate to /admin?view=<id>; Admin.tsx reads the
+// query param via wouter's useSearch and switches the rendered view.
+const ADMIN_DASHBOARD_GROUP: AdminGroup = {
+  id: "dashboard",
+  label: "Dashboard",
+  icon: LayoutDashboard,
+  items: [
+    { href: "/admin?view=dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin?view=yachts", label: "Yachts", icon: Ship },
+    { href: "/admin?view=dealroom", label: "Deal Room", icon: TrendingUp },
+    { href: "/admin?view=leads", label: "Leads", icon: Inbox },
+    { href: "/admin?view=investors", label: "Private Buyers", icon: Users },
+    { href: "/admin?view=brokers", label: "Brokers", icon: Briefcase },
+    { href: "/admin?view=owners", label: "Boat Owners", icon: Anchor },
+    { href: "/admin?view=documents", label: "Documents", icon: FileText },
+    { href: "/admin?view=messages", label: "Messages", icon: MessageSquare },
+    { href: "/admin?view=content", label: "Page Content", icon: PenLine },
+    { href: "/admin?view=fonts", label: "Fonts", icon: Type },
+  ],
+};
+
+// Separate admin pages with their own routes.
+const ADMIN_MENU_GROUP: AdminGroup = {
+  id: "admin",
+  label: "Admin Menu",
+  icon: ShieldCheck,
+  items: [
+    { href: "/admin-users", label: "Users", icon: Users },
+    { href: "/admin-requests", label: "Access Requests", icon: Inbox },
+    { href: "/admin-platform-nda", label: "Platform NDA", icon: ShieldCheck },
+    { href: "/admin-deal-nda", label: "Deal NDA", icon: FileText },
+    { href: "/admin-deal-commission", label: "Commission", icon: Scale },
+  ],
+};
+
 function getNavItems(role: string | null): NavItem[] {
-  if (role === "admin") {
-    return [
-      { href: "/admin", label: "Admin Panel", icon: LayoutDashboard },
-      { href: "/admin-users", label: "Users", icon: Users },
-      { href: "/admin-requests", label: "Access Requests", icon: Inbox },
-      { href: "/yachts", label: "Yachts", icon: Ship },
-      { href: "/dealroom", label: "Deal Rooms", icon: Briefcase },
-      { href: "/admin-platform-nda", label: "Platform NDA", icon: ShieldCheck },
-      { href: "/admin-deal-nda", label: "Deal NDA", icon: FileText },
-      { href: "/admin-deal-commission", label: "Commission", icon: Percent },
-      { href: "/profile", label: "Profile", icon: User },
-    ];
-  }
   if (role === "owner" || role === "broker") {
     return [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -73,10 +108,27 @@ function isActiveRoute(current: string, href: string): boolean {
   return current.startsWith(href + "/");
 }
 
+// Active-state for items inside the Dashboard accordion: their href looks like
+// `/admin?view=xxx` so we match on pathname AND the view query param.
+function isActiveAdminView(currentPath: string, href: string): boolean {
+  if (!currentPath.startsWith("/admin")) return false;
+  if (!currentPath.startsWith("/admin?") && currentPath !== "/admin") return false;
+  const [path, query = ""] = href.split("?");
+  if (!currentPath.startsWith(path)) return false;
+  const targetView = new URLSearchParams(query).get("view");
+  if (!targetView) return false;
+  const currentView =
+    new URLSearchParams(
+      typeof window !== "undefined" ? window.location.search : ""
+    ).get("view") || "dashboard";
+  return currentView === targetView;
+}
+
 export function CabinetLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { userProfile, user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const isAdmin = userProfile?.role === "admin";
   const items = useMemo(() => getNavItems(userProfile?.role ?? null), [userProfile?.role]);
   const displayName = userProfile?.email || user?.email || "Account";
@@ -100,6 +152,62 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
     await logout();
   }
 
+  function toggleGroup(id: string) {
+    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  function renderNavLink(item: NavItem, active: boolean) {
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => setMobileOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-sans transition-all border-l-2 ${
+          active
+            ? "bg-primary/10 text-primary border-primary"
+            : "text-white/55 hover:text-white hover:bg-white/5 border-transparent"
+        }`}
+      >
+        <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
+        <span className={`tracking-wide ${active ? "font-semibold" : ""}`}>{item.label}</span>
+      </Link>
+    );
+  }
+
+  function renderAccordion(group: AdminGroup, isViewGroup: boolean) {
+    const open = !!openGroups[group.id];
+    const Icon = group.icon;
+    return (
+      <div key={group.id} className="space-y-1">
+        <button
+          type="button"
+          onClick={() => toggleGroup(group.id)}
+          aria-expanded={open}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-sans text-white/70 hover:text-white hover:bg-white/5 transition-all"
+        >
+          <Icon size={16} strokeWidth={1.8} />
+          <span className="tracking-wide flex-1 text-left">{group.label}</span>
+          <ChevronDown
+            size={14}
+            strokeWidth={2}
+            className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+        {open && (
+          <div className="ml-4 pl-2 border-l border-white/8 space-y-0.5">
+            {group.items.map((item) => {
+              const active = isViewGroup
+                ? isActiveAdminView(location, item.href)
+                : isActiveRoute(location, item.href);
+              return renderNavLink(item, active);
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const sidebarContent = (
     <>
       <Link
@@ -112,24 +220,18 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
       </Link>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {items.map(({ href, label, icon: Icon }) => {
-          const active = isActiveRoute(location, href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-sans transition-all border-l-2 ${
-                active
-                  ? "bg-primary/10 text-primary border-primary"
-                  : "text-white/55 hover:text-white hover:bg-white/5 border-transparent"
-              }`}
-            >
-              <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
-              <span className={`tracking-wide ${active ? "font-semibold" : ""}`}>{label}</span>
-            </Link>
-          );
-        })}
+        {isAdmin ? (
+          <>
+            {renderAccordion(ADMIN_DASHBOARD_GROUP, true)}
+            {renderAccordion(ADMIN_MENU_GROUP, false)}
+            {renderNavLink(
+              { href: "/profile", label: "Profile", icon: User },
+              isActiveRoute(location, "/profile")
+            )}
+          </>
+        ) : (
+          items.map((item) => renderNavLink(item, isActiveRoute(location, item.href)))
+        )}
       </nav>
 
       <div className="px-3 py-3 border-t border-white/8 space-y-1">

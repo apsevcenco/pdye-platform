@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, Fragment, useCallback } from "react";
-import { Link, useLocation } from "wouter";
+import React, { useState, useRef, useEffect, useMemo, Fragment, useCallback } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import { type Yacht, type YachtDocument } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { archiveUserAction, confirmAndDeleteUserInteractive } from "@/lib/userAdminActions";
@@ -80,24 +80,9 @@ import {
   type SiteTextBlock,
 } from "@/lib/siteContent";
 
-const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "yachts", label: "Yachts", icon: Ship },
-  { id: "dealroom", label: "Deal Room", icon: TrendingUp },
-  { id: "leads", label: "Leads", icon: Inbox },
-  { id: "investors", label: "Private Buyers", icon: Users },
-  { id: "brokers", label: "Brokers", icon: Briefcase },
-  { id: "owners", label: "Boat Owners", icon: Anchor },
-  { id: "documents", label: "Documents", icon: FileText },
-  { id: "messages", label: "Messages", icon: MessageSquare },
-  { id: "content", label: "Page Content", icon: PenLine },
-  { id: "fonts", label: "Fonts", icon: Type },
-  { id: "requests-link", label: "Access Requests", icon: CheckCircle, href: "/admin-requests" },
-  { id: "users-link", label: "User Management", icon: Users, href: "/admin-users" },
-  { id: "platform-nda-link", label: "Platform NDA", icon: FileText, href: "/admin-platform-nda" },
-  { id: "deal-nda-link", label: "Deal Room NDA", icon: FileText, href: "/admin-deal-nda" },
-  { id: "deal-commission-link", label: "Commission Agreement", icon: FileText, href: "/admin-deal-commission" },
-];
+// Navigation moved to CabinetLayout sidebar (collapsible Dashboard / Admin
+// Menu accordions). Items below are kept here only so unused-icon imports
+// don't trigger lint warnings — actual navigation lives in CabinetLayout.
 
 type UserRecord = { id: string; email: string; role: string; approved: boolean; created_at: string; company?: string; phone?: string; notes?: string; name?: string; budget?: string; yacht_type?: string; location?: string; archived?: boolean; archived_at?: string | null };
 type DealRoomDoc = { id: string; deal_room_id: string; uploaded_by: string; file_name: string; file_url: string; file_type?: string; file_size?: number; visible_to_roles?: string[]; created_at: string };
@@ -3837,7 +3822,20 @@ const views: Record<string, React.ReactElement> = {
 };
 
 export default function Admin() {
+  const search = useSearch();
+  const viewFromUrl = useMemo(() => {
+    const fromHook = new URLSearchParams(search || "").get("view");
+    if (fromHook) return fromHook;
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("view");
+    }
+    return null;
+  }, [search]);
   const [activeView, setActiveView] = useState(() => {
+    if (typeof window !== "undefined") {
+      const fromUrl = new URLSearchParams(window.location.search).get("view");
+      if (fromUrl) return fromUrl;
+    }
     const origin = sessionStorage.getItem("pdye_origin");
     if (origin === "admin") {
       sessionStorage.removeItem("pdye_origin");
@@ -3850,6 +3848,15 @@ export default function Admin() {
     }
     return "dashboard";
   });
+  useEffect(() => {
+    // URL is the source of truth: if `?view=` is present use it, otherwise
+    // canonical fallback is "dashboard". This keeps the rendered view, URL,
+    // and sidebar active-state highlight in sync — including the case where
+    // the user navigates back to bare /admin (e.g. clicking the PDYE logo).
+    const next = viewFromUrl || "dashboard";
+    if (next !== activeView) setActiveView(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewFromUrl]);
   const [, setLocation] = useLocation();
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
@@ -3885,41 +3892,13 @@ export default function Admin() {
     })();
   }, []);
 
-  const tabItems = navItems.filter((item) => !("href" in item && item.href));
+  // Suppress unused-var warning — kept for potential future use (badges,
+  // notifications) without re-introducing the top sub-tab bar.
+  void unreadMsgCount;
 
   return (
     <CabinetLayout>
       <div className="min-h-screen bg-background">
-        {/* Sub-tabs (in-page admin views) */}
-        <div className="border-b border-white/5 bg-secondary sticky top-14 z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="flex gap-1 overflow-x-auto py-2 scrollbar-hide">
-              {tabItems.map((item) => {
-                const active = activeView === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveView(item.id)}
-                    className={`flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors border-b-2 ${
-                      active
-                        ? "text-primary border-primary"
-                        : "text-white/45 border-transparent hover:text-white"
-                    }`}
-                  >
-                    <item.icon size={13} />
-                    {item.label}
-                    {item.id === "messages" && unreadMsgCount > 0 && (
-                      <span className="bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                        {unreadMsgCount}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
         {/* Page Content */}
         <main className="max-w-7xl mx-auto p-3 sm:p-6 md:p-8">
           {pendingUsersCount > 0 && activeView === "dashboard" && (
@@ -3954,7 +3933,7 @@ export default function Admin() {
               </button>
             </div>
           )}
-          {views[activeView]}
+          {views[activeView] ?? views.dashboard}
         </main>
       </div>
     </CabinetLayout>
