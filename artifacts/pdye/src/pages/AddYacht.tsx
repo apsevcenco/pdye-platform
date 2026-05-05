@@ -414,14 +414,32 @@ export default function AddYacht() {
       payload.listing_status = "draft";
     }
 
-    let error;
-    let newId: string | null = null;
-    if (editId) {
-      ({ error } = await supabase.from("yachts").update(payload).eq("id", editId).eq("owner_id", user.id));
-    } else {
-      const ins = await supabase.from("yachts").insert([payload]).select("id").single();
-      error = ins.error;
-      newId = (ins.data as { id?: string } | null)?.id || null;
+    // Helper: detects "column not in schema cache" errors so we can degrade
+    // gracefully when the optional `documents` column hasn't been migrated yet
+    // (see migrations/008_yacht_documents.sql). Without this fallback the
+    // entire save — including photos — would fail on installs missing the col.
+    const isMissingDocumentsColumn = (err: unknown): boolean => {
+      const msg = (err as { message?: string } | null)?.message || "";
+      return /documents/i.test(msg) && /schema cache|column .* does not exist/i.test(msg);
+    };
+
+    const runSave = async (body: typeof payload) => {
+      if (editId) {
+        const r = await supabase.from("yachts").update(body).eq("id", editId).eq("owner_id", user.id);
+        return { error: r.error, newId: null as string | null };
+      }
+      const r = await supabase.from("yachts").insert([body]).select("id").single();
+      return { error: r.error, newId: (r.data as { id?: string } | null)?.id || null };
+    };
+
+    let { error, newId } = await runSave(payload);
+    if (error && isMissingDocumentsColumn(error)) {
+      console.warn(
+        "[AddYacht] yachts.documents column missing — saving without documents. " +
+        "Apply migrations/008_yacht_documents.sql in Supabase SQL Editor to enable PDF persistence.",
+      );
+      const { documents: _omit, ...rest } = payload;
+      ({ error, newId } = await runSave(rest as typeof payload));
     }
 
     if (error) { setErr(error.message); setSaving(false); return; }
