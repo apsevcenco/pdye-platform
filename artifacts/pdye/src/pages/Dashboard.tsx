@@ -220,8 +220,12 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
           const { data: yachts } = await supabase.from("yachts").select("id, name").in("id", yachtIds);
           const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
           setRooms(filtered.map((r: any) => ({ ...r, yacht_name: yachtMap[r.yacht_id] || "Vessel" })));
+        } else {
+          console.log("[MyDealRoomsSection] dealRoomApi.byUser returned no rooms for user", userId);
         }
-      } catch (e) {}
+      } catch (e: any) {
+        console.error("[MyDealRoomsSection] failed to load deal rooms:", e?.message || e, e);
+      }
       setLoading(false);
     }
     loadRooms();
@@ -551,8 +555,12 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
             yacht_name: yachtMap[r.yacht_id] || "Vessel",
             my_side: r.buyer_user_id === userId ? "Buyer" : r.seller_user_id === userId ? "Seller" : "—",
           })));
+        } else {
+          console.log("[BrokerDealRoomsSection] dealRoomApi.byUser returned no rooms for user", userId);
         }
-      } catch (e) {}
+      } catch (e: any) {
+        console.error("[BrokerDealRoomsSection] failed to load deal rooms:", e?.message || e, e);
+      }
       setLoading(false);
     }
     load();
