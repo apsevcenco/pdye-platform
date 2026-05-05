@@ -3,7 +3,7 @@ import { Link, Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { yachtModerationApi } from "@/lib/yachtModerationApi";
-import { Layout } from "@/components/layout/Layout";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import {
   ArrowLeft, Upload, X, Plus, CheckCircle, Loader2, Camera, Sparkles, ChevronLeft, ChevronRight,
 } from "lucide-react";
@@ -381,8 +381,8 @@ export default function AddYacht() {
   }
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-background pt-28 pb-16">
+    <CabinetLayout>
+      <div className="min-h-screen bg-background pt-8 pb-16">
         <div className="max-w-5xl mx-auto px-6">
 
           {/* Back */}
@@ -857,6 +857,6 @@ export default function AddYacht() {
           </form>
         </div>
       </div>
-    </Layout>
+    </CabinetLayout>
   );
 }

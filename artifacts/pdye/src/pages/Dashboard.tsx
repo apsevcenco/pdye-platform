@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { dealRoomApi } from "@/lib/dealRoomApi";
 import { yachtModerationApi, LISTING_STATUS_LABEL, LISTING_STATUS_STYLE, type ListingStatus } from "@/lib/yachtModerationApi";
-import { Layout } from "@/components/layout/Layout";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import type { DealRoom } from "@/lib/dealTypes";
 import {
   User, Clock, CheckCircle, XCircle, Ship, Plus, TrendingUp,
@@ -1013,7 +1013,7 @@ export default function Dashboard() {
   const roleDisplay = ROLE_DISPLAY[role] || ROLE_DISPLAY.investor;
 
   return (
-    <Layout>
+    <CabinetLayout>
       <div className="min-h-screen bg-background pt-28 pb-16">
         <div className="max-w-5xl mx-auto px-3 sm:px-6">
 
@@ -1059,6 +1059,6 @@ export default function Dashboard() {
 
         </div>
       </div>
-    </Layout>
+    </CabinetLayout>
   );
 }

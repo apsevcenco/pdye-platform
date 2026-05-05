@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/Layout";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import { YachtCard, type RequestStatus } from "@/components/ui/YachtCard";
 import { type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
@@ -163,8 +163,8 @@ export default function Yachts() {
   const filters: Filter[] = ["All", "Motor Yachts", "Sailing Yachts", "Distressed Deals"];
 
   return (
-    <Layout>
-      <div className="pt-32 pb-12 bg-secondary border-b border-white/5">
+    <CabinetLayout>
+      <div className="pt-8 pb-12 bg-secondary border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <h1 className="font-display text-4xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: content.heading }} />
@@ -246,6 +246,6 @@ export default function Yachts() {
           </div>
         </div>
       </section>
-    </Layout>
+    </CabinetLayout>
   );
 }

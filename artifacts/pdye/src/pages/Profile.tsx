@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Layout } from "@/components/layout/Layout";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { User, Lock, Mail, Shield, Eye, EyeOff, CheckCircle2 } from "lucide-react";
@@ -44,11 +44,11 @@ export default function Profile() {
 
   if (!user || !userProfile) {
     return (
-      <Layout>
+      <CabinetLayout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
         </div>
-      </Layout>
+      </CabinetLayout>
     );
   }
 
@@ -106,8 +106,8 @@ export default function Profile() {
   const isAdmin = role === "admin";
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-background pt-32 pb-20">
+    <CabinetLayout>
+      <div className="min-h-screen bg-background pt-8 pb-20">
         <div className="max-w-5xl mx-auto px-3 sm:px-6">
           <div className="mb-10">
             <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-2">Account</p>
@@ -284,6 +284,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-    </Layout>
+    </CabinetLayout>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { Layout } from "@/components/layout/Layout";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -108,11 +108,11 @@ export default function AdminYachtReview() {
 
   if (authLoading || loading) {
     return (
-      <Layout>
+      <CabinetLayout>
         <div className="min-h-screen bg-background flex items-center justify-center">
           <Loader2 size={28} className="text-primary animate-spin" />
         </div>
-      </Layout>
+      </CabinetLayout>
     );
   }
 
@@ -123,8 +123,8 @@ export default function AdminYachtReview() {
 
   if (err && !yacht) {
     return (
-      <Layout>
-        <div className="min-h-screen bg-background pt-32 pb-16">
+      <CabinetLayout>
+        <div className="min-h-screen bg-background pt-8 pb-16">
           <div className="max-w-3xl mx-auto px-6">
             <Link href="/admin" className="inline-flex items-center gap-2 text-white/40 hover:text-white text-sm font-sans transition-colors mb-6">
               <ArrowLeft size={14} /> Admin
@@ -134,7 +134,7 @@ export default function AdminYachtReview() {
             </div>
           </div>
         </div>
-      </Layout>
+      </CabinetLayout>
     );
   }
 
@@ -188,8 +188,8 @@ export default function AdminYachtReview() {
   const isRejected = listingStatus === "rejected";
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-background pt-28 pb-16">
+    <CabinetLayout>
+      <div className="min-h-screen bg-background pt-8 pb-16">
         <div className="max-w-5xl mx-auto px-6 space-y-6">
 
           {/* Back + header */}
@@ -484,6 +484,6 @@ export default function AdminYachtReview() {
           <img src={photos[lightbox]} alt="" className="max-w-[90vw] max-h-[90vh] object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
-    </Layout>
+    </CabinetLayout>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Layout } from "@/components/layout/Layout";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Lock, ArrowRight, ShieldAlert, Anchor, RefreshCw, Ship, Clock,
@@ -98,26 +98,26 @@ export default function DealRoomPage() {
 
   if (!user) {
     return (
-      <Layout>
+      <CabinetLayout>
         <RestrictedScreen
           icon={<Lock size={32} className="text-primary" />}
           title="Login Required"
           text="Please log in to access the Deal Room."
           action={{ label: "Sign In", href: "/login" }}
         />
-      </Layout>
+      </CabinetLayout>
     );
   }
 
   if (!isApproved) {
     return (
-      <Layout>
+      <CabinetLayout>
         <RestrictedScreen
           icon={<RefreshCw size={32} className="text-primary animate-spin" style={{ animationDuration: "3s" }} />}
           title="Application Under Review"
           text="Your account is being reviewed. Access will be granted once approved — typically within 24–48 hours."
         />
-      </Layout>
+      </CabinetLayout>
     );
   }
 
@@ -137,8 +137,8 @@ export default function DealRoomPage() {
   }
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-background pt-28 pb-20">
+    <CabinetLayout>
+      <div className="min-h-screen bg-background pt-8 pb-20">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-12">
             <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Secure Platform</span>
@@ -274,7 +274,7 @@ export default function DealRoomPage() {
           )}
         </div>
       </div>
-    </Layout>
+    </CabinetLayout>
   );
 }
 

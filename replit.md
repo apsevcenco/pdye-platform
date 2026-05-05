@@ -17,6 +17,13 @@ The project is a pnpm workspace monorepo utilizing TypeScript.
 -   **Styling:** Tailwind CSS for a dark navy (`#0a1426`) and gold (`#c8a46b`) color scheme, using self-hosted fonts.
 -   **Routing:** Wouter for hash-based routing (`/#/path`).
 -   **Key Pages:** Includes public informational pages, protected dashboards, yacht listings, and dedicated admin interfaces for user management, access requests, and deal room oversight.
+-   **Two Layout Wrappers:**
+    -   `Layout` (`components/layout/Layout.tsx`) — marketing chrome: fixed top `Navbar` + `Footer`. Used on public pages (`Home`, `Brokers`, `Investors`, `BoatOwners`, `Valuation`, `Access`, `Login`, etc.).
+    -   `CabinetLayout` (`components/layout/CabinetLayout.tsx`) — closed cabinet chrome: fixed left sidebar with role-aware nav items + sticky top bar (currency selector, user email + role). No marketing menu. Logout lives in sidebar footer; admins additionally get a "View public site" link back to `/`. Mobile uses a drawer. Used on all logged-in pages: `Dashboard`, `Profile`, `Yachts`, `DealRoom`, `DealDetails`, `AddYacht`. Sidebar items per role:
+        -   **Buyer/Investor:** Dashboard · Yacht Catalog · Deal Rooms · Profile
+        -   **Owner/Broker:** Dashboard · Yacht Catalog · Add Yacht · Deal Rooms · Profile
+        -   **Admin:** Admin Panel · Users · Access Requests · Yachts · Deal Rooms · Platform NDA · Deal NDA · Commission · Profile + "View public site"
+    -   Existing admin sub-pages (`Admin`, `AdminUsers`, `AdminRequests`, `AdminUserDetail`, `AdminPlatformNda`, `AdminDealNda`, `AdminDealCommission`, `AdminYachtReview`) keep their own custom chrome (no Layout wrapper); the CabinetLayout sidebar's admin items link directly to them.
 -   **UI Components:** Features a `WordToolbar` for rich text editing with shared styling for yacht specifications, saved in local storage.
 -   **Platform NDA Gate:** All non-admin users must sign a platform-level NDA before accessing internal sections. This involves an in-app electronic signature process, generating a PDF, and emailing it to the user.
 

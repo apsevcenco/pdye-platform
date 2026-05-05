@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { Layout } from "@/components/layout/Layout";
+import { CabinetLayout } from "@/components/layout/CabinetLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, FileText, Shield, Lock, Anchor, CheckCircle, Clock,
@@ -279,9 +279,9 @@ export default function DealDetails() {
     await refreshMessages();
   }
 
-  if (!user) return <Layout><div className="min-h-screen flex items-center justify-center"><div className="text-center"><Lock size={32} className="text-primary mx-auto mb-4" /><p className="text-white/50 font-sans">Please log in to access this deal room.</p></div></div></Layout>;
-  if (loading) return <Layout><div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div></Layout>;
-  if (!room) return <Layout><div className="min-h-screen flex items-center justify-center"><div className="text-center"><ShieldAlert size={32} className="text-primary mx-auto mb-4" /><p className="text-white font-display text-xl mb-2">Deal Room Not Found</p><Link href="/dealroom" className="text-primary text-sm hover:underline">Back to Opportunities</Link></div></div></Layout>;
+  if (!user) return <CabinetLayout><div className="min-h-screen flex items-center justify-center"><div className="text-center"><Lock size={32} className="text-primary mx-auto mb-4" /><p className="text-white/50 font-sans">Please log in to access this deal room.</p></div></div></CabinetLayout>;
+  if (loading) return <CabinetLayout><div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div></CabinetLayout>;
+  if (!room) return <CabinetLayout><div className="min-h-screen flex items-center justify-center"><div className="text-center"><ShieldAlert size={32} className="text-primary mx-auto mb-4" /><p className="text-white font-display text-xl mb-2">Deal Room Not Found</p><Link href="/dealroom" className="text-primary text-sm hover:underline">Back to Opportunities</Link></div></div></CabinetLayout>;
 
   const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
   const myNdaStatus = isBuyer ? room.buyer_nda_status : isSeller ? room.seller_nda_status : "n/a";
@@ -298,8 +298,8 @@ export default function DealDetails() {
   });
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-background pt-28 pb-20">
+    <CabinetLayout>
+      <div className="min-h-screen bg-background pt-8 pb-20">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8">
           <button
             onClick={() => {
@@ -449,7 +449,7 @@ export default function DealDetails() {
           </div>
         </div>
       </div>
-    </Layout>
+    </CabinetLayout>
   );
 }
 
