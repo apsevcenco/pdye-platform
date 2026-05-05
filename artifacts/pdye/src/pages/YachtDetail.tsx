@@ -285,6 +285,32 @@ export default function YachtDetail() {
       return;
     }
 
+    // 1) Check whether the user already has an active deal room on this yacht.
+    //    Access requests are deleted once a deal room is created, so this is
+    //    the source of truth for "I'm already in a deal room" state.
+    try {
+      const rooms = await dealRoomApi.byUser(user.id);
+      const myRoom = (rooms || []).find(
+        (r: any) =>
+          r.yacht_id === id &&
+          r.status !== "cancelled" &&
+          (r.buyer_user_id === user.id || r.seller_user_id === user.id)
+      );
+      if (myRoom) {
+        if (myRoom.status === "active") {
+          setAccessLevel("deal_room_active");
+        } else {
+          // Room exists but isn't active yet (draft / nda_pending / partially_signed)
+          setAccessLevel("pending");
+        }
+        setAccessLoading(false);
+        return;
+      }
+    } catch (e) {
+      // Non-fatal — fall through to access_requests check.
+    }
+
+    // 2) No deal room — fall back to the access request state.
     const { data: req } = await supabase
       .from("access_requests")
       .select("status, approved_spec_access, deal_room_id")
@@ -295,19 +321,6 @@ export default function YachtDetail() {
       .maybeSingle();
 
     if (!req) { setAccessLevel("none"); setAccessLoading(false); return; }
-
-    if (req.deal_room_id) {
-      const { data: room } = await supabase
-        .from("deal_rooms")
-        .select("status")
-        .eq("id", req.deal_room_id)
-        .single();
-      if (room && room.status === "active") {
-        setAccessLevel("deal_room_active");
-        setAccessLoading(false);
-        return;
-      }
-    }
 
     // Spec-access flow has been retired. Any non-rejected pre-deal-room status
     // is now treated as "Under Review" so the user waits for a Deal Room.

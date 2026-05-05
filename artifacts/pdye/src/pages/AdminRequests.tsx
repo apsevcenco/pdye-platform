@@ -214,19 +214,20 @@ export default function AdminRequests() {
       await dealRoomApi.addParticipant(room.id, { user_id: sellerUser.id, role: sellerType, side: "seller", can_view: false, can_message: false, can_download: false });
     }
 
-    await supabase.from("access_requests").update({
-      status: "escalated",
-      escalated_to_deal_room: true,
-      deal_room_id: room.id,
-      updated_at: now,
-    }).eq("id", req.id);
-
+    // Write the audit log FIRST so provenance from deal_room → access_request
+    // is durable even if the subsequent delete fails or is interrupted.
     await dealRoomApi.createAuditLog({
       entity_type: "deal_room",
       entity_id: room.id,
       user_id: user.id,
       action: "deal_room_created",
-      meta: { yacht_id: req.yacht_id, buyer_id: req.requester_id, seller_id: sellerUser?.id, access_request_id: req.id },
+      meta: {
+        yacht_id: req.yacht_id,
+        buyer_id: req.requester_id,
+        seller_id: sellerUser?.id,
+        access_request_id: req.id,
+        created_at: now,
+      },
     });
 
     await dealRoomApi.sendMessage(room.id, {
@@ -235,9 +236,33 @@ export default function AdminRequests() {
       is_system: true,
     });
 
-    setRequests(prev => prev.map(r => r.id === req.id ? {
-      ...r, status: "escalated", escalated_to_deal_room: true, deal_room_id: room.id,
-    } : r));
+    // Last step: delete the access request now that all dependent records exist
+    // (same pattern as leads on approve). Best-effort — if it fails we keep the
+    // row in the UI so the admin can retry, and we record the failure in audit.
+    const { error: delErr } = await supabase
+      .from("access_requests")
+      .delete()
+      .eq("id", req.id);
+
+    if (delErr) {
+      console.warn(
+        "[AdminRequests] failed to delete access_request after deal room creation:",
+        delErr.message
+      );
+      try {
+        await dealRoomApi.createAuditLog({
+          entity_type: "access_request",
+          entity_id: req.id,
+          user_id: user.id,
+          action: "access_request_delete_failed",
+          meta: { deal_room_id: room.id, error: delErr.message },
+        });
+      } catch {}
+      // Keep the row visible so admin sees something needs attention.
+    } else {
+      setRequests(prev => prev.filter(r => r.id !== req.id));
+    }
+
     setSellerModal(null);
     setCreatingRoom(null);
   }

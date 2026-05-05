@@ -70,15 +70,27 @@ function Block({ title, children, action }: { title: string; children: React.Rea
 /* ─── PRIVATE BUYER VIEW ─── */
 export function BuyerDashboard({ userId }: { userId: string }) {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
+  const [dealRoomCount, setDealRoomCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: rqs } = await supabase
-      .from("access_requests")
-      .select("id, yacht_id, status, created_at")
-      .eq("requester_id", userId)
-      .order("created_at", { ascending: false });
+
+    // Fetch access requests + active deal rooms in parallel.
+    const [rqsRes, roomsRes] = await Promise.all([
+      supabase
+        .from("access_requests")
+        .select("id, yacht_id, status, created_at")
+        .eq("requester_id", userId)
+        .order("created_at", { ascending: false }),
+      dealRoomApi.byUser(userId).catch(() => []),
+    ]);
+
+    const rqs = rqsRes.data;
+    const activeRooms = (roomsRes || []).filter(
+      (r: any) => r.status !== "cancelled" && !r.archived
+    );
+    setDealRoomCount(activeRooms.length);
 
     if (!rqs || rqs.length === 0) { setRequests([]); setLoading(false); return; }
 
@@ -99,7 +111,11 @@ export function BuyerDashboard({ userId }: { userId: string }) {
   const isUnderReview = (s: string) =>
     s === "pending" || s === "approved" || s === "approved_spec";
   const underReview = requests.filter(r => isUnderReview(r.status));
-  const inDealRoom = requests.filter(r => r.status === "escalated");
+  // "In Deal Room" reflects the actual deal_rooms (access requests are deleted
+  // once a room is created). We add any legacy escalated records as a fallback
+  // so historical counts don't drop to zero.
+  const legacyEscalated = requests.filter(r => r.status === "escalated").length;
+  const inDealRoomCount = Math.max(dealRoomCount, legacyEscalated);
   const rejected = requests.filter(r => r.status === "rejected");
 
   return (
@@ -109,7 +125,7 @@ export function BuyerDashboard({ userId }: { userId: string }) {
         {[
           { label: "Total Requests", value: requests.length, icon: <Ship size={16} /> },
           { label: "Under Review",   value: underReview.length, icon: <Clock size={16} /> },
-          { label: "In Deal Room",   value: inDealRoom.length, icon: <CheckCircle size={16} /> },
+          { label: "In Deal Room",   value: inDealRoomCount, icon: <CheckCircle size={16} /> },
           { label: "Rejected",       value: rejected.length, icon: <XCircle size={16} /> },
         ].map(s => (
           <div key={s.label} className="bg-background flex flex-col items-center justify-center gap-1.5 py-4 sm:py-6 text-center">
