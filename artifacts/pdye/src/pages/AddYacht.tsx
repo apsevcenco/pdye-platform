@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Layout } from "@/components/layout/Layout";
 import {
-  ArrowLeft, Upload, X, Plus, CheckCircle, Loader2, Camera, Sparkles,
+  ArrowLeft, Upload, X, Plus, CheckCircle, Loader2, Camera, Sparkles, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
@@ -766,6 +766,26 @@ export default function AddYacht() {
                           >
                             <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover pointer-events-none" />
                             {i === 0 && <span className="absolute bottom-0 left-0 right-0 text-center bg-primary text-background text-[8px] font-bold uppercase tracking-widest py-0.5">Main</span>}
+                            {i > 0 && (
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); reorderPhotos(i, i - 1); }}
+                                title="Move left"
+                                className="absolute top-1 left-1 bg-background/80 hover:bg-primary text-white hover:text-background w-5 h-5 flex items-center justify-center transition-colors z-10"
+                              >
+                                <ChevronLeft size={12} />
+                              </button>
+                            )}
+                            {i < photos.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); reorderPhotos(i, i + 1); }}
+                                title="Move right"
+                                className="absolute top-1 right-1 bg-background/80 hover:bg-primary text-white hover:text-background w-5 h-5 flex items-center justify-center transition-colors z-10"
+                              >
+                                <ChevronRight size={12} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={e => { e.stopPropagation(); removePhoto(i); }}

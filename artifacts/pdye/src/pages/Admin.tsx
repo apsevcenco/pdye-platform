@@ -26,6 +26,7 @@ import {
   Clock,
   AlertCircle,
   ChevronRight,
+  ChevronLeft,
   ArrowUpRight,
   PenLine,
   Trash2,
@@ -1183,6 +1184,42 @@ function YachtsView() {
                         >
                           <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover pointer-events-none" />
                           {i === 0 && <span className="absolute bottom-0 left-0 right-0 text-center bg-primary text-background text-[8px] font-bold uppercase tracking-widest py-0.5">Main</span>}
+                          {i > 0 && (
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setFormPhotos(prev => {
+                                  const next = [...prev];
+                                  const [moved] = next.splice(i, 1);
+                                  next.splice(i - 1, 0, moved);
+                                  return next;
+                                });
+                              }}
+                              title="Move left"
+                              className="absolute top-1 left-1 bg-background/80 hover:bg-primary text-white hover:text-background w-5 h-5 flex items-center justify-center transition-colors z-10"
+                            >
+                              <ChevronLeft size={12} />
+                            </button>
+                          )}
+                          {i < formPhotos.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setFormPhotos(prev => {
+                                  const next = [...prev];
+                                  const [moved] = next.splice(i, 1);
+                                  next.splice(i + 1, 0, moved);
+                                  return next;
+                                });
+                              }}
+                              title="Move right"
+                              className="absolute top-1 right-1 bg-background/80 hover:bg-primary text-white hover:text-background w-5 h-5 flex items-center justify-center transition-colors z-10"
+                            >
+                              <ChevronRight size={12} />
+                            </button>
+                          )}
                           <button
                             onClick={e => { e.stopPropagation(); setFormPhotos(prev => prev.filter((_, j) => j !== i)); }}
                             className="absolute inset-0 bg-background/70 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity"
