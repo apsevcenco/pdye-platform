@@ -1,54 +1,84 @@
 import express, { type Express } from "express";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import router from "./routes";
 import OpenAI from "openai";
 
 const app: Express = express();
 
-// =======================
-// middleware
-// =======================
-app.use(cors());
+const isProd = process.env["NODE_ENV"] === "production";
+
+const defaultAllowed = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+  /\.replit\.app$/,
+  /\.replit\.dev$/,
+  /\.kirk\.replit\.dev$/,
+  /\.onrender\.com$/,
+];
+
+const envAllowed = (process.env["ALLOWED_ORIGINS"] || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function isOriginAllowed(origin: string): boolean {
+  if (envAllowed.includes(origin)) return true;
+  let hostname: string;
+  try {
+    hostname = new URL(origin).hostname;
+  } catch {
+    return false;
+  }
+  return defaultAllowed.some((re) =>
+    re instanceof RegExp ? re.test(origin) || re.test(hostname) : re === origin,
+  );
+}
+
+const corsOptions: CorsOptions = {
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    if (isOriginAllowed(origin)) return cb(null, true);
+    console.warn("CORS blocked:", origin);
+    return cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  maxAge: 86400,
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// =======================
-// DEBUG: ловим ВСЕ запросы
-// (это поможет найти upload проблему)
-// =======================
-app.use((req, _res, next) => {
-  console.log("REQ:", req.method, req.url);
-  next();
-});
+if (!isProd) {
+  app.use((req, _res, next) => {
+    console.log("REQ:", req.method, req.url);
+    next();
+  });
+}
 
-// =======================
-// API routes
-// =======================
 app.use("/api", router);
 
-// =======================
-// OpenAI init
-// =======================
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env["OPENAI_API_KEY"],
 });
 
-// =======================
-// valuation route
-// =======================
 app.post("/api/valuation", async (req, res) => {
   try {
     const data = req.body;
 
     const importantFields = [
-      "type","builder","year","refit","length","beam","draft",
-      "gross_tonnage","condition","hull_material","hull_type",
-      "engine_maker","engine_model","engine_count","horse_power",
-      "max_speed","cruise_speed","cabins","crew"
+      "type", "builder", "year", "refit", "length", "beam", "draft",
+      "gross_tonnage", "condition", "hull_material", "hull_type",
+      "engine_maker", "engine_model", "engine_count", "horse_power",
+      "max_speed", "cruise_speed", "cabins", "crew",
     ];
 
     const filled = importantFields.filter(
-      (k) => data[k] && String(data[k]).trim() !== ""
+      (k) => data[k] && String(data[k]).trim() !== "",
     ).length;
 
     const completeness = Math.round((filled / importantFields.length) * 100);
@@ -75,12 +105,20 @@ Return JSON only.
 
     const parsed = JSON.parse(response.output_text);
 
-    return res.json(parsed);
-
+    return res.json({ ...parsed, confidence });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "valuation failed" });
   }
+});
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err.message === "Not allowed by CORS") {
+    res.status(403).json({ error: "CORS: origin not allowed" });
+    return;
+  }
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Internal server error" });
 });
 
 export default app;
