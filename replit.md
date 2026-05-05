@@ -54,6 +54,14 @@ The project is a pnpm workspace monorepo utilizing TypeScript.
     -   **Replit's Local PostgreSQL (heliumdb):** Manages sensitive deal-specific data (`deal_rooms`, `deal_room_participants`, `deal_room_documents`, `deal_room_messages`, `deal_room_blocks`, `nda_envelopes`, `audit_logs`, `platform_nda_documents`, `platform_nda_signatures`, `deal_nda_documents`, `deal_nda_signatures`). Access to these tables is exclusively via the API server.
 -   **Data Consistency:** `dealRoomApi` abstracts interaction with the API server for deal room data.
 -   **NDA Management:** Both platform-level and per-deal-room NDAs are versioned, hashed, and stored, with associated signature records. PDF generation for signed NDAs uses `pdfkit` and a custom font.
+-   **Row-Level Security (Supabase):** Migration `artifacts/pdye/migrations/007_rls_audit.sql` enables RLS on every public table and installs explicit policies. Highlights:
+    -   `users`: row owner reads/updates own row; admins read/update all; the `protect_user_privilege_columns()` trigger blocks any non-admin (and non-service-role) caller from changing `role`, `approved`, or `archived`.
+    -   `yachts`: anon + authenticated SELECT only `listing_status='approved'`; owners read/write their own; admins read/write all. Listing-moderation columns remain locked by the migration-005 trigger.
+    -   `access_requests`: requester reads/inserts own; admins read/update/delete all.
+    -   `leads`: anon + authenticated INSERT only (public form); admins read/update/delete.
+    -   `introductions`: only `from_user`/`to_user` participants and admins can read; users can insert only as themselves.
+    -   `deals`, `deal_*`, `deal_room*`, `nda_*`, `audit_logs`, `platform_nda_*`, `deal_nda_*`, `deal_commission_*`: participant-or-admin SELECT, admin-only writes (with self-insert exceptions where the frontend legitimately writes — e.g. a buyer recording their own activity log).
+    -   The Supabase service-role key (api-server) bypasses RLS, so backend code is unaffected. Verification script: `artifacts/pdye/migrations/007_rls_audit_verify.mjs`.
 
 **Monorepo Structure:**
 -   `artifacts/pdye/`: Frontend application.
