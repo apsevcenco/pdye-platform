@@ -8,7 +8,7 @@ import { getSiteSectionData } from "@/lib/siteContent";
 const ICONS = [DollarSign, Globe, Briefcase, Shield];
 
 const EXPERIENCE_OPTIONS = ["Under 2 years", "2–5 years", "5–10 years", "10+ years"];
-const TYPE_OPTIONS = ["Co-brokerage only", "Direct buyer introductions", "Both"];
+const TYPE_OPTIONS = ["List off-market vessels", "Source for buyers", "Both"];
 
 export default function Brokers() {
   const [t, setT] = useState({
@@ -66,7 +66,7 @@ export default function Brokers() {
         location: form.address || null,
         budget: `${form.experience}${form.company ? " · " + form.company : ""}${form.license ? " · License: " + form.license : ""}`,
         yacht_type: "Broker Application",
-        message: `Partnership type: ${form.type || "—"}. ${form.message}`,
+        message: `Engagement type: ${form.type || "—"}. ${form.message}`,
       };
       let { error: insertErr } = await supabase.from("leads").insert([payload]);
       // Older lead schemas may not have the `location` or `company` columns yet —
@@ -75,7 +75,7 @@ export default function Brokers() {
         const fallback = { ...payload };
         delete fallback.location;
         delete fallback.company;
-        fallback.message = `Partnership type: ${form.type || "—"}. ${form.message}\n\nCompany: ${form.company || "—"}\nAddress: ${form.address || "—"}`;
+        fallback.message = `Engagement type: ${form.type || "—"}. ${form.message}\n\nCompany: ${form.company || "—"}\nAddress: ${form.address || "—"}`;
         const retry = await supabase.from("leads").insert([fallback]);
         insertErr = retry.error;
       }
@@ -207,7 +207,7 @@ export default function Brokers() {
                   </div>
                 </div>
                 <div>
-                  <label className={labelClass}>Partnership Type</label>
+                  <label className={labelClass}>Engagement Type</label>
                   <select value={form.type} onChange={e => setF("type", e.target.value)} className={inputClass + " cursor-pointer"}>
                     <option value="">Select...</option>
                     {TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}

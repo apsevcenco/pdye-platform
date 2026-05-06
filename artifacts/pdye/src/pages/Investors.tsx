@@ -103,12 +103,15 @@ export default function Investors() {
 
       <div className="bg-[#0f1d33] border-b border-white/5">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/5">
+          {/* Value cards (formerly numeric stats). Headlines are now short
+           *  phrases instead of 3–4 character figures, so the type sizes
+           *  here are tuned for legibility rather than for big numbers. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
             {stats.map((s, i) => (
               <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.1 }}
-                className="px-6 py-8 text-center">
-                <p className="font-display text-3xl text-primary mb-1">{s.value}</p>
-                <p className="text-white/35 text-[10px] uppercase tracking-widest font-sans">{s.label}</p>
+                className="px-6 py-7 text-center">
+                <p className="font-display text-base text-primary tracking-wide mb-2">{s.value}</p>
+                <p className="text-white/55 text-sm font-sans leading-snug">{s.label}</p>
               </motion.div>
             ))}
           </div>

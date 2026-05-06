@@ -11,7 +11,7 @@ const sel = inp + " cursor-pointer";
 
 const CAPACITY_OPTIONS = ["Up to €1M", "€1M – €5M", "€5M – €20M", "€20M – €50M", "€50M+", "Deal by deal"];
 const EXPERIENCE_OPTIONS = ["Under 2 years", "2–5 years", "5–10 years", "10+ years"];
-const BROKER_TYPE_OPTIONS = ["Co-brokerage only", "Direct buyer introductions", "Both"];
+const BROKER_TYPE_OPTIONS = ["List off-market vessels", "Source for buyers", "Both"];
 
 type RoleKey = "investor" | "broker" | "owner";
 
@@ -143,7 +143,7 @@ export default function Access() {
         // free-text message as a graceful fallback.
         budget = `${experience}${bCompany ? " · " + bCompany : ""}${license ? " · License: " + license : ""}`;
         yacht_type = "Broker Application";
-        leadMsg = `Partnership type: ${brokerType || "—"}. ${message}`;
+        leadMsg = `Engagement type: ${brokerType || "—"}. ${message}`;
         extra.company = bCompany || null;
         extra.location = bAddress || null;
       } else {
@@ -206,11 +206,15 @@ export default function Access() {
               transition={{ duration: 0.35 }}
               className="absolute bottom-14 left-10 right-6 z-10">
               <span className="text-primary text-[10px] font-bold tracking-[0.22em] uppercase block mb-3 font-sans">{current.tag}</span>
+              {/* Value cards (formerly numeric stats). Each entry is now a
+               *  short headline + supporting sentence rather than a number
+               *  + small-caps label, so the type sizes have been tuned
+               *  accordingly. */}
               <div className="border-l-2 border-primary pl-6 space-y-5">
                 {current.stats.map(s => (
                   <div key={s.num}>
-                    <p className="font-display text-3xl text-primary">{s.num}</p>
-                    <p className="text-white/45 text-xs font-sans uppercase tracking-widest">{s.label}</p>
+                    <p className="font-display text-base text-primary tracking-wide">{s.num}</p>
+                    <p className="text-white/60 text-sm font-sans leading-snug mt-1">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -373,7 +377,7 @@ export default function Access() {
                           </select>
                         </div>
                         <div>
-                          <label className={lbl}>Partnership Type</label>
+                          <label className={lbl}>Engagement Type</label>
                           <select value={brokerType} onChange={e => setBrokerType(e.target.value)} className={sel}>
                             <option value="">Select...</option>
                             {BROKER_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}

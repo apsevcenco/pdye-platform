@@ -95,11 +95,16 @@ export default function BoatOwners() {
               <span className="text-primary" dangerouslySetInnerHTML={{ __html: t.hero.title_accent }} />
             </h1>
             <p className="text-white/55 font-sans text-lg leading-relaxed max-w-2xl mx-auto" dangerouslySetInnerHTML={{ __html: t.hero.desc }} />
-            <div className="flex items-center justify-center gap-8 mt-10">
+            {/* Value cards (formerly numeric stats). The headline is now a
+             *  short phrase ("Off-Market by Default", "Two-Stage NDA", ...)
+             *  rather than a 4-character number, so the headline uses a
+             *  subdued size and the supporting label sits underneath in
+             *  body type instead of small-caps. */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-center gap-6 sm:gap-10 mt-10 max-w-3xl mx-auto">
               {stats.map(([val, lbl]) => (
-                <div key={lbl} className="text-center">
-                  <p className="font-display text-3xl text-primary">{val}</p>
-                  <p className="text-white/40 text-[10px] uppercase tracking-widest font-sans mt-1">{lbl}</p>
+                <div key={lbl} className="flex-1 text-center sm:text-left">
+                  <p className="font-display text-base text-primary tracking-wide">{val}</p>
+                  <p className="text-white/55 text-sm font-sans leading-snug mt-2">{lbl}</p>
                 </div>
               ))}
             </div>
