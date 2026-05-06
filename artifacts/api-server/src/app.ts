@@ -104,6 +104,8 @@ const defaultAllowed = [
 const prodAllowed = [
   "https://pdye-platform-1.onrender.com",
   "https://pdye-platform.onrender.com",
+  "https://pdyegroup.com",
+  "https://www.pdyegroup.com",
 ];
 
 const envAllowed = (process.env["ALLOWED_ORIGINS"] || "")

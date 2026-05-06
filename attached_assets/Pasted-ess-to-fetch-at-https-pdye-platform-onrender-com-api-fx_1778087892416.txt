@@ -1,0 +1,10 @@
+ess to fetch at 'https://pdye-platform.onrender.com/api/fx/rates' from origin 'https://www.pdyegroup.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.Пояснение к ошибке
+pdye-platform.onrender.com/api/fx/rates:1  Failed to load resource: net::ERR_FAILEDПояснение к ошибке
+profile:1 Access to fetch at 'https://pdye-platform.onrender.com/api/deal-rooms' from origin 'https://www.pdyegroup.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Пояснение к ошибке
+pdye-platform.onrender.com/api/deal-rooms:1  Failed to load resource: net::ERR_FAILEDПояснение к ошибке
+admin-platform-nda:1 Access to fetch at 'https://pdye-platform.onrender.com/api/admin/platform-nda/signatures' from origin 'https://www.pdyegroup.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Пояснение к ошибке
+pdye-platform.onrender.com/api/admin/platform-nda/signatures:1  Failed to load resource: net::ERR_FAILEDПояснение к ошибке
+admin-platform-nda:1 Access to fetch at 'https://pdye-platform.onrender.com/api/deal-rooms' from origin 'https://www.pdyegroup.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Пояснение к ошибке
+pdye-platform.onrender.com/api/deal-rooms:1  Failed to load resource: net::ERR_FAILEDПояснение к ошибке
+admin-platform-nda:1 Access to fetch at 'https://pdye-platform.onrender.com/api/admin/platform-nda' from origin 'https://www.pdyegroup.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Пояснение к ошибке
+pdye-platform.onrender.com/api/admin/platform-nda:1  Failed to load resource: net::ERR_FAILEDПояснение к ошибке
