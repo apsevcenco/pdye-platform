@@ -5,5 +5,9 @@ export const modules: ModuleMap = {
   "./components/mockups/pdye-navbar/HomeLogoLeft.tsx": () => import("../components/mockups/pdye-navbar/HomeLogoLeft.tsx"),
   "./components/mockups/pdye-navbar/HomeWithSplitNav.tsx": () => import("../components/mockups/pdye-navbar/HomeWithSplitNav.tsx"),
   "./components/mockups/pdye-navbar/SymmetricSerif.tsx": () => import("../components/mockups/pdye-navbar/SymmetricSerif.tsx"),
-  "./components/mockups/pdye-navbar/TwoTierUtility.tsx": () => import("../components/mockups/pdye-navbar/TwoTierUtility.tsx")
+  "./components/mockups/pdye-navbar/TwoTierUtility.tsx": () => import("../components/mockups/pdye-navbar/TwoTierUtility.tsx"),
+  "./components/mockups/pdye-pages/AdminRedesign.tsx": () => import("../components/mockups/pdye-pages/AdminRedesign.tsx"),
+  "./components/mockups/pdye-pages/DealRoomRedesign.tsx": () => import("../components/mockups/pdye-pages/DealRoomRedesign.tsx"),
+  "./components/mockups/pdye-pages/ProfileRedesign.tsx": () => import("../components/mockups/pdye-pages/ProfileRedesign.tsx"),
+  "./components/mockups/pdye-pages/YachtsRedesign.tsx": () => import("../components/mockups/pdye-pages/YachtsRedesign.tsx")
 };
