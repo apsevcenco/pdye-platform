@@ -211,7 +211,7 @@ export default function AdminUserDetail() {
       ).sort((a, b) => new Date(b.signed_at).getTime() - new Date(a.signed_at).getTime());
       setSignatures(mine);
     } catch (e: any) {
-      console.error("Failed to load NDA signatures", e);
+      console.error("Failed to load CNCA signatures", e);
       setSignatures([]);
     }
     setNdaLoading(false);
@@ -314,14 +314,14 @@ export default function AdminUserDetail() {
   async function deleteNdaSignature(sig: PlatformNdaSignature) {
     const isOrphan = !!(user && sig.user_id && sig.user_id !== user.id);
     const ok = window.confirm(
-      `Permanently delete this NDA signature?\n\n` +
+      `Permanently delete this CNCA signature?\n\n` +
       `User:    ${sig.user_email || "(unknown email)"}\n` +
       `Signed:  ${sig.signature_name}\n` +
       `Version: ${sig.document_version}\n` +
       `Date:    ${fmtDate(sig.signed_at)}\n` +
       (isOrphan
         ? `\nThis appears to be a "ghost" signature left over from a previously deleted account that used the same email. Removing it is safe.\n`
-        : `\nThis is the active user's signature. They will be required to sign the NDA again on next login.\n`) +
+        : `\nThis is the active user's signature. They will be required to sign the CNCA again on next login.\n`) +
       `\nThis cannot be undone.`
     );
     if (!ok) return;
@@ -521,7 +521,7 @@ export default function AdminUserDetail() {
           </div>
         </div>
 
-        {/* Platform NDA section */}
+        {/* Platform CNCA section */}
         <div className="bg-white/[0.02] border border-white/8 p-6">
           <div className="flex items-center justify-between gap-4 mb-5">
             <div className="flex items-center gap-3">
@@ -529,7 +529,7 @@ export default function AdminUserDetail() {
                 <Shield size={16} className="text-primary" />
               </div>
               <div>
-                <h2 className="font-display text-lg text-white">Platform NDA</h2>
+                <h2 className="font-display text-lg text-white">Platform CNCA</h2>
                 <p className="text-white/40 text-xs font-sans">Account-level confidentiality agreement</p>
               </div>
             </div>
@@ -543,7 +543,7 @@ export default function AdminUserDetail() {
             <div className="text-white/40 text-sm font-sans">Loading…</div>
           ) : signatures.length === 0 ? (
             <div className="bg-[#070f1a] border border-white/5 p-5 text-white/50 text-sm font-sans">
-              This user has not signed the platform NDA yet. They will be required to sign on next login before reaching protected pages.
+              This user has not signed the platform CNCA yet. They will be required to sign on next login before reaching protected pages.
             </div>
           ) : (
             <div className="space-y-3">

@@ -1,6 +1,6 @@
-export const NDA_TEXT = `NON-DISCLOSURE AGREEMENT
+export const NDA_TEXT = `CONFIDENTIALITY & NON-CIRCUMVENTION AGREEMENT
 
-This Non-Disclosure Agreement ("Agreement") is entered into by the undersigned party ("Receiving Party") and Private Distressed Yacht Exchange ("PDYE", the "Disclosing Party").
+This Confidentiality & Non-Circumvention Agreement ("Agreement") is entered into by the undersigned party ("Receiving Party") and Private Distressed Yacht Exchange ("PDYE", the "Disclosing Party").
 
 1. CONFIDENTIAL INFORMATION
 The Receiving Party agrees that all information regarding yacht listings, pricing, ownership details, broker identities, deal terms, and any other proprietary data shared through the PDYE platform constitutes Confidential Information.
@@ -54,4 +54,4 @@ PDYE reserves the right to revoke Deal Room access at any time for breach of the
 
 By accepting below, you confirm your agreement to these Terms of Access.`;
 
-export const DISCLAIMER_TEXT = `All information provided within this Deal Room is strictly confidential and is shared solely for the purpose of evaluating potential yacht acquisitions. Access is subject to the executed NDA and Terms of Access. All activity within this environment is logged and monitored. Unauthorized sharing or misuse of information may result in legal action.`;
+export const DISCLAIMER_TEXT = `All information provided within this Deal Room is strictly confidential and is shared solely for the purpose of evaluating potential yacht acquisitions. Access is subject to the executed CNCA and Terms of Access. All activity within this environment is logged and monitored. Unauthorized sharing or misuse of information may result in legal action.`;

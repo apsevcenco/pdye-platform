@@ -50,10 +50,10 @@ export interface NdaPdfSignature {
 }
 
 /**
- * Generate a self-contained PDF of the signed NDA. Returns a Buffer (PDF bytes).
+ * Generate a self-contained PDF of the signed CNCA. Returns a Buffer (PDF bytes).
  * Layout:
  *   Cover header — PDYE branding, title, version, hash.
- *   Body — full NDA text with proper line wrapping & section breaks.
+ *   Body — full CNCA text with proper line wrapping & section breaks.
  *   Signature block — calligraphic name, printed name, date/time, IP, user agent, hashes.
  */
 export function generateNdaPdf(input: { document: NdaPdfDocument; signature: NdaPdfSignature }): Promise<Buffer> {
@@ -66,8 +66,8 @@ export function generateNdaPdf(input: { document: NdaPdfDocument; signature: Nda
         info: {
           Title: `${input.document.title} — ${input.document.version}`,
           Author: "PDYE Holdings",
-          Subject: "Platform Non-Disclosure Agreement (signed)",
-          Keywords: `NDA, PDYE, ${input.document.version}, ${input.signature.user_email}`,
+          Subject: "Platform Confidentiality & Non-Circumvention Agreement (signed)",
+          Keywords: `CNCA, PDYE, ${input.document.version}, ${input.signature.user_email}`,
         },
       });
 
@@ -122,7 +122,7 @@ export function generateNdaPdf(input: { document: NdaPdfDocument; signature: Nda
         .stroke();
       doc.moveDown(1);
 
-      // === Body — full NDA text ===
+      // === Body — full CNCA text ===
       doc.fillColor("#1a1a1a").font("Helvetica").fontSize(10);
       // Render the text exactly as stored (it already contains the section structure).
       // Bold the leading "N. SECTION TITLE" lines for readability.

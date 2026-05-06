@@ -941,7 +941,7 @@ export default function AddYacht() {
                 <div>
                   <label className={labelCls}>Documents — PDF ({docs.length}/{MAX_DOCS})</label>
                   <p className="text-white/40 text-xs font-sans mb-3">
-                    Surveys, specifications, brochures, registration. These appear in the Deal Room Documents tab for buyers who have signed the NDA.
+                    Surveys, specifications, brochures, registration. These appear in the Deal Room Documents tab for buyers who have signed the CNCA.
                   </p>
                   <input
                     ref={docFileInputRef}

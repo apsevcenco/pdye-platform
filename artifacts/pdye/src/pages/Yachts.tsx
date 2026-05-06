@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { getSiteSectionData } from "@/lib/siteContent";
 
 type Filter = "All" | "Motor Yachts" | "Sailing Yachts" | "Distressed Deals";
@@ -18,6 +19,7 @@ type AccessRequest = {
 
 export default function Yachts() {
   const { user, userProfile, loading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [content, setContent] = useState(getSiteSectionData("yachts", "header"));
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [requests, setRequests] = useState<Record<string, RequestStatus>>({});
@@ -76,7 +78,11 @@ export default function Yachts() {
   }, [user, authLoading, loadRequests]);
 
   async function handleRequest(yachtId: string) {
-    if (!user) { window.location.hash = "/login"; return; }
+    // Public marketing showcase: anonymous visitors clicking the request
+    // button on a featured listing are redirected to the Access Request
+    // form (registration). They cannot create access_requests until they
+    // have an account, so we never reach the insert path below.
+    if (!user) { setLocation("/access"); return; }
     setRequesting(yachtId);
     setRequestError(null);
 

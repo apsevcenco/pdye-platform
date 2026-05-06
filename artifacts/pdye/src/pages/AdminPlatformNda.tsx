@@ -26,7 +26,7 @@ export default function AdminPlatformNda() {
       `Version: ${sig.document_version}\n` +
       `Date:    ${fmtDate(sig.signed_at)}\n\n` +
       `Use this only to clean up "ghost" signatures left behind after a user was deleted. ` +
-      `For active users, this will let them sign the NDA again.\n\n` +
+      `For active users, this will let them sign the CNCA again.\n\n` +
       `This cannot be undone.`
     );
     if (!ok) return;
@@ -46,7 +46,7 @@ export default function AdminPlatformNda() {
     try {
       const blob = await platformNdaApi.downloadSignedPdf(sig.id);
       const safeName = sig.signature_name.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
-      triggerBlobDownload(blob, `PDYE-NDA-${sig.document_version}-${safeName}.pdf`);
+      triggerBlobDownload(blob, `PDYE-CNCA-${sig.document_version}-${safeName}.pdf`);
     } catch (e: any) {
       alert(`Could not download PDF: ${e?.message || e}`);
     } finally {
@@ -112,7 +112,7 @@ export default function AdminPlatformNda() {
         title: editTitle.trim() || undefined,
         content: editContent,
       });
-      setPublishMessage({ type: "ok", text: `Published version ${editVersion.trim()} as the active NDA.` });
+      setPublishMessage({ type: "ok", text: `Published version ${editVersion.trim()} as the active CNCA.` });
       setEditVersion("");
       await load();
     } catch (e: any) {
@@ -134,7 +134,7 @@ export default function AdminPlatformNda() {
             <ShieldCheck size={18} className="text-primary" />
             <div>
               <p className="text-white/40 text-[10px] font-sans uppercase tracking-widest">Admin</p>
-              <h1 className="font-display text-2xl text-white">Platform NDA</h1>
+              <h1 className="font-display text-2xl text-white">Platform CNCA</h1>
             </div>
           </div>
         </div>
@@ -205,7 +205,7 @@ export default function AdminPlatformNda() {
                       type="text"
                       value={editTitle}
                       onChange={e => setEditTitle(e.target.value)}
-                      placeholder="PDYE Platform Non-Disclosure Agreement"
+                      placeholder="PDYE Platform Confidentiality & Non-Circumvention Agreement"
                       className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a46b]/60"
                     />
                   </div>
@@ -320,7 +320,7 @@ export default function AdminPlatformNda() {
                             onClick={() => handleDownloadSig(s)}
                             disabled={downloadingId === s.id}
                             className="inline-flex items-center gap-1.5 border border-[#c8a46b]/40 px-2.5 py-1 text-[10px] uppercase tracking-widest text-[#c8a46b] hover:bg-[#c8a46b]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Download signed NDA PDF"
+                            title="Download signed CNCA PDF"
                           >
                             <Download size={11} /> {downloadingId === s.id ? "…" : "PDF"}
                           </button>

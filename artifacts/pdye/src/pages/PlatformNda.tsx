@@ -31,7 +31,7 @@ export default function PlatformNda() {
     try {
       const blob = await platformNdaApi.downloadSignedPdf(signedSignatureId);
       const safeName = signatureName.trim().replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
-      triggerBlobDownload(blob, `PDYE-NDA-${doc?.version || "signed"}-${safeName}.pdf`);
+      triggerBlobDownload(blob, `PDYE-CNCA-${doc?.version || "signed"}-${safeName}.pdf`);
     } catch (e: any) {
       setDownloadError(e?.message || "Failed to download PDF");
     } finally {
@@ -59,7 +59,7 @@ export default function PlatformNda() {
         const d = await platformNdaApi.getActiveDocument();
         if (!cancelled) setDoc(d);
       } catch (e: any) {
-        if (!cancelled) setLoadError(e?.message || "Failed to load NDA document");
+        if (!cancelled) setLoadError(e?.message || "Failed to load CNCA document");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -103,7 +103,7 @@ export default function PlatformNda() {
     // would otherwise leave the user staring at "Signing…" forever even
     // though their signature is already saved on the server.
     setSubmitting(false);
-    // Non-blocking refresh of NDA status. The redirect below uses the
+    // Non-blocking refresh of CNCA status. The redirect below uses the
     // optimistic `success` state which we already set above.
     refreshNdaStatus().catch(err => console.error("[PlatformNda] refreshNdaStatus after sign failed:", err));
     // Give the user a moment to see the success state and download link.
@@ -135,9 +135,9 @@ export default function PlatformNda() {
           <div className="inline-flex items-center justify-center w-12 h-12 border border-[#c8a46b]/40 mb-4">
             <ShieldCheck size={22} className="text-[#c8a46b]" strokeWidth={1.5} />
           </div>
-          <h1 className="font-display text-3xl mb-2">Platform Non-Disclosure Agreement</h1>
+          <h1 className="font-display text-3xl mb-2">Platform Confidentiality & Non-Circumvention Agreement</h1>
           <p className="text-white/50 text-sm max-w-xl mx-auto leading-relaxed">
-            Before accessing the PDYE platform, you must read and electronically sign the Non-Disclosure Agreement.
+            Before accessing the PDYE platform, you must read and electronically sign the Confidentiality & Non-Circumvention Agreement.
             This agreement protects all participants and the confidential information shared on the platform.
           </p>
         </div>
@@ -252,7 +252,7 @@ export default function PlatformNda() {
                       disabled={downloading}
                       className="inline-block mt-1 border border-green-500/40 px-3 py-1.5 text-[10px] uppercase tracking-widest text-green-100 hover:bg-green-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {downloading ? "Preparing PDF…" : "Download Signed NDA (PDF)"}
+                      {downloading ? "Preparing PDF…" : "Download Signed CNCA (PDF)"}
                     </button>
                   )}
                   {downloadError && <div className="text-red-300">{downloadError}</div>}

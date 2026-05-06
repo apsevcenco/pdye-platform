@@ -112,7 +112,7 @@ export const dealLegalApi = {
     );
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || "Failed to download signed NDA");
+      throw new Error(err.error || "Failed to download signed CNCA");
     }
     return res.blob();
   },

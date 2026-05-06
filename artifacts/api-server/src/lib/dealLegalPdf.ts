@@ -26,7 +26,7 @@ export interface DealLegalPdfDealRef {
 
 /**
  * Generate a self-contained PDF of a signed deal-room legal document
- * (NDA, Commission Agreement, etc).
+ * (CNCA, Commission Agreement, etc).
  */
 export function generateDealLegalPdf(input: {
   document: DealLegalPdfDocument;

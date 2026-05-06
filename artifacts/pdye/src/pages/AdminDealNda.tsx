@@ -77,7 +77,7 @@ export default function AdminDealNda() {
     }
     if (!confirm(
       `Publish version "${editVersion.trim()}"?\n\n` +
-      `This will replace the current active Deal Room NDA. New signers will sign this version. ` +
+      `This will replace the current active Deal Room CNCA. New signers will sign this version. ` +
       `Existing signatures remain valid for the version they signed.`
     )) return;
 
@@ -89,7 +89,7 @@ export default function AdminDealNda() {
         title: editTitle.trim() || undefined,
         content: editContent,
       });
-      setPublishMessage({ type: "ok", text: `Published version ${editVersion.trim()} as the active Deal Room NDA.` });
+      setPublishMessage({ type: "ok", text: `Published version ${editVersion.trim()} as the active Deal Room CNCA.` });
       setEditVersion("");
       await load();
     } catch (e: any) {
@@ -111,7 +111,7 @@ export default function AdminDealNda() {
             <FileText size={18} className="text-primary" />
             <div>
               <p className="text-white/40 text-[10px] font-sans uppercase tracking-widest">Admin</p>
-              <h1 className="font-display text-2xl text-white">Deal Room NDA</h1>
+              <h1 className="font-display text-2xl text-white">Deal Room CNCA</h1>
             </div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function AdminDealNda() {
                       type="text"
                       value={editTitle}
                       onChange={e => setEditTitle(e.target.value)}
-                      placeholder="PDYE Deal Room Non-Disclosure Agreement"
+                      placeholder="PDYE Deal Room Confidentiality & Non-Circumvention Agreement"
                       className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a46b]/60"
                     />
                   </div>
@@ -300,7 +300,7 @@ export default function AdminDealNda() {
                             onClick={() => handleDownloadSig(s)}
                             disabled={downloadingId === s.id}
                             className="inline-flex items-center gap-1.5 border border-[#c8a46b]/40 px-2.5 py-1 text-[10px] uppercase tracking-widest text-[#c8a46b] hover:bg-[#c8a46b]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Download signed NDA PDF"
+                            title="Download signed CNCA PDF"
                           >
                             <Download size={11} /> {downloadingId === s.id ? "…" : "PDF"}
                           </button>

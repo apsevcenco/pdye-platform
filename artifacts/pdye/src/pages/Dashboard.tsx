@@ -235,7 +235,7 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
 
   const ROOM_STYLE: Record<string, { label: string; color: string }> = {
     draft:            { label: "Draft",            color: "text-white/40 border-white/10" },
-    nda_pending:      { label: "NDA Pending",      color: "text-orange-400 border-orange-500/20" },
+    nda_pending:      { label: "CNCA Pending",      color: "text-orange-400 border-orange-500/20" },
     partially_signed: { label: "Partially Signed", color: "text-yellow-400 border-yellow-500/20" },
     active:           { label: "Active",           color: "text-green-400 border-green-500/20" },
     closed:           { label: "Closed",           color: "text-white/30 border-white/10" },
@@ -289,7 +289,7 @@ function MyDealRoomsSection({ userId }: { userId: string }) {
                   </span>
                   {needsNda && (
                     <button onClick={() => goToRoom(room.id)} className="flex items-center gap-1 bg-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-orange-500/30 transition-colors">
-                      Sign NDA <ChevronRight size={11} />
+                      Sign CNCA <ChevronRight size={11} />
                     </button>
                   )}
                   {needsCommission && (
@@ -599,7 +599,7 @@ function BrokerDealRoomsSection({ userId }: { userId: string }) {
                     {roomLabel(room) && <span className="text-primary/40 text-[10px] font-mono">{roomLabel(room)}</span>}
                   </div>
                   <span className="text-orange-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 group-hover:underline">
-                    {isNda ? "Sign NDA" : "Sign Commission"} <ChevronRight size={11} />
+                    {isNda ? "Sign CNCA" : "Sign Commission"} <ChevronRight size={11} />
                   </span>
                 </div>
               );
@@ -746,7 +746,7 @@ export function OwnerDashboard({ userId }: { userId: string }) {
             {[
               { step: "01", title: "Submit Details",  desc: "Fill in your vessel's specifications, photos, and your asking price." },
               { step: "02", title: "We Verify",       desc: "Our team reviews the submission and lists it in the Deal Room." },
-              { step: "03", title: "Qualified Buyers", desc: "UHNW buyers request access and make private, NDA-protected approaches." },
+              { step: "03", title: "Qualified Buyers", desc: "UHNW buyers request access and make private, CNCA-protected approaches." },
             ].map(s => (
               <div key={s.step} className="px-6 py-4 first:pl-0 last:pr-0">
                 <span className="font-display text-4xl text-primary/15 block mb-2">{s.step}</span>

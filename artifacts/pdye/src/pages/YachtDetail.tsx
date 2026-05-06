@@ -278,7 +278,7 @@ export default function YachtDetail() {
     if (!yacht) return;
 
     // Owner of the yacht always gets full access to their own listing —
-    // no admin request, no NDA, no lockout.
+    // no admin request, no CNCA, no lockout.
     if (yacht.owner_id === user.id) {
       setAccessLevel("deal_room_active");
       setAccessLoading(false);
@@ -413,7 +413,7 @@ export default function YachtDetail() {
     );
   }
 
-  /* ─── STATE F: FULL ACCESS (Deal Room Active + NDA signed, or admin) ─── */
+  /* ─── STATE F: FULL ACCESS (Deal Room Active + CNCA signed, or admin) ─── */
   const allPhotos: string[] = (() => {
     const pool: string[] = [];
     if (yacht.photos && yacht.photos.length > 0) pool.push(...yacht.photos);

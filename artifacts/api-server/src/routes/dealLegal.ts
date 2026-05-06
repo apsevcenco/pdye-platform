@@ -33,13 +33,13 @@ function db(): pg.Pool {
 }
 
 const INITIAL_NDA_VERSION = "1.0";
-const INITIAL_NDA_TITLE = "Deal Room Non-Disclosure & Terms of Access Agreement";
+const INITIAL_NDA_TITLE = "Deal Room Confidentiality & Non-Circumvention & Terms of Access Agreement";
 
-const INITIAL_NDA_CONTENT = `DEAL ROOM NON-DISCLOSURE & TERMS OF ACCESS AGREEMENT
+const INITIAL_NDA_CONTENT = `DEAL ROOM CONFIDENTIALITY & NON-CIRCUMVENTION & TERMS OF ACCESS AGREEMENT
 
 This Agreement ("Agreement") is entered into by the undersigned party ("Receiving Party") and Private Distressed Yacht Exchange ("PDYE", the "Disclosing Party") as a condition of access to and use of a Deal Room operated on the PDYE platform.
 
-PART I — NON-DISCLOSURE
+PART I — CONFIDENTIALITY
 
 1. CONFIDENTIAL INFORMATION
 The Receiving Party agrees that all information regarding yacht listings, pricing, ownership details, broker identities, deal terms, and any other proprietary data shared through the PDYE platform constitutes Confidential Information.
@@ -167,7 +167,7 @@ async function runMigration(): Promise<void> {
          ON CONFLICT (version) DO NOTHING`,
         [INITIAL_NDA_VERSION, INITIAL_NDA_TITLE, INITIAL_NDA_CONTENT, hash]
       );
-      console.log(`[deal-legal] Seeded initial Deal NDA v${INITIAL_NDA_VERSION} (hash=${hash.slice(0, 12)}…)`);
+      console.log(`[deal-legal] Seeded initial Deal CNCA v${INITIAL_NDA_VERSION} (hash=${hash.slice(0, 12)}…)`);
     }
     console.log(`[deal-legal] Migration complete`);
   } finally {
@@ -220,7 +220,7 @@ router.get("/deal-nda/document", requireUser, async (_req, res) => {
         LIMIT 1`
     );
     if (rows.length === 0) {
-      res.status(404).json({ error: "No active Deal NDA document configured" });
+      res.status(404).json({ error: "No active Deal CNCA document configured" });
       return;
     }
     res.json(rows[0]);
@@ -313,7 +313,7 @@ router.post(
       );
       if (docRows.length === 0) {
         await client.query("ROLLBACK");
-        res.status(500).json({ error: "No active Deal NDA document configured" });
+        res.status(500).json({ error: "No active Deal CNCA document configured" });
         return;
       }
       const doc = docRows[0];
@@ -321,7 +321,7 @@ router.post(
         await client.query("ROLLBACK");
         res.status(409).json({
           error: "DEAL_NDA_VERSION_CHANGED",
-          message: "The Deal NDA document has been updated. Please reload and review the new version before signing.",
+          message: "The Deal CNCA document has been updated. Please reload and review the new version before signing.",
           active_document_id: doc.id,
           active_version: doc.version,
           active_content_hash: doc.content_hash,
@@ -334,7 +334,7 @@ router.post(
       const sideStatusCol = side === "buyer" ? "buyer_nda_status" : "seller_nda_status";
       if (room[sideStatusCol] === "signed") {
         await client.query("ROLLBACK");
-        res.status(409).json({ error: `You have already signed the NDA for this deal room` });
+        res.status(409).json({ error: `You have already signed the CNCA for this deal room` });
         return;
       }
 
@@ -366,7 +366,7 @@ router.post(
         await client.query("ROLLBACK");
         res.status(409).json({
           error: "ALREADY_SIGNED",
-          message: "You have already signed the NDA for this deal room",
+          message: "You have already signed the CNCA for this deal room",
           signature_id: existing[0]?.id || null,
           signed_at: existing[0]?.signed_at || null,
         });
@@ -392,7 +392,7 @@ router.post(
       );
 
       // Mirror the signed signature into nda_envelopes — this is the side-aware,
-      // human-readable view used by Admin pages (Send NDA / Signed NDA) and by the
+      // human-readable view used by Admin pages (Send CNCA / Signed CNCA) and by the
       // user cascade-delete flow. The authoritative signature record lives in
       // deal_nda_signatures; this row is the per-side envelope tracker.
       await client.query(
@@ -424,7 +424,7 @@ router.post(
          VALUES ($1, $2, $3, true)`,
         [
           roomId, viewer.id,
-          `NDA signed by ${side} party (${trimmedName}) — v${doc.version}.`,
+          `CNCA signed by ${side} party (${trimmedName}) — v${doc.version}.`,
         ]
       );
 
@@ -468,7 +468,7 @@ router.post(
           );
           await client.query(
             `INSERT INTO deal_room_messages (deal_room_id, sender_id, message, is_system)
-             VALUES ($1, $2, 'Deal room activated after NDA completion by both parties. Full access is now available.', true)`,
+             VALUES ($1, $2, 'Deal room activated after CNCA completion by both parties. Full access is now available.', true)`,
             [roomId, viewer.id]
           );
           activated = true;
@@ -615,7 +615,7 @@ router.get(
       });
 
       const safeName = String(sig.signature_name).replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
-      const filename = `PDYE-NDA-${dealRoomCode(room)}-${side}-${sig.document_version}-${safeName}.pdf`;
+      const filename = `PDYE-CNCA-${dealRoomCode(room)}-${side}-${sig.document_version}-${safeName}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.setHeader("Content-Length", String(pdf.length));
@@ -627,7 +627,7 @@ router.get(
   }
 );
 
-/* ─────────────── Admin: get / publish Deal Room NDA template ─────────────── */
+/* ─────────────── Admin: get / publish Deal Room CNCA template ─────────────── */
 
 router.get("/admin/deal-nda", requireAdmin, async (_req, res) => {
   try {
@@ -694,7 +694,7 @@ router.put("/admin/deal-nda", requireAdmin, async (req, res) => {
       );
       await client.query("COMMIT");
       console.log(
-        `[deal-legal] Admin ${req.authUser!.email} published new Deal NDA version: ${trimmedVersion}`
+        `[deal-legal] Admin ${req.authUser!.email} published new Deal CNCA version: ${trimmedVersion}`
       );
       res.json(rows[0]);
     } catch (e: any) {
@@ -729,7 +729,7 @@ router.get(
   }
 );
 
-/* ─────────────── Admin: download a specific signed Deal NDA PDF by signature ID ───────────────
+/* ─────────────── Admin: download a specific signed Deal CNCA PDF by signature ID ───────────────
    This is the audit-trail-correct download path. Unlike the participant
    `/deal-rooms/:roomId/nda/signed-pdf?side=...` endpoint (which always returns
    the most recent signature for that room+side), this endpoint resolves the

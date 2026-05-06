@@ -16,14 +16,14 @@ export default function Login() {
   // late-firing onAuthStateChange after login), route them where they belong:
   //   - admin → /admin
   //   - non-admin & not approved → /yachts (ProtectedRoute will show UnderReview)
-  //   - non-admin & approved & NDA not signed → /platform-nda
-  //   - non-admin & approved & NDA signed → /yachts
+  //   - non-admin & approved & CNCA not signed → /platform-nda
+  //   - non-admin & approved & CNCA signed → /yachts
   useEffect(() => {
     if (authLoading || !user) return;
     if (!userProfile) return;
     if (userProfile.role === "admin") { setLocation("/admin"); return; }
     if (!userProfile.approved) { setLocation("/yachts"); return; }
-    if (ndaStatus === null) return; // still loading NDA status
+    if (ndaStatus === null) return; // still loading CNCA status
     setLocation(ndaStatus.signed ? "/yachts" : "/platform-nda");
   }, [authLoading, user, userProfile, ndaStatus, setLocation]);
 

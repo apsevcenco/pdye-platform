@@ -143,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Whenever profile or session changes, (re)load NDA status accordingly
+  // Whenever profile or session changes, (re)load CNCA status accordingly
   useEffect(() => {
     if (user && userProfile) {
       loadNdaStatus(userProfile, session?.access_token);

@@ -257,7 +257,7 @@ export async function deleteUserAction(userId: string, opts: DeleteOptions = {})
 
   // Finally remove the Supabase Auth user. If we skip this, the orphan auth account
   // can be silently recycled by `/leads/:id/approve` for a future signup with the same
-  // email, recycling the same UUID and bypassing the Platform NDA gate.
+  // email, recycling the same UUID and bypassing the Platform CNCA gate.
   let authUserDeleted = false;
   let authUserWarning: string | undefined;
   try {

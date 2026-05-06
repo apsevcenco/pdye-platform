@@ -8,12 +8,12 @@ import { generateNdaPdf } from "../lib/ndaPdf";
 const router = Router();
 
 const INITIAL_NDA_VERSION = "v1.0";
-const INITIAL_NDA_TITLE = "PDYE Platform Non-Disclosure Agreement";
+const INITIAL_NDA_TITLE = "PDYE Platform Confidentiality & Non-Circumvention Agreement";
 const INITIAL_NDA_TEXT = `PRIVATE DISTRESSED YACHT EXCHANGE (PDYE)
-PLATFORM NON-DISCLOSURE AGREEMENT
+PLATFORM CONFIDENTIALITY & NON-CIRCUMVENTION AGREEMENT
 Version 1.0
 
-This Non-Disclosure Agreement ("Agreement") is entered into between the undersigned User ("Recipient") and PDYE Holdings ("Disclosing Party"), the operator of the Private Distressed Yacht Exchange platform ("Platform"). By signing this Agreement, the Recipient agrees to the terms set forth below as a condition of receiving access to the Platform and any information made available through it.
+This Confidentiality & Non-Circumvention Agreement ("Agreement") is entered into between the undersigned User ("Recipient") and PDYE Holdings ("Disclosing Party"), the operator of the Private Distressed Yacht Exchange platform ("Platform"). By signing this Agreement, the Recipient agrees to the terms set forth below as a condition of receiving access to the Platform and any information made available through it.
 
 1. CONFIDENTIAL INFORMATION
 
@@ -118,7 +118,7 @@ async function runMigration(): Promise<void> {
         CREATE TABLE IF NOT EXISTS platform_nda_documents (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
           version text NOT NULL UNIQUE,
-          title text NOT NULL DEFAULT 'PDYE Platform Non-Disclosure Agreement',
+          title text NOT NULL DEFAULT 'PDYE Platform Confidentiality & Non-Circumvention Agreement',
           content text NOT NULL,
           content_hash text NOT NULL,
           is_active boolean DEFAULT false,
@@ -142,7 +142,7 @@ async function runMigration(): Promise<void> {
         );
       `);
 
-      // Helpful index for fast NDA-signed lookups in the gating middleware.
+      // Helpful index for fast CNCA-signed lookups in the gating middleware.
       await client.query(
         `CREATE INDEX IF NOT EXISTS platform_nda_signatures_user_id_idx ON platform_nda_signatures (user_id)`
       );
@@ -170,7 +170,7 @@ async function runMigration(): Promise<void> {
 }
 
 /**
- * Express middleware that gates non-admin users behind a signed platform NDA.
+ * Express middleware that gates non-admin users behind a signed platform CNCA.
  * MUST be chained AFTER requireUser (so req.authUser is populated).
  * Admins bypass automatically — they are considered pre-signed by policy.
  */
@@ -185,13 +185,13 @@ export async function requirePlatformNdaSigned(req: Request, res: Response, next
       [u.id]
     );
     if (rows.length === 0) {
-      res.status(403).json({ error: "Platform NDA must be signed before accessing this resource", code: "PLATFORM_NDA_NOT_SIGNED" });
+      res.status(403).json({ error: "Platform CNCA must be signed before accessing this resource", code: "PLATFORM_NDA_NOT_SIGNED" });
       return;
     }
     next();
   } catch (e: any) {
     console.error("[requirePlatformNdaSigned] check failed:", e);
-    res.status(500).json({ error: "NDA gate check failed" });
+    res.status(500).json({ error: "CNCA gate check failed" });
   }
 }
 
@@ -211,7 +211,7 @@ router.get("/platform-nda", requireUser, async (_req, res) => {
       "SELECT id, version, title, content, content_hash, created_at FROM platform_nda_documents WHERE is_active = true ORDER BY created_at DESC LIMIT 1"
     );
     if (rows.length === 0) {
-      res.status(404).json({ error: "No active NDA document configured" });
+      res.status(404).json({ error: "No active CNCA document configured" });
       return;
     }
     res.json(rows[0]);
@@ -261,7 +261,7 @@ router.post("/platform-nda/sign", requireUser, async (req, res) => {
       "SELECT id, version, content_hash FROM platform_nda_documents WHERE is_active = true ORDER BY created_at DESC LIMIT 1"
     );
     if (docRows.length === 0) {
-      res.status(500).json({ error: "No active NDA document configured" });
+      res.status(500).json({ error: "No active CNCA document configured" });
       return;
     }
     const doc = docRows[0];
@@ -359,7 +359,7 @@ router.put("/admin/platform-nda", requireAdmin, async (req, res) => {
     const trimmedContent = content.trim();
     const trimmedTitle = title && typeof title === "string" && title.trim()
       ? title.trim()
-      : "PDYE Platform Non-Disclosure Agreement";
+      : "PDYE Platform Confidentiality & Non-Circumvention Agreement";
     const hash = sha256(trimmedContent);
 
     const client = await db().connect();
@@ -392,7 +392,7 @@ router.put("/admin/platform-nda", requireAdmin, async (req, res) => {
   }
 });
 
-// Build the signed-NDA payload (document + signature) used by both the PDF endpoint
+// Build the signed-CNCA payload (document + signature) used by both the PDF endpoint
 // and the email sender.
 async function fetchSignedPdfBuffer(signatureId: string): Promise<{ pdf: Buffer; userEmail: string; signatureName: string; documentVersion: string } | null> {
   const { rows: sigRows } = await db().query(
@@ -463,7 +463,7 @@ async function sendSignedNdaEmail(input: SignedNdaEmailInput): Promise<void> {
 
   const fromAddress = process.env["RESEND_FROM_EMAIL"] || "PDYE <onboarding@resend.dev>";
   const resend = new Resend(resendKey);
-  const filename = `PDYE-NDA-${result.documentVersion}-${result.signatureName.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40)}.pdf`;
+  const filename = `PDYE-CNCA-${result.documentVersion}-${result.signatureName.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40)}.pdf`;
 
   const html = `<!doctype html>
 <html><body style="margin:0;padding:0;background:#0a1426;color:#ffffff;font-family:Helvetica,Arial,sans-serif;">
@@ -472,13 +472,13 @@ async function sendSignedNdaEmail(input: SignedNdaEmailInput): Promise<void> {
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#070f1a;border:1px solid rgba(200,164,107,0.25);">
         <tr><td style="padding:32px 32px 16px 32px;">
           <div style="font-size:11px;letter-spacing:3px;color:#c8a46b;text-transform:uppercase;">Private Distressed Yacht Exchange</div>
-          <div style="margin-top:14px;font-size:22px;color:#ffffff;font-weight:300;">Your signed Non-Disclosure Agreement</div>
+          <div style="margin-top:14px;font-size:22px;color:#ffffff;font-weight:300;">Your signed Confidentiality & Non-Circumvention Agreement</div>
         </td></tr>
         <tr><td style="padding:0 32px 8px 32px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">
           Hello ${escapeHtml(result.signatureName)},
         </td></tr>
         <tr><td style="padding:0 32px 16px 32px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">
-          Thank you for signing the PDYE Platform Non-Disclosure Agreement. A countersigned copy of the agreement is attached to this email for your records.
+          Thank you for signing the PDYE Platform Confidentiality & Non-Circumvention Agreement. A countersigned copy of the agreement is attached to this email for your records.
         </td></tr>
         <tr><td style="padding:0 32px 8px 32px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(200,164,107,0.2);">
@@ -501,7 +501,7 @@ async function sendSignedNdaEmail(input: SignedNdaEmailInput): Promise<void> {
   const { data, error } = await resend.emails.send({
     from: fromAddress,
     to: input.userEmail,
-    subject: `Your signed PDYE Platform NDA — ${input.documentVersion}`,
+    subject: `Your signed PDYE Platform CNCA — ${input.documentVersion}`,
     html,
     attachments: [{ filename, content: result.pdf.toString("base64") }],
   });
@@ -526,12 +526,12 @@ router.get("/platform-nda/signature/:id/pdf", requireUser, async (req, res) => {
     );
     if (rows.length === 0) { res.status(404).json({ error: "Signature not found" }); return; }
     if (u.role !== "admin" && rows[0].user_id !== u.id) {
-      res.status(403).json({ error: "You may only download your own signed NDA" });
+      res.status(403).json({ error: "You may only download your own signed CNCA" });
       return;
     }
     const result = await fetchSignedPdfBuffer(sigId);
     if (!result) { res.status(404).json({ error: "Could not generate PDF" }); return; }
-    const filename = `PDYE-NDA-${result.documentVersion}-${result.signatureName.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40)}.pdf`;
+    const filename = `PDYE-CNCA-${result.documentVersion}-${result.signatureName.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40)}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", String(result.pdf.length));
@@ -558,7 +558,7 @@ router.get("/admin/platform-nda/signatures", requireAdmin, async (_req, res) => 
   }
 });
 
-// DELETE a single platform NDA signature row (admin only).
+// DELETE a single platform CNCA signature row (admin only).
 // Used to clean up "ghost" signatures left over after a user is deleted from
 // Supabase but their signature row remained in heliumdb (which has no FK to
 // the users table). Operates on the row's own UUID (not user_id) so it can

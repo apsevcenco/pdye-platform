@@ -42,7 +42,7 @@ const TABS: { key: TabKey; label: string; icon: any; adminOnly?: boolean; active
   { key: "documents", label: "Documents", icon: FileText, activeOnly: true },
   { key: "media", label: "Media", icon: Image, activeOnly: true },
   { key: "messages", label: "Messages", icon: MessageSquare, activeOnly: true },
-  { key: "legal", label: "Legal / NDA", icon: Shield },
+  { key: "legal", label: "Legal / CNCA", icon: Shield },
   { key: "offers", label: "Offers", icon: Gavel, activeOnly: true },
   { key: "activity", label: "Activity", icon: Activity },
 ];
@@ -259,11 +259,11 @@ export default function DealDetails() {
       // the post-sign room refresh below is slow.
       setSignedNdaSignatureSide(mySide as "buyer" | "seller");
     } catch (e: any) {
-      const msg = e?.message || "Failed to sign NDA";
+      const msg = e?.message || "Failed to sign CNCA";
       if (msg === "DEAL_NDA_VERSION_CHANGED") {
         setNdaVersionStale(true);
         setNdaSignError(
-          "The Non-Disclosure Agreement has been updated since you opened it. Please reload to review and sign the latest version."
+          "The Confidentiality & Non-Circumvention Agreement has been updated since you opened it. Please reload to review and sign the latest version."
         );
       } else {
         setNdaSignError(msg);
@@ -280,7 +280,7 @@ export default function DealDetails() {
     setAcceptingNda(false);
     // Non-blocking refresh of the room state. If it fails, the optimistic UI
     // above keeps the user unblocked; we just log so we can debug later.
-    loadRoom().catch(err => console.error("[DealDetails] loadRoom after NDA sign failed:", err));
+    loadRoom().catch(err => console.error("[DealDetails] loadRoom after CNCA sign failed:", err));
     return result;
   }
 
@@ -296,9 +296,9 @@ export default function DealDetails() {
       const code = room.room_number
         ? `DR-${String(room.room_number).padStart(6, "0")}`
         : room.id.slice(0, 8).toUpperCase();
-      triggerBlobDownload(blob, `PDYE-NDA-${code}-${side}.pdf`);
+      triggerBlobDownload(blob, `PDYE-CNCA-${code}-${side}.pdf`);
     } catch (e: any) {
-      setNdaSignError(e?.message || "Failed to download signed NDA");
+      setNdaSignError(e?.message || "Failed to download signed CNCA");
     } finally {
       setNdaPdfDownloading(false);
     }
@@ -522,21 +522,21 @@ export default function DealDetails() {
 function getNextAction(room: DealRoom, mySide: string, isAdmin: boolean, myNdaStatus: string, actions: { goToLegal: () => void }) {
   if (room.status === "closed" || room.status === "cancelled") return null;
   if (room.status === "draft") {
-    if (isAdmin) return { text: "NDA documents need to be sent to both parties.", who: "Admin", cta: "Send NDA", ctaIcon: Send, urgent: true, ctaAction: actions.goToLegal };
-    return { text: "Deal room created. Waiting for admin to send NDA documents.", who: "Platform Admin", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
+    if (isAdmin) return { text: "CNCA documents need to be sent to both parties.", who: "Admin", cta: "Send CNCA", ctaIcon: Send, urgent: true, ctaAction: actions.goToLegal };
+    return { text: "Deal room created. Waiting for admin to send CNCA documents.", who: "Platform Admin", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
   }
   if (room.status === "nda_pending") {
-    if (myNdaStatus === "sent" && mySide !== "admin") return { text: "Please review and sign the NDA to proceed.", who: "You", cta: "Sign NDA", ctaIcon: Shield, urgent: true, ctaAction: actions.goToLegal };
-    if (myNdaStatus === "signed") return { text: "Your NDA is signed. Waiting for the other party to sign.", who: "Counterparty", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
-    if (isAdmin) return { text: "Waiting for both parties to sign NDA.", who: "Buyer & Seller", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
-    return { text: "NDA documents have been sent. Please review and sign.", who: "Both Parties", urgent: true, cta: "Review NDA", ctaIcon: Shield, ctaAction: actions.goToLegal };
+    if (myNdaStatus === "sent" && mySide !== "admin") return { text: "Please review and sign the CNCA to proceed.", who: "You", cta: "Sign CNCA", ctaIcon: Shield, urgent: true, ctaAction: actions.goToLegal };
+    if (myNdaStatus === "signed") return { text: "Your CNCA is signed. Waiting for the other party to sign.", who: "Counterparty", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
+    if (isAdmin) return { text: "Waiting for both parties to sign CNCA.", who: "Buyer & Seller", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
+    return { text: "CNCA documents have been sent. Please review and sign.", who: "Both Parties", urgent: true, cta: "Review CNCA", ctaIcon: Shield, ctaAction: actions.goToLegal };
   }
   if (room.status === "partially_signed") {
     const buyerSigned = room.buyer_nda_status === "signed";
     const sellerSigned = room.seller_nda_status === "signed";
-    if (!buyerSigned && mySide === "buyer") return { text: "Please sign the NDA to activate the deal room.", who: "You (Buyer)", cta: "Sign NDA", ctaIcon: Shield, urgent: true, ctaAction: actions.goToLegal };
-    if (!sellerSigned && mySide === "seller") return { text: "Please sign the NDA to activate the deal room.", who: "You (Seller)", cta: "Sign NDA", ctaIcon: Shield, urgent: true, ctaAction: actions.goToLegal };
-    return { text: `Waiting for ${!buyerSigned ? "buyer" : "seller"} to sign NDA.`, who: !buyerSigned ? "Buyer" : "Seller", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
+    if (!buyerSigned && mySide === "buyer") return { text: "Please sign the CNCA to activate the deal room.", who: "You (Buyer)", cta: "Sign CNCA", ctaIcon: Shield, urgent: true, ctaAction: actions.goToLegal };
+    if (!sellerSigned && mySide === "seller") return { text: "Please sign the CNCA to activate the deal room.", who: "You (Seller)", cta: "Sign CNCA", ctaIcon: Shield, urgent: true, ctaAction: actions.goToLegal };
+    return { text: `Waiting for ${!buyerSigned ? "buyer" : "seller"} to sign CNCA.`, who: !buyerSigned ? "Buyer" : "Seller", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
   }
   if (room.status === "active") {
     return { text: "Deal room is fully active. Documents, messages, and negotiations are available.", who: null, urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
@@ -549,9 +549,9 @@ function getNextAction(room: DealRoom, mySide: string, isAdmin: boolean, myNdaSt
    ═══════════════════════════════════════════════════ */
 const FULL_TIMELINE = [
   { key: "created", label: "Room Created", icon: Briefcase },
-  { key: "nda_sent", label: "NDA Sent", icon: Send },
-  { key: "buyer_signed", label: "Buyer NDA", icon: CheckCircle },
-  { key: "seller_signed", label: "Seller NDA", icon: CheckCircle },
+  { key: "nda_sent", label: "CNCA Sent", icon: Send },
+  { key: "buyer_signed", label: "Buyer CNCA", icon: CheckCircle },
+  { key: "seller_signed", label: "Seller CNCA", icon: CheckCircle },
   { key: "activated", label: "Room Active", icon: Lock },
   { key: "negotiation", label: "Discussion", icon: MessageSquare },
   { key: "commission", label: "Commission", icon: Scale },
@@ -733,7 +733,7 @@ function SpecificationsTab({ yacht, isBlockUnlocked, isAdmin }: { yacht: YachtFu
 /* ═══════════════════════════════════════════════════
    6. DOCUMENTS TAB
    ═══════════════════════════════════════════════════ */
-const DOC_CATEGORIES = ["Brochure", "Specification", "Inventory", "Legal", "Registration", "Service", "Survey", "Photos", "Offers", "NDA / Signed"];
+const DOC_CATEGORIES = ["Brochure", "Specification", "Inventory", "Legal", "Registration", "Service", "Survey", "Photos", "Offers", "CNCA / Signed"];
 
 function DocumentsTab({ documents, isAdmin, isTerminal }: { documents: DealRoomDocument[]; isAdmin: boolean; isTerminal: boolean }) {
   if (documents.length === 0) return <EmptyState icon={FileText} text="No documents uploaded yet" sub="Documents will appear here once uploaded by the admin or participants." />;
@@ -949,7 +949,7 @@ function MessagesTab({ messages, participantMap, user, msgText, setMsgText, send
 }
 
 /* ═══════════════════════════════════════════════════
-   9. LEGAL / NDA TAB
+   9. LEGAL / CNCA TAB
    ═══════════════════════════════════════════════════ */
 type LegalTabProps = {
   room: DealRoom; mySide: string; myNdaStatus: string; showNdaForm: boolean;
@@ -990,7 +990,7 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
   return (
     <div className="space-y-6">
       <div className="bg-white/[0.02] border border-white/8 p-6">
-        <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-5 flex items-center gap-2"><Shield size={13} /> 1. NDA Compliance (Entry Gate)</p>
+        <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-5 flex items-center gap-2"><Shield size={13} /> 1. CNCA Compliance (Entry Gate)</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NdaPartyCard side="Buyer" status={room.buyer_nda_status} sentAt={room.buyer_nda_sent_at} signedAt={room.buyer_nda_signed_at} email={canSeeIdentities ? participantMap[room.buyer_user_id || ""]?.email : undefined} />
           <NdaPartyCard side="Seller" status={room.seller_nda_status} sentAt={room.seller_nda_sent_at} signedAt={room.seller_nda_signed_at} email={canSeeIdentities ? participantMap[room.seller_user_id || ""]?.email : undefined} />
@@ -1002,7 +1002,7 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
           <CheckCircle size={20} className="text-green-400 flex-shrink-0" />
           <div>
             <p className="text-green-400 text-sm font-bold">Deal Room Fully Activated</p>
-            <p className="text-white/40 text-xs font-sans mt-0.5">Both parties signed NDA on {fmtDate(room.fully_activated_at)}</p>
+            <p className="text-white/40 text-xs font-sans mt-0.5">Both parties signed CNCA on {fmtDate(room.fully_activated_at)}</p>
           </div>
         </div>
       )}
@@ -1025,14 +1025,14 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
           <Shield size={24} className="text-cyan-400 mx-auto" />
           {room.status !== "active" ? (
             <>
-              <h3 className="font-display text-lg text-white mb-1">NDA Signed — Awaiting Counterparty</h3>
+              <h3 className="font-display text-lg text-white mb-1">CNCA Signed — Awaiting Counterparty</h3>
               <p className="text-white/50 text-sm font-sans">
-                Your NDA has been signed. The deal room will activate once the other party also signs.
+                Your CNCA has been signed. The deal room will activate once the other party also signs.
               </p>
             </>
           ) : (
             <>
-              <h3 className="font-display text-lg text-white mb-1">NDA on file</h3>
+              <h3 className="font-display text-lg text-white mb-1">CNCA on file</h3>
               <p className="text-white/50 text-sm font-sans">
                 Your countersigned PDF was emailed to you. You can also download it below at any time.
               </p>
@@ -1044,7 +1044,7 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
             disabled={ndaPdfDownloading}
             className="inline-block border border-cyan-500/40 px-4 py-2 text-[10px] uppercase tracking-widest text-cyan-100 hover:bg-cyan-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {ndaPdfDownloading ? "Preparing PDF…" : "Download Signed NDA (PDF)"}
+            {ndaPdfDownloading ? "Preparing PDF…" : "Download Signed CNCA (PDF)"}
           </button>
           {ndaSignError && !showNdaForm && (
             <p className="text-red-300 text-xs">{ndaSignError}</p>
@@ -1143,7 +1143,7 @@ function NdaPartyCard({ side, status, sentAt, signedAt, email }: { side: string;
   return (
     <div className={`p-4 border ${isSigned ? "border-green-500/20 bg-green-500/5" : isSent ? "border-orange-500/20 bg-orange-500/5" : "border-white/5 bg-white/[0.02]"}`}>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-white/60 text-xs font-bold uppercase tracking-widest">{side} NDA</span>
+        <span className="text-white/60 text-xs font-bold uppercase tracking-widest">{side} CNCA</span>
         <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 border ${
           isSigned ? "text-green-400 border-green-500/20" : isSent ? "text-orange-400 border-orange-500/20" : "text-white/25 border-white/10"
         }`}>
@@ -1160,7 +1160,7 @@ function NdaPartyCard({ side, status, sentAt, signedAt, email }: { side: string;
 }
 
 /* ═══════════════════════════════════════════════════
-   10. NDA SIGNING FORM
+   10. CNCA SIGNING FORM
    ═══════════════════════════════════════════════════ */
 function NdaSigningForm({
   onAccept, accepting, signError, versionStale,
@@ -1211,7 +1211,7 @@ function NdaSigningForm({
         const d = await dealLegalApi.getNdaDocument();
         if (!cancelled) setDoc(d);
       } catch (e: any) {
-        if (!cancelled) setDocError(e?.message || "Failed to load NDA document");
+        if (!cancelled) setDocError(e?.message || "Failed to load CNCA document");
       } finally {
         if (!cancelled) setDocLoading(false);
       }
@@ -1250,7 +1250,7 @@ function NdaSigningForm({
   if (docError || !doc) {
     return (
       <div className="bg-red-500/5 border border-red-500/20 p-6 text-red-300 text-sm">
-        {docError || "Could not load Deal Room NDA document."}
+        {docError || "Could not load Deal Room CNCA document."}
       </div>
     );
   }
@@ -1361,7 +1361,7 @@ function NdaSigningForm({
 
       {signedSide && (
         <div className="border border-green-500/30 bg-green-500/5 p-4 text-green-300 text-xs space-y-2">
-          <div className="font-semibold">NDA signed successfully.</div>
+          <div className="font-semibold">CNCA signed successfully.</div>
           <div className="text-green-200/80">
             A signed PDF copy is being emailed to your registered address.
           </div>
@@ -1371,7 +1371,7 @@ function NdaSigningForm({
             disabled={pdfDownloading}
             className="inline-block mt-1 border border-green-500/40 px-3 py-1.5 text-[10px] uppercase tracking-widest text-green-100 hover:bg-green-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {pdfDownloading ? "Preparing PDF…" : "Download Signed NDA (PDF)"}
+            {pdfDownloading ? "Preparing PDF…" : "Download Signed CNCA (PDF)"}
           </button>
         </div>
       )}
@@ -1774,7 +1774,7 @@ function SidebarParticipants({ room, participantMap, canSeeIdentities }: { room:
 function SidebarNda({ room }: { room: DealRoom }) {
   return (
     <div className="bg-white/[0.02] border border-white/8 p-5">
-      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={11} /> NDA Status</p>
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={11} /> CNCA Status</p>
       <div className="space-y-2">
         {[
           { label: "Buyer", status: room.buyer_nda_status },
@@ -1922,12 +1922,12 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
       if (room.buyer_user_id && room.buyer_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.buyer_user_id, side: "buyer", provider: "internal", status: "sent", sent_at: now });
       if (room.seller_user_id && room.seller_nda_status === "not_sent") await dealRoomApi.createNdaEnvelope({ deal_room_id: room.id, user_id: room.seller_user_id, side: "seller", provider: "internal", status: "sent", sent_at: now });
       await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "nda_sent", meta: { mode: "simulation" } });
-      await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.", is_system: true });
+      await dealRoomApi.sendMessage(room.id, { sender_id: user?.id || "", message: "[SIMULATION] CNCA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.", is_system: true });
       setNdaSent(true);
       setTimeout(() => setNdaSent(false), 8000);
     } catch (e: any) {
       console.error("[DealDetails] sendNda failed:", e);
-      setAdminError(e?.message || "Failed to send NDA");
+      setAdminError(e?.message || "Failed to send CNCA");
     } finally {
       setSending(false);
     }
@@ -2010,18 +2010,18 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
           <>
             <div className="bg-yellow-500/5 border border-yellow-500/20 p-2.5 text-center">
               <p className="text-yellow-400/70 text-[9px] font-bold uppercase tracking-widest">Simulation Mode — No DocuSign</p>
-              <p className="text-white/30 text-[10px] font-sans mt-0.5">NDA will be available for signing inside each participant's Deal Room</p>
+              <p className="text-white/30 text-[10px] font-sans mt-0.5">CNCA will be available for signing inside each participant's Deal Room</p>
             </div>
             <button onClick={sendNda} disabled={sending}
               className="w-full flex items-center justify-center gap-2 bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25 px-3 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-40">
-              {sending ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />} Send NDA
+              {sending ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />} Send CNCA
             </button>
           </>
         )}
         {ndaSent && (
           <div className="bg-green-500/10 border border-green-500/30 p-3 text-center animate-pulse">
-            <p className="text-green-400 text-xs font-bold">NDA Sent Successfully</p>
-            <p className="text-white/40 text-[10px] font-sans mt-0.5">Participants will see the NDA in their Legal tab</p>
+            <p className="text-green-400 text-xs font-bold">CNCA Sent Successfully</p>
+            <p className="text-white/40 text-[10px] font-sans mt-0.5">Participants will see the CNCA in their Legal tab</p>
           </div>
         )}
         {adminError && (

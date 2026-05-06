@@ -106,7 +106,7 @@ function ProtectedRoute({ component: Component, adminOnly = false, skipNdaGate =
   if (adminOnly && !isAdmin) return <Redirect to="/" />;
   if (!isAdmin && !userProfile.approved) return <UnderReview />;
 
-  // Platform NDA gate — non-admin users must have signed before reaching any protected page
+  // Platform CNCA gate — non-admin users must have signed before reaching any protected page
   if (!isAdmin && !skipNdaGate) {
     if (ndaStatus === null) return <Spinner />;
     if (!ndaStatus.signed) return <Redirect to="/platform-nda" />;
@@ -117,7 +117,7 @@ function ProtectedRoute({ component: Component, adminOnly = false, skipNdaGate =
 
 // Public showcase route: lets non-authenticated visitors view the page
 // (used by /yachts marketing showcase). For logged-in users, applies the
-// same approval and NDA checks as ProtectedRoute so existing gates keep
+// same approval and CNCA checks as ProtectedRoute so existing gates keep
 // working.
 function OptionalProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, userProfile, ndaStatus, loading, refreshProfile } = useAuth();
@@ -161,7 +161,7 @@ function Router() {
         <Route path="/privacy-policy" component={PrivacyPolicy} />
         <Route path="/legal-notice" component={LegalNotice} />
 
-        {/* Platform NDA — auth required but bypasses NDA gate (otherwise infinite redirect) */}
+        {/* Platform CNCA — auth required but bypasses CNCA gate (otherwise infinite redirect) */}
         <Route path="/platform-nda" component={() => <ProtectedRoute component={PlatformNda} skipNdaGate />} />
 
         {/* Protected */}

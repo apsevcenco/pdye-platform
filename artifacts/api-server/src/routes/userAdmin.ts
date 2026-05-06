@@ -19,10 +19,10 @@ type HeliumRef = { table: string; column: string; label: string };
 // USER-OWNED data: safe to cascade-delete when the user is removed.
 // These rows belong to the specific user and have no shared usage.
 const CASCADE_USER_REFS: HeliumRef[] = [
-  { table: "platform_nda_signatures",   column: "user_id",        label: "Platform NDA signature(s)" },
-  { table: "deal_nda_signatures",       column: "user_id",        label: "Deal Room NDA signature(s)" },
+  { table: "platform_nda_signatures",   column: "user_id",        label: "Platform CNCA signature(s)" },
+  { table: "deal_nda_signatures",       column: "user_id",        label: "Deal Room CNCA signature(s)" },
   { table: "deal_commission_signatures", column: "user_id",       label: "Commission Agreement signature(s)" },
-  { table: "nda_envelopes",             column: "user_id",        label: "NDA envelope(s)" },
+  { table: "nda_envelopes",             column: "user_id",        label: "CNCA envelope(s)" },
   { table: "deal_room_participants",   column: "user_id",        label: "deal room participation(s)" },
   { table: "deal_rooms",               column: "buyer_user_id",  label: "deal room(s) as buyer" },
   { table: "deal_rooms",               column: "seller_user_id", label: "deal room(s) as seller" },
@@ -35,19 +35,19 @@ const CASCADE_USER_REFS: HeliumRef[] = [
 // EMAIL-keyed signature tables: when a user is deleted we also sweep these by
 // user_email to catch "ghost" rows whose user_id belongs to a previously-deleted
 // account that shared the same email. Without this, the new user's card would
-// keep showing the old NDA signature (because the admin UI matches by email too).
+// keep showing the old CNCA signature (because the admin UI matches by email too).
 const CASCADE_EMAIL_REFS: HeliumRef[] = [
-  { table: "platform_nda_signatures",   column: "user_email", label: "Platform NDA signature(s) (by email)" },
-  { table: "deal_nda_signatures",       column: "user_email", label: "Deal Room NDA signature(s) (by email)" },
+  { table: "platform_nda_signatures",   column: "user_email", label: "Platform CNCA signature(s) (by email)" },
+  { table: "deal_nda_signatures",       column: "user_email", label: "Deal Room CNCA signature(s) (by email)" },
   { table: "deal_commission_signatures", column: "user_email", label: "Commission Agreement signature(s) (by email)" },
 ];
 
 // SHARED / ADMIN-CREATED data: must NOT be cascade-deleted because deleting it
-// would break the platform for other users (e.g. wiping the seeded NDA template).
+// would break the platform for other users (e.g. wiping the seeded CNCA template).
 // If a user has any of these, delete is REFUSED — admin must manually reassign.
 const BLOCK_USER_REFS: HeliumRef[] = [
-  { table: "platform_nda_documents",     column: "created_by",          label: "Platform NDA version(s) (shared template!)" },
-  { table: "deal_nda_documents",         column: "created_by",          label: "Deal Room NDA version(s) (shared template!)" },
+  { table: "platform_nda_documents",     column: "created_by",          label: "Platform CNCA version(s) (shared template!)" },
+  { table: "deal_nda_documents",         column: "created_by",          label: "Deal Room CNCA version(s) (shared template!)" },
   { table: "deal_commission_documents",  column: "created_by",          label: "Commission Agreement version(s) (shared template!)" },
   { table: "deal_rooms",                 column: "created_by_admin_id", label: "deal room(s) created by this admin" },
 ];

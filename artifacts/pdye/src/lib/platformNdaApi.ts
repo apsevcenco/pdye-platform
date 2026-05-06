@@ -74,7 +74,7 @@ export const platformNdaApi = {
   adminDeleteSignature: (signatureId: string): Promise<{ ok: boolean; deleted: { id: string; user_id: string; user_email: string } }> =>
     authFetch(`/admin/platform-nda/signatures/${signatureId}`, { method: "DELETE" }),
 
-  // Download the signed NDA as a PDF. Returns a Blob; caller is responsible for triggering the download.
+  // Download the signed CNCA as a PDF. Returns a Blob; caller is responsible for triggering the download.
   downloadSignedPdf: async (signatureId: string): Promise<Blob> => {
     const { data: { session } } = await supabase.auth.getSession();
     const headers: Record<string, string> = {};
