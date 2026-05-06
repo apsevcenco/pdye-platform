@@ -97,18 +97,12 @@ export default function Home() {
               className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-sans font-light leading-relaxed mb-10"
               dangerouslySetInnerHTML={{ __html: hero.subtitle }}
             />
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
-              <Link 
+            <div className="flex justify-center">
+              <Link
                 href="/access"
-                className="bg-primary hover:bg-white text-background hover:text-background px-8 py-4 font-bold tracking-widest uppercase transition-all duration-300 text-sm shadow-[0_0_20px_rgba(200,164,107,0.4)]"
+                className="bg-primary hover:bg-white text-background hover:text-background px-9 py-4 font-bold tracking-widest uppercase transition-all duration-300 text-sm shadow-[0_0_20px_rgba(200,164,107,0.4)]"
               >
                 {t.heroSection.cta1}
-              </Link>
-              <Link 
-                href="/brokers"
-                className="bg-transparent border border-white/20 hover:border-white text-white px-8 py-4 font-bold tracking-widest uppercase transition-all duration-300 text-sm"
-              >
-                {t.heroSection.cta2}
               </Link>
             </div>
           </motion.div>
