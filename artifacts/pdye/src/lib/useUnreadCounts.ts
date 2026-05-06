@@ -4,13 +4,37 @@ import { dealRoomApi } from "./dealRoomApi";
 
 const STORAGE_PREFIX = "pdye_seen_";
 const EPOCH = "1970-01-01T00:00:00.000Z";
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || "/api";
 
 export type SectionKey =
   | "dealroom"
   | "adminAccessRequests"
   | "adminUsers"
   | "adminDealRoom"
-  | "adminYachts";
+  | "adminYachts"
+  | "adminLeads"
+  | "adminMessages"
+  | "adminDocuments"
+  | "adminPrivateBuyers"
+  | "adminBrokers"
+  | "adminOwners"
+  | "adminPlatformNda"
+  | "adminDealNda"
+  | "adminCommission";
+
+// Sections served by the consolidated POST /api/admin/badge-counts endpoint.
+// Keep this list in sync with SECTIONS in artifacts/api-server/src/routes/adminBadgeCounts.ts.
+const API_SECTIONS: SectionKey[] = [
+  "adminLeads",
+  "adminMessages",
+  "adminDocuments",
+  "adminPrivateBuyers",
+  "adminBrokers",
+  "adminOwners",
+  "adminPlatformNda",
+  "adminDealNda",
+  "adminCommission",
+];
 
 export type UnreadCounts = Partial<Record<SectionKey, number>>;
 
@@ -36,6 +60,35 @@ async function fetchAdminCounts(): Promise<UnreadCounts> {
   const out: UnreadCounts = {
     adminAccessRequests: 0, adminUsers: 0, adminYachts: 0, adminDealRoom: 0,
   };
+
+  // Consolidated POST /api/admin/badge-counts — one request that returns all
+  // server-side badge counts (leads, messages, documents, role-specific user
+  // signups, signature tables). Keeps the per-section supabase queries below
+  // for the four "legacy" sections that were already wired before this hook
+  // grew API-backed sections.
+  const apiTask = (async () => {
+    try {
+      const since: Record<string, string> = {};
+      for (const k of API_SECTIONS) since[k] = getLastSeen("admin", k);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const resp = await fetch(`${API_BASE}/admin/badge-counts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ since }),
+      });
+      if (!resp.ok) return;
+      const json = (await resp.json()) as { counts?: Record<string, number> };
+      const c = json?.counts || {};
+      for (const k of API_SECTIONS) {
+        if (typeof c[k] === "number") (out as Record<string, number>)[k] = c[k] as number;
+      }
+    } catch { /* keep zeros */ }
+  })();
+
   // Supabase query builders return PromiseLike (not Promise) so we wrap each
   // await in try/catch instead of chaining .catch().
   const tasks = [
@@ -74,7 +127,7 @@ async function fetchAdminCounts(): Promise<UnreadCounts> {
       } catch { /* keep 0 */ }
     })(),
   ];
-  await Promise.all(tasks);
+  await Promise.all([...tasks, apiTask]);
   return out;
 }
 

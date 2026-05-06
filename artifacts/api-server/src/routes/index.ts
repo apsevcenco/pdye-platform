@@ -14,6 +14,7 @@ import dealCommissionRouter from "./dealCommission";
 import userAdminRouter from "./userAdmin";
 import yachtModerationRouter from "./yachtModeration";
 import legalPagesRouter from "./legalPages";
+import adminBadgeCountsRouter from "./adminBadgeCounts";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(dealCommissionRouter);
 router.use(userAdminRouter);
 router.use(yachtModerationRouter);
 router.use(legalPagesRouter);
+router.use(adminBadgeCountsRouter);
 
 export default router;
