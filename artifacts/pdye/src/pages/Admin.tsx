@@ -1476,7 +1476,7 @@ function YachtsView() {
               {pending.slice(0, 3).map((y: any) => (
                 <a
                   key={y.id}
-                  href={`#/admin/yachts/${y.id}`}
+                  href={`/admin/yachts/${y.id}`}
                   className="inline-flex items-center gap-1.5 bg-yellow-400/10 border border-yellow-400/40 text-yellow-300 hover:bg-yellow-400/20 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors"
                 >
                   <Eye size={11} /> {(y.name || "Untitled").slice(0, 20)}
@@ -1585,7 +1585,7 @@ function YachtsView() {
                         const c = cfg[ls] || cfg.approved;
                         return (
                           <a
-                            href={`#/admin/yachts/${yacht.id}`}
+                            href={`/admin/yachts/${yacht.id}`}
                             className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border hover:opacity-80 transition-opacity ${c.cls}`}
                             title="Open moderation review"
                           >
@@ -1605,7 +1605,7 @@ function YachtsView() {
                         {/* Review button — only for pending listings, always visible */}
                         {(yacht as any).listing_status === "pending" && (
                           <a
-                            href={`#/admin/yachts/${yacht.id}`}
+                            href={`/admin/yachts/${yacht.id}`}
                             className="inline-flex items-center gap-1 bg-yellow-400/10 border border-yellow-400/40 text-yellow-300 hover:bg-yellow-400/20 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 transition-colors"
                             title="Open moderation review"
                           >
