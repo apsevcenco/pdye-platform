@@ -1990,7 +1990,8 @@ function DealsManageView() {
             { label: "Buyer NDA", value: selectedRoom.buyer_nda_status === "signed" ? "Signed" : selectedRoom.buyer_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.buyer_nda_status === "signed" },
             { label: "Seller NDA", value: selectedRoom.seller_nda_status === "signed" ? "Signed" : selectedRoom.seller_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.seller_nda_status === "signed" },
             { label: "Room Status", value: cfg.label, ok: selectedRoom.status === "active" },
-            { label: "Commission", value: selectedRoom.identities_revealed ? "Fully Signed" : selectedRoom.commission_status === "pending" ? "Pending" : "Not Started", ok: !!selectedRoom.identities_revealed },
+            { label: "Buyer Commission", value: selectedRoom.buyer_commission_status === "signed" ? "Signed" : selectedRoom.buyer_commission_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.buyer_commission_status === "signed" },
+            { label: "Seller Commission", value: selectedRoom.seller_commission_status === "signed" ? "Signed" : selectedRoom.seller_commission_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.seller_commission_status === "signed" },
             { label: "Activated", value: selectedRoom.fully_activated_at ? new Date(selectedRoom.fully_activated_at).toLocaleDateString("en-GB") : "Pending", ok: !!selectedRoom.fully_activated_at },
             { label: "Identities", value: selectedRoom.identities_revealed ? "Revealed" : "Hidden", ok: !!selectedRoom.identities_revealed },
           ].map(s => (
@@ -2273,6 +2274,8 @@ function DealsManageView() {
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Seller</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Buyer NDA</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Seller NDA</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden lg:table-cell">Buyer Comm.</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden lg:table-cell">Seller Comm.</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Status</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Created</th>
               </tr>
@@ -2300,6 +2303,16 @@ function DealsManageView() {
                     <td className="px-5 py-3.5">
                       <span className={`text-[10px] font-bold uppercase tracking-wider ${ndaStyle(room.seller_nda_status)}`}>
                         {room.seller_nda_status === "signed" ? "✓ Signed" : room.seller_nda_status === "sent" ? "Sent" : "—"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 hidden lg:table-cell">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${ndaStyle(room.buyer_commission_status)}`}>
+                        {room.buyer_commission_status === "signed" ? "✓ Signed" : room.buyer_commission_status === "sent" ? "Sent" : "—"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 hidden lg:table-cell">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${ndaStyle(room.seller_commission_status)}`}>
+                        {room.seller_commission_status === "signed" ? "✓ Signed" : room.seller_commission_status === "sent" ? "Sent" : "—"}
                       </span>
                     </td>
                     <td className="px-5 py-3.5">

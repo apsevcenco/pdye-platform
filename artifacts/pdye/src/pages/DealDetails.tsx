@@ -348,8 +348,9 @@ export default function DealDetails() {
 
   const cfg = DEAL_ROOM_STATUS_CONFIG[room.status] || DEAL_ROOM_STATUS_CONFIG.draft;
   const myNdaStatus = isBuyer ? room.buyer_nda_status : isSeller ? room.seller_nda_status : "n/a";
+  const myCommissionStatus = isBuyer ? room.buyer_commission_status : isSeller ? room.seller_commission_status : "n/a";
   const showNdaForm = (room.status === "nda_pending" || room.status === "partially_signed" || room.status === "draft") && myNdaStatus !== "signed" && !isAdmin && myNdaStatus === "sent";
-  const nextAction = getNextAction(room, mySide, isAdmin, myNdaStatus, {
+  const nextAction = getNextAction(room, mySide, isAdmin, myNdaStatus, myCommissionStatus, {
     goToLegal: () => setActiveTab("legal"),
   });
   const userMsgCount = messages.filter(m => !m.is_system).length;
@@ -519,7 +520,7 @@ export default function DealDetails() {
 /* ═══════════════════════════════════════════════════
    HELPER: next action logic
    ═══════════════════════════════════════════════════ */
-function getNextAction(room: DealRoom, mySide: string, isAdmin: boolean, myNdaStatus: string, actions: { goToLegal: () => void }) {
+function getNextAction(room: DealRoom, mySide: string, isAdmin: boolean, myNdaStatus: string, myCommissionStatus: string, actions: { goToLegal: () => void }) {
   if (room.status === "closed" || room.status === "cancelled") return null;
   if (room.status === "draft") {
     if (isAdmin) return { text: "NDA documents need to be sent to both parties.", who: "Admin", cta: "Send NDA", ctaIcon: Send, urgent: true, ctaAction: actions.goToLegal };
@@ -539,6 +540,15 @@ function getNextAction(room: DealRoom, mySide: string, isAdmin: boolean, myNdaSt
     return { text: `Waiting for ${!buyerSigned ? "buyer" : "seller"} to sign NDA.`, who: !buyerSigned ? "Buyer" : "Seller", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
   }
   if (room.status === "active") {
+    // Commission Agreement gate — surface the same kind of urgent banner
+    // on the main deal-room page that NDA does, so participants don't
+    // have to dig into the Legal tab to discover a pending signature.
+    if (room.commission_status === "pending" && !room.identities_revealed) {
+      if (myCommissionStatus === "sent" && mySide !== "admin") return { text: "Please review and sign the Commission Agreement to proceed.", who: "You", cta: "Sign Commission", ctaIcon: Scale, urgent: true, ctaAction: actions.goToLegal };
+      if (myCommissionStatus === "signed") return { text: "Your Commission Agreement is signed. Waiting for the other party to sign.", who: "Counterparty", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
+      if (isAdmin) return { text: "Waiting for buyer & seller to sign Commission Agreement.", who: "Buyer & Seller", urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
+      return { text: "Commission Agreement has been sent. Please review and sign.", who: "Both Parties", urgent: true, cta: "Review Commission", ctaIcon: Scale, ctaAction: actions.goToLegal };
+    }
     return { text: "Deal room is fully active. Documents, messages, and negotiations are available.", who: null, urgent: false, cta: null, ctaAction: undefined, ctaIcon: null };
   }
   return null;
