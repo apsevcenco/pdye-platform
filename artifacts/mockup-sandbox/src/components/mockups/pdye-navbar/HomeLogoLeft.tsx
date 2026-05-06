@@ -64,7 +64,7 @@ export function HomeLogoLeft() {
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-          <span className="text-[#c8a46b] font-bold tracking-[0.22em] text-[12px] md:text-[13px] uppercase mb-7 inline-block border border-[#c8a46b]/30 px-4 py-1.5 bg-[#070f1a]/30 backdrop-blur-md">
+          <span className="text-[#c8a46b] font-bold tracking-[0.22em] text-[12px] md:text-[13px] uppercase mb-7 inline-block">
             By Invitation · Off-Market
           </span>
           <h1 className="text-5xl md:text-7xl text-white font-bold leading-[1.1] mb-7 font-['Gilroy'] tracking-tight">
