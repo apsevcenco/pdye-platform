@@ -46,6 +46,7 @@ import {
   Menu,
   Type,
   ShieldCheck,
+  Upload,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -326,6 +327,12 @@ function YachtsView() {
   const [photoDraggedIdx, setPhotoDraggedIdx] = useState<number | null>(null);
   const formFileRef = useRef<HTMLInputElement>(null);
   const [formIsPrivate, setFormIsPrivate] = useState(false);
+  // PDF documents attached to the listing — stored in yachts.documents JSONB.
+  const [formDocs, setFormDocs] = useState<YachtDocument[]>([]);
+  const [formDocSaving, setFormDocSaving] = useState(false);
+  const [formDocError, setFormDocError] = useState("");
+  const [formDocDragOver, setFormDocDragOver] = useState(false);
+  const formDocFileRef = useRef<HTMLInputElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [aiEstimating, setAiEstimating] = useState(false);
   const [aiNote, setAiNote] = useState<{ reasoning: string; confidence: string; comparables: number; sources?: string } | null>(null);
@@ -422,7 +429,7 @@ function YachtsView() {
     setForm(f => ({ ...f, [key]: val }));
   }
 
-  async function uploadFilesToServer(files: File[], yachtId = "new"): Promise<string[]> {
+  async function uploadFilesToServer(files: File[], _yachtId?: string): Promise<string[]> {
     const urls: string[] = [];
     const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
     // Bearer token required by requireUser middleware on /upload-photo.
@@ -431,8 +438,11 @@ function YachtsView() {
     if (!token) throw new Error("Your session has expired — please sign in again.");
     for (const file of files) {
       const form = new FormData();
+      // /upload-photo body schema is z.object({}).strict() — DO NOT append any
+      // text fields (yachtId, folder, etc.) or the request 400s before multer
+      // even sees the file. The yacht association is recorded later via the
+      // yachts.photos JSONB column when the form is saved.
       form.append("photo", file);
-      form.append("yachtId", yachtId);
       const res = await fetch(`${apiBase}/upload-photo`, {
         method: "POST",
         body: form,
@@ -448,6 +458,43 @@ function YachtsView() {
     return urls;
   }
 
+  /** Upload a batch of PDFs through /api/upload-document. Mirrors
+   *  uploadFilesToServer but targets the document endpoint and returns
+   *  ready-to-store YachtDocument records. */
+  async function uploadDocsToServer(files: File[]): Promise<YachtDocument[]> {
+    const out: YachtDocument[] = [];
+    const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) throw new Error("Your session has expired — please sign in again.");
+    for (const file of files) {
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      if (!isPdf) throw new Error(`${file.name}: only PDF documents are allowed.`);
+      const fd = new FormData();
+      // Same `.strict()` Zod rule as /upload-photo — only the file field.
+      fd.append("document", file);
+      const res = await fetch(`${apiBase}/upload-document`, {
+        method: "POST",
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || "Upload failed");
+      }
+      const { url } = await res.json();
+      const sizeKB = Math.round(file.size / 1024);
+      const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+      out.push({
+        name: file.name.replace(/\.[^/.]+$/, ""),
+        url,
+        size: sizeStr,
+        type: "PDF",
+      });
+    }
+    return out;
+  }
+
   async function handleFormPhotoUpload(files: File[]) {
     if (formPhotos.length + files.length > 30) {
       setFormPhotoError(`30 photos max. You can add ${30 - formPhotos.length} more.`);
@@ -456,13 +503,34 @@ function YachtsView() {
     setFormPhotoSaving(true);
     setFormPhotoError("");
     try {
-      const newUrls = await uploadFilesToServer(files, "new");
+      const newUrls = await uploadFilesToServer(files);
       setFormPhotos(prev => [...prev, ...newUrls]);
     } catch (e: any) {
       setFormPhotoError(e.message || "Upload error");
     } finally {
       setFormPhotoSaving(false);
       if (formFileRef.current) formFileRef.current.value = "";
+    }
+  }
+
+  /** Upload PDFs into the in-progress yacht form. The resulting YachtDocument
+   *  records are persisted alongside the rest of the listing on save. */
+  async function handleFormDocUpload(files: File[]) {
+    const MAX_FORM_DOCS = 10;
+    if (formDocs.length + files.length > MAX_FORM_DOCS) {
+      setFormDocError(`${MAX_FORM_DOCS} documents max. You can add ${MAX_FORM_DOCS - formDocs.length} more.`);
+      return;
+    }
+    setFormDocSaving(true);
+    setFormDocError("");
+    try {
+      const newDocs = await uploadDocsToServer(files);
+      setFormDocs(prev => [...prev, ...newDocs]);
+    } catch (e: any) {
+      setFormDocError(e.message || "Upload error");
+    } finally {
+      setFormDocSaving(false);
+      if (formDocFileRef.current) formDocFileRef.current.value = "";
     }
   }
 
@@ -512,6 +580,7 @@ function YachtsView() {
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
       main_image: formPhotos[0] || str(form.image) || null,
+      documents: formDocs.length > 0 ? formDocs : null,
       is_private: formIsPrivate,
       // Admin acts as the seller for listings created here, and admin posts go
       // live immediately (admin is the moderator — no self-review needed).
@@ -519,7 +588,15 @@ function YachtsView() {
       listing_status: "approved",
     };
 
-    const { error } = await supabase.from("yachts").insert([payload]);
+    let { error } = await supabase.from("yachts").insert([payload]);
+    // Graceful fallback when migrations/008_yacht_documents.sql hasn't been
+    // applied yet — retry without the documents column so the listing still
+    // saves; the docs themselves are already uploaded to storage.
+    if (error && isMissingDocumentsColumn(error)) {
+      console.warn("[Admin] yachts.documents column missing — saving without documents.");
+      const { documents: _omit, ...rest } = payload;
+      ({ error } = await supabase.from("yachts").insert([rest]));
+    }
     setSaving(false);
     if (error) {
       setFormError(error.message);
@@ -528,10 +605,20 @@ function YachtsView() {
       setTimeout(() => setSuccessMsg(""), 3000);
       setForm(EMPTY_FORM);
       setFormPhotos([]);
+      setFormDocs([]);
+      setFormDocError("");
       setFormIsPrivate(false);
       setShowForm(false);
       load();
     }
+  }
+
+  /** Detect "documents column is missing" Postgres errors so we can fall back
+   *  to inserting without that field. Mirrors the same check used in
+   *  AddYacht.tsx (broker self-serve form). */
+  function isMissingDocumentsColumn(err: unknown): boolean {
+    const msg = (err as any)?.message ?? String(err ?? "");
+    return /documents/i.test(msg) && /schema cache|column .* does not exist/i.test(msg);
   }
 
   async function handleDelete(id: string) {
@@ -584,6 +671,7 @@ function YachtsView() {
       description: yacht.description || "",
     });
     setFormPhotos(yacht.photos || []);
+    setFormDocs(Array.isArray(yacht.documents) ? yacht.documents : []);
     setFormIsPrivate(yacht.is_private || false);
     setFormError("");
     setAiNote(null);
@@ -639,10 +727,16 @@ function YachtsView() {
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
       main_image: formPhotos[0] || str(form.image) || null,
+      documents: formDocs.length > 0 ? formDocs : null,
       is_private: formIsPrivate,
     };
 
-    const { error } = await supabase.from("yachts").update(payload).eq("id", editingId);
+    let { error } = await supabase.from("yachts").update(payload).eq("id", editingId);
+    if (error && isMissingDocumentsColumn(error)) {
+      console.warn("[Admin] yachts.documents column missing — updating without documents.");
+      const { documents: _omit, ...rest } = payload;
+      ({ error } = await supabase.from("yachts").update(rest).eq("id", editingId));
+    }
     setSaving(false);
     if (error) {
       setFormError(error.message);
@@ -651,6 +745,8 @@ function YachtsView() {
       setTimeout(() => setSuccessMsg(""), 3000);
       setForm(EMPTY_FORM);
       setFormPhotos([]);
+      setFormDocs([]);
+      setFormDocError("");
       setFormIsPrivate(false);
       setEditingId(null);
       setShowForm(false);
@@ -722,32 +818,10 @@ function YachtsView() {
     setDocError("");
     try {
       const current: YachtDocument[] = yacht.documents || [];
-      const newDocs: YachtDocument[] = [];
-      // Bearer token required by requireUser middleware on /upload-photo.
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error("Your session has expired — please sign in again.");
-      for (const file of files) {
-        const ext = (file.name.split(".").pop() || "bin").toUpperCase();
-        const fd = new FormData();
-        fd.append("photo", file);
-        fd.append("yachtId", yacht.id);
-        fd.append("folder", "docs");
-        const apiBase = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
-        const res = await fetch(`${apiBase}/upload-photo`, {
-          method: "POST",
-          body: fd,
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: res.statusText }));
-          throw new Error(err.error || "Upload failed");
-        }
-        const { url } = await res.json();
-        const sizeKB = Math.round(file.size / 1024);
-        const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
-        newDocs.push({ name: file.name.replace(/\.[^/.]+$/, ""), url, size: sizeStr, type: ext });
-      }
+      // Route through /upload-document so the PDF magic-byte check + 25MB
+      // limit apply. The previous implementation reused /upload-photo which
+      // rejects every PDF at the multer mime allow-list (image/* only).
+      const newDocs = await uploadDocsToServer(files);
       await saveDocs(yacht.id, [...current, ...newDocs]);
     } catch (e: any) {
       setDocError(e.message || "Upload failed");
@@ -778,7 +852,7 @@ function YachtsView() {
           <p className="text-white/50 text-sm font-sans mt-1">{loading ? "Loading..." : `${yachts.length} listings in database`}</p>
         </div>
         <button
-          onClick={() => { setShowForm(s => !s); setFormError(""); setEditingId(null); setForm(EMPTY_FORM); setFormPhotos([]); setFormIsPrivate(false); setAiNote(null); }}
+          onClick={() => { setShowForm(s => !s); setFormError(""); setEditingId(null); setForm(EMPTY_FORM); setFormPhotos([]); setFormDocs([]); setFormDocError(""); setFormIsPrivate(false); setAiNote(null); }}
           className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300"
         >
           <Plus size={14} /> {showForm ? "Cancel" : "Add Yacht"}
@@ -1259,6 +1333,102 @@ function YachtsView() {
                 <label className={labelCls}>Image URL (if no photos uploaded)</label>
                 <input className={inputCls} placeholder="https://..." value={form.image} onChange={e => setF("image", e.target.value)} />
               </div>
+
+              {/* PDF documents — surveys, specs, brochures, registration. Saved into
+               *  yachts.documents JSONB on submit and surfaced in the Deal Room
+               *  Documents tab once a buyer signs the NDA. Mirrors the broker
+               *  self-serve form in /add-yacht so admin and broker uploads are
+               *  identical in shape. */}
+              <div>
+                <label className={labelCls}>Documents — PDF ({formDocs.length}/10)</label>
+                <p className="text-white/40 text-xs font-sans mb-3">
+                  Surveys, specifications, brochures, registration. These appear in the Deal Room Documents tab for buyers who have signed the NDA.
+                </p>
+                <input
+                  ref={formDocFileRef}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  multiple
+                  className="hidden"
+                  onChange={e => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length > 0) handleFormDocUpload(files);
+                  }}
+                />
+                <div
+                  onDragOver={e => { e.preventDefault(); setFormDocDragOver(true); }}
+                  onDragLeave={() => setFormDocDragOver(false)}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setFormDocDragOver(false);
+                    const files = Array.from(e.dataTransfer.files).filter(
+                      f => f.type === "application/pdf" || /\.pdf$/i.test(f.name)
+                    );
+                    if (files.length > 0) handleFormDocUpload(files);
+                  }}
+                  onClick={() => formDocFileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center py-8 gap-3 ${
+                    formDocDragOver ? "border-primary bg-primary/5" : "border-white/10 hover:border-primary/50 hover:bg-white/5"
+                  }`}
+                >
+                  {formDocSaving ? (
+                    <>
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <p className="text-white/50 text-sm font-sans">Uploading...</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={28} className="text-primary/50" />
+                      <div className="text-center">
+                        <p className="text-white/70 text-sm font-sans">Drag PDFs here or <span className="text-primary">click to choose</span></p>
+                        <p className="text-white/30 text-xs font-sans mt-1">PDF only — up to 25 MB each, 10 files max</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {formDocError && <p className="text-red-400 text-xs font-sans mt-2">{formDocError}</p>}
+
+                {formDocs.length > 0 && (
+                  <div className="border border-white/5 mt-3">
+                    {formDocs.map((doc, i) => (
+                      <div key={doc.url + i} className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/2 group/doc">
+                        <FileText size={14} className="text-primary/50 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <input
+                            value={doc.name}
+                            onChange={e => {
+                              const newName = e.target.value;
+                              setFormDocs(prev => prev.map((d, j) => j === i ? { ...d, name: newName } : d));
+                            }}
+                            className="bg-transparent text-white/80 text-sm font-sans w-full focus:outline-none focus:text-white border-b border-transparent focus:border-white/20 transition-colors"
+                          />
+                          <p className="text-white/30 text-[10px] font-sans mt-0.5">
+                            {doc.type}{doc.size ? ` · ${doc.size}` : ""}
+                          </p>
+                        </div>
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white/20 hover:text-primary transition-colors opacity-0 group-hover/doc:opacity-100"
+                          title="Open file"
+                        >
+                          <Eye size={14} />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setFormDocs(prev => prev.filter((_, j) => j !== i))}
+                          className="text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover/doc:opacity-100"
+                          title="Remove document"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <RichTextArea
                 label="Description"
                 value={form.description}
@@ -1279,7 +1449,7 @@ function YachtsView() {
               {saving ? "Saving..." : editingId ? "Save Changes" : "Save to Database"}
             </button>
             <button
-              onClick={() => { setShowForm(false); setFormError(""); setEditingId(null); setForm(EMPTY_FORM); setFormPhotos([]); setFormIsPrivate(false); setAiNote(null); }}
+              onClick={() => { setShowForm(false); setFormError(""); setEditingId(null); setForm(EMPTY_FORM); setFormPhotos([]); setFormDocs([]); setFormDocError(""); setFormIsPrivate(false); setAiNote(null); }}
               className="border border-white/10 text-white/50 px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/70 transition-colors"
             >
               Cancel
