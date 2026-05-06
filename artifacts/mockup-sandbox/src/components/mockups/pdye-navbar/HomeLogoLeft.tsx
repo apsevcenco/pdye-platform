@@ -86,7 +86,7 @@ export function HomeLogoLeft() {
       </section>
 
       {/* Expertise teaser */}
-      <section className="py-24 bg-[#0a1426] border-t border-white/5">
+      <section className="py-24 bg-[#070f1a]">
         <div className="max-w-7xl mx-auto px-10">
           <div className="text-center mb-14">
             <span className="text-[#c8a46b] font-bold tracking-[0.22em] text-[11px] uppercase">Our Expertise</span>
