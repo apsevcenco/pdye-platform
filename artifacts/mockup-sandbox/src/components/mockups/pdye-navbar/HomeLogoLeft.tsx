@@ -25,12 +25,12 @@ export function HomeLogoLeft() {
           </a>
 
           {/* Centered nav — perfectly symmetric, evenly spaced */}
-          <nav className="hidden lg:flex items-center gap-12 absolute left-1/2 -translate-x-1/2">
+          <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2 whitespace-nowrap">
             {NAV_LINKS.map(l => (
               <a
                 key={l.href}
                 href={l.href}
-                className="group relative font-sans font-semibold text-[11px] tracking-[0.18em] uppercase text-white/60 hover:text-white transition-colors duration-300 py-1"
+                className="group relative font-sans font-semibold text-[11px] tracking-[0.16em] uppercase text-white/60 hover:text-white transition-colors duration-300 py-1 whitespace-nowrap"
               >
                 {l.name}
                 <span className="absolute -bottom-1.5 left-0 h-[1px] w-0 bg-[#c8a46b] transition-all duration-300 group-hover:w-full" />
