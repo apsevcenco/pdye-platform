@@ -2088,7 +2088,8 @@ function DealsManageView() {
     try {
       await dealRoomApi.update(room.id, { status: "closed" });
       await dealRoomApi.createAuditLog({ entity_type: "deal_room", entity_id: room.id, user_id: user?.id || "", action: "deal_room_closed", meta: {} });
-      setSelectedRoom(null);
+      // Keep the room selected so admin can still see Archive / Reopen buttons.
+      setSelectedRoom({ ...room, status: "closed" });
     } catch (e: any) {
       console.error("[Admin] closeRoom failed:", e);
       alert(`Failed to close room: ${e?.message || "Unknown error"}`);
