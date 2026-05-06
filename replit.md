@@ -69,7 +69,6 @@ The project is a pnpm workspace monorepo utilizing TypeScript.
 **Monorepo Structure:**
 -   `artifacts/pdye/`: Frontend application.
 -   `artifacts/api-server/`: Backend API.
--   `artifacts/mockup-sandbox/`: Component preview server.
 
 ## External Dependencies
 
