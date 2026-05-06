@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { CheckCircle, Loader2, TrendingUp, Briefcase, Ship } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import { getSiteSectionData } from "@/lib/siteContent";
 
 const lbl = "block text-white/55 text-[10px] font-bold mb-1.5 uppercase tracking-widest font-sans";
@@ -32,11 +32,12 @@ export default function Access() {
     });
   }, []);
 
+  // Note: role tabs intentionally have NO icons — labels only — to match the
+  // rest of the Navy Discipline UI and the user's explicit design ask.
   const ROLES = [
     {
       key: "investor" as RoleKey,
       label: "Private Buyer",
-      icon: TrendingUp,
       tag: t.investor.tag,
       heading: t.investor.heading,
       sub: t.investor.sub,
@@ -50,7 +51,6 @@ export default function Access() {
     {
       key: "broker" as RoleKey,
       label: "Broker",
-      icon: Briefcase,
       tag: t.broker.tag,
       heading: t.broker.heading,
       sub: t.broker.sub,
@@ -64,7 +64,6 @@ export default function Access() {
     {
       key: "owner" as RoleKey,
       label: "Yacht Owner",
-      icon: Ship,
       tag: t.owner.tag,
       heading: t.owner.heading,
       sub: t.owner.sub,
@@ -92,6 +91,8 @@ export default function Access() {
   const [focus, setFocus] = useState("");
 
   const [bCompany, setBCompany] = useState("");
+  // Address mirrors the field on /brokers — keeps the two intake forms identical.
+  const [bAddress, setBAddress] = useState("");
   const [license, setLicense] = useState("");
   const [experience, setExperience] = useState("");
   const [brokerType, setBrokerType] = useState("");
@@ -99,12 +100,14 @@ export default function Access() {
   const [vessel, setVessel] = useState("");
   const [length, setLength] = useState("");
   const [year, setYear] = useState("");
+  // Current location mirrors the field on /boat-owners.
+  const [oLocation, setOLocation] = useState("");
 
   function resetForm() {
     setName(""); setEmail(""); setPhone(""); setMessage("");
     setCompany(""); setCapacity(""); setFocus("");
-    setBCompany(""); setLicense(""); setExperience(""); setBrokerType("");
-    setVessel(""); setLength(""); setYear("");
+    setBCompany(""); setBAddress(""); setLicense(""); setExperience(""); setBrokerType("");
+    setVessel(""); setLength(""); setYear(""); setOLocation("");
     setError("");
   }
 
@@ -117,7 +120,8 @@ export default function Access() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim()) { setError("Full name and email are required."); return; }
-    if (role === "investor" && !capacity) { setError("Please select an investment budget."); return; }
+    // Owner vessel name is required — matches /boat-owners validation rule.
+    if (role === "owner" && !vessel.trim()) { setError("Please enter your vessel name."); return; }
 
     setLoading(true);
     setError("");
@@ -126,29 +130,52 @@ export default function Access() {
       let budget = "";
       let yacht_type = "";
       let leadMsg = "";
+      const extra: Record<string, string | null> = {};
 
       if (role === "investor") {
+        // Mirror /private-buyers (Investors.tsx) payload shape exactly.
         budget = `${capacity}${company ? " · " + company : ""}`;
         yacht_type = "Private Buyer Application";
         leadMsg = `Focus: ${focus || "—"}. ${message}`;
       } else if (role === "broker") {
-        budget = `${experience}${bCompany ? " · " + bCompany : ""}${license ? " · Lic: " + license : ""}`;
+        // Mirror /brokers (Brokers.tsx) payload shape exactly, including the
+        // separate company / location columns and the address surfaced in the
+        // free-text message as a graceful fallback.
+        budget = `${experience}${bCompany ? " · " + bCompany : ""}${license ? " · License: " + license : ""}`;
         yacht_type = "Broker Application";
-        leadMsg = `Partnership: ${brokerType || "—"}. ${message}`;
+        leadMsg = `Partnership type: ${brokerType || "—"}. ${message}`;
+        extra.company = bCompany || null;
+        extra.location = bAddress || null;
       } else {
+        // Mirror /boat-owners (BoatOwners.tsx) payload shape.
         budget = `${vessel}${length ? " · " + length : ""}${year ? " · " + year : ""}`;
         yacht_type = "Owner Submission";
-        leadMsg = message;
+        leadMsg = `Location: ${oLocation || "—"}. ${message}`;
       }
 
-      const { error: dbErr } = await supabase.from("leads").insert([{
+      const payload: Record<string, any> = {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || null,
         budget,
         yacht_type,
         message: leadMsg.trim() || null,
-      }]);
+        ...extra,
+      };
+
+      let { error: dbErr } = await supabase.from("leads").insert([payload]);
+      // Older lead schemas may not have the `company` or `location` columns
+      // yet — same fallback as Brokers.tsx so the broker intake still saves.
+      if (dbErr && /column .* does not exist|Could not find the .* column/i.test(dbErr.message)) {
+        const fallback = { ...payload };
+        delete fallback.company;
+        delete fallback.location;
+        if (role === "broker") {
+          fallback.message = `${leadMsg}\n\nCompany: ${bCompany || "—"}\nAddress: ${bAddress || "—"}`.trim();
+        }
+        const retry = await supabase.from("leads").insert([fallback]);
+        dbErr = retry.error;
+      }
 
       if (dbErr) throw new Error(dbErr.message);
       setSubmitted(true);
@@ -198,18 +225,23 @@ export default function Access() {
             transition={{ duration: 0.6 }}
             className="max-w-lg w-full mx-auto"
           >
-            <div className="flex mb-8 bg-white/5 border border-white/15 p-1 gap-1">
+            {/* Role tabs — Navy Discipline style: bordered "ghost" buttons,
+             *  no icons, label-only. Active state mirrors the primary CTA
+             *  treatment used elsewhere on the platform. */}
+            <div className="flex mb-8 border border-white/10 gap-0">
               {ROLES.map(r => {
-                const Icon = r.icon;
                 const active = role === r.key;
                 return (
-                  <button key={r.key} type="button" onClick={() => switchRole(r.key)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 font-sans ${
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => switchRole(r.key)}
+                    className={`flex-1 py-3 px-3 text-[11px] font-bold uppercase tracking-widest transition-all duration-300 font-sans border-r border-white/10 last:border-r-0 ${
                       active
-                        ? "bg-primary text-[#0a1628] shadow-[0_0_12px_rgba(200,164,107,0.25)]"
-                        : "text-white/60 hover:text-white hover:bg-white/8"
-                    }`}>
-                    <Icon size={13} strokeWidth={active ? 2.5 : 1.8} />
+                        ? "bg-white/5 backdrop-blur-md border-primary text-primary"
+                        : "bg-transparent text-white/50 hover:text-white hover:bg-white/5"
+                    }`}
+                  >
                     {r.label}
                   </button>
                 );
@@ -241,19 +273,46 @@ export default function Access() {
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }} className="space-y-4">
 
+                  {/* Top-of-form labels AND placeholders are role-aware so each
+                   *  tab is letter-for-letter identical to its public-page
+                   *  sibling — investor → /private-buyers, broker → /brokers,
+                   *  owner → /boat-owners. */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
-                      <label className={lbl}>Full Name *</label>
-                      <input value={name} onChange={e => setName(e.target.value)} required className={inp} placeholder="Jean-Pierre Moreau" />
+                      <label className={lbl}>{role === "owner" ? "Your Name *" : "Full Name *"}</label>
+                      <input
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        required
+                        className={inp}
+                        placeholder={role === "broker" ? "Roberto Sforza" : "Jean-Pierre Moreau"}
+                      />
                     </div>
 
                     <div>
-                      <label className={lbl}>Email *</label>
-                      <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className={inp} placeholder="you@example.com" />
+                      <label className={lbl}>{role === "owner" ? "Email *" : "Email Address *"}</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        required
+                        className={inp}
+                        placeholder={
+                          role === "investor" ? "jp@moreau-capital.com"
+                            : role === "broker" ? "r.sforza@brokerage.com"
+                            : "owner@example.com"
+                        }
+                      />
                     </div>
                     <div>
-                      <label className={lbl}>Phone</label>
-                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inp} placeholder="+33 6 00 00 00 00" />
+                      <label className={lbl}>{role === "owner" ? "Phone" : "Phone / WhatsApp"}</label>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        className={inp}
+                        placeholder={role === "broker" ? "+39 02 000 0000" : "+33 6 00 00 00 00"}
+                      />
                     </div>
                   </div>
 
@@ -261,39 +320,49 @@ export default function Access() {
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
+                          {/* Placeholder mirrors /private-buyers exactly. */}
                           <label className={lbl}>Company / Fund</label>
-                          <input value={company} onChange={e => setCompany(e.target.value)} className={inp} placeholder="Family Office LLC" />
+                          <input value={company} onChange={e => setCompany(e.target.value)} className={inp} placeholder="Moreau Capital" />
                         </div>
                         <div>
-                          <label className={lbl}>Investment Budget *</label>
-                          <select value={capacity} onChange={e => setCapacity(e.target.value)} required className={sel}>
+                          {/* Optional — matches the /private-buyers form on the public site. */}
+                          <label className={lbl}>Investment Capacity</label>
+                          <select value={capacity} onChange={e => setCapacity(e.target.value)} className={sel}>
                             <option value="">Select range...</option>
                             {CAPACITY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
                         </div>
                       </div>
                       <div>
-                        <label className={lbl}>Preferred Yacht Type / Region</label>
-                        <input value={focus} onChange={e => setFocus(e.target.value)} className={inp} placeholder="Motor Yacht 30–50m, Mediterranean..." />
+                        {/* Label + placeholder mirror /private-buyers exactly. */}
+                        <label className={lbl}>Asset Focus</label>
+                        <input value={focus} onChange={e => setFocus(e.target.value)} className={inp} placeholder="e.g. Motor yachts 30m+, Mediterranean, distressed only" />
                       </div>
                       <div>
-                        <label className={lbl}>Message</label>
-                        <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Specific requirements, timeline, acquisition criteria..." />
+                        <label className={lbl}>Additional Information</label>
+                        <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Investment timeline, preferred deal structure, any specific requirements..." />
                       </div>
                     </>
                   )}
 
                   {role === "broker" && (
                     <>
+                      {/* Placeholders mirror /brokers exactly. */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className={lbl}>Company / Brokerage</label>
-                          <input value={bCompany} onChange={e => setBCompany(e.target.value)} className={inp} placeholder="Burgess Yachts" />
+                          <label className={lbl}>Agency / Company</label>
+                          <input value={bCompany} onChange={e => setBCompany(e.target.value)} className={inp} placeholder="Sforza Maritime" />
                         </div>
                         <div>
-                          <label className={lbl}>License / Certification</label>
-                          <input value={license} onChange={e => setLicense(e.target.value)} className={inp} placeholder="MYBA, ABYA, IYBA..." />
+                          <label className={lbl}>Broker License / MLS No.</label>
+                          <input value={license} onChange={e => setLicense(e.target.value)} className={inp} placeholder="Optional" />
                         </div>
+                      </div>
+                      {/* Address — mirrors the field on /brokers so the two intake
+                       *  surfaces collect the same data for the same role. */}
+                      <div>
+                        <label className={lbl}>Address</label>
+                        <input value={bAddress} onChange={e => setBAddress(e.target.value)} className={inp} placeholder="Via dei Marinai 12, 80133 Napoli, Italy" />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -312,8 +381,9 @@ export default function Access() {
                         </div>
                       </div>
                       <div>
-                        <label className={lbl}>Message</label>
-                        <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Current deal flow, specialisation, markets..." />
+                        {/* Label + placeholder mirror /brokers exactly. */}
+                        <label className={lbl}>Additional Information</label>
+                        <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Specialization, markets, current portfolio, any specific requirements..." />
                       </div>
                     </>
                   )}
@@ -321,22 +391,31 @@ export default function Access() {
                   {role === "owner" && (
                     <>
                       <div>
-                        <label className={lbl}>Vessel Description *</label>
-                        <input value={vessel} onChange={e => setVessel(e.target.value)} required className={inp} placeholder="e.g. Motor Yacht, Ferretti 881, 2015, GRP..." />
+                        <label className={lbl}>Vessel Name *</label>
+                        <input value={vessel} onChange={e => setVessel(e.target.value)} required className={inp} placeholder="AURELIA" />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      {/* 3-column row mirrors /boat-owners — Length, Year and the
+                       *  Current Location field that was previously missing here. */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                          <label className={lbl}>Length (approx.)</label>
-                          <input value={length} onChange={e => setLength(e.target.value)} className={inp} placeholder="e.g. 27m / 88ft" />
+                          <label className={lbl}>Length (m)</label>
+                          <input value={length} onChange={e => setLength(e.target.value)} className={inp} placeholder="38.5 m" />
                         </div>
                         <div>
-                          <label className={lbl}>Build Year</label>
-                          <input type="number" value={year} onChange={e => setYear(e.target.value)} min={1950} max={2025} className={inp} placeholder="e.g. 2015" />
+                          {/* Plain text input — mirrors /boat-owners (which does
+                           *  not constrain the year input). */}
+                          <label className={lbl}>Year Built</label>
+                          <input value={year} onChange={e => setYear(e.target.value)} className={inp} placeholder="2018" />
+                        </div>
+                        <div>
+                          <label className={lbl}>Current Location</label>
+                          <input value={oLocation} onChange={e => setOLocation(e.target.value)} className={inp} placeholder="Monaco" />
                         </div>
                       </div>
                       <div>
-                        <label className={lbl}>Additional Information</label>
-                        <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Condition, refit history, reason for sale, preferred timeline..." />
+                        {/* Label + placeholder mirror /boat-owners exactly. */}
+                        <label className={lbl}>Additional Details</label>
+                        <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Builder, asking price expectations, urgency, and any relevant notes..." />
                       </div>
                     </>
                   )}
