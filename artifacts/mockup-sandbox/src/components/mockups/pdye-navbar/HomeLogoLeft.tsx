@@ -6,7 +6,7 @@ const NAV_LINKS = [
   { name: "Boat Owners", href: "/boat-owners" },
   { name: "Brokers", href: "/brokers" },
   { name: "Buyers", href: "/private-buyers" },
-  { name: "Valuation", href: "/valuation" },
+  { name: "Yacht Valuation", href: "/valuation" },
 ];
 
 export function HomeLogoLeft() {
