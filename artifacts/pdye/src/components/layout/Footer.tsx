@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Mail, Phone, MapPin, Clock, MessageCircle } from "lucide-react";
 import { getSiteSectionData } from "@/lib/siteContent";
+import { openCookieSettings } from "@/components/CookieConsent";
 
 export function Footer() {
   const brand = getSiteSectionData("footer", "brand");
@@ -74,6 +75,8 @@ export function Footer() {
           <div className="flex gap-6 text-sm text-[#f4ecd8]/45">
             <Link href="/privacy-policy" className="hover:text-[#f4ecd8] transition-colors">{legal.privacy || "Privacy Policy"}</Link>
             <Link href="/legal-notice" className="hover:text-[#f4ecd8] transition-colors">Legal Notice</Link>
+            <Link href="/cookie-policy" className="hover:text-[#f4ecd8] transition-colors">Cookie Policy</Link>
+            <button type="button" onClick={openCookieSettings} className="hover:text-[#f4ecd8] transition-colors text-left">Cookie settings</button>
             <Link href="/admin" className="hover:text-[#f4ecd8]/70 transition-colors opacity-20 hover:opacity-60">Admin</Link>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { CurrencyProvider } from "@/lib/currency";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Anchor } from "lucide-react";
 import NotFound from "@/pages/not-found";
+import { CookieConsent } from "@/components/CookieConsent";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -36,6 +37,7 @@ const AdminYachtReview = lazy(() => import("./pages/AdminYachtReview"));
 const AdminLegalPages = lazy(() => import("./pages/AdminLegalPages"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const LegalNotice = lazy(() => import("./pages/LegalNotice"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const Profile = lazy(() => import("./pages/Profile"));
 const PlatformNda = lazy(() => import("./pages/PlatformNda"));
 
@@ -160,6 +162,7 @@ function Router() {
         <Route path="/valuation" component={Valuation} />
         <Route path="/privacy-policy" component={PrivacyPolicy} />
         <Route path="/legal-notice" component={LegalNotice} />
+        <Route path="/cookie-policy" component={CookiePolicy} />
 
         {/* Platform CNCA — auth required but bypasses CNCA gate (otherwise infinite redirect) */}
         <Route path="/platform-nda" component={() => <ProtectedRoute component={PlatformNda} skipNdaGate />} />
@@ -200,6 +203,7 @@ function App() {
             <Router />
           </WouterRouter>
           <Toaster />
+          <CookieConsent />
         </TooltipProvider>
       </CurrencyProvider>
     </AuthProvider>
