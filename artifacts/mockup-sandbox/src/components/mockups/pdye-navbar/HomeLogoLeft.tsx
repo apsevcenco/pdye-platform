@@ -1,3 +1,4 @@
+import "./_group.css";
 import { Anchor, Shield, FileCheck, TrendingUp } from "lucide-react";
 
 const NAV_LINKS = [
@@ -18,7 +19,7 @@ export function HomeLogoLeft() {
           {/* Logo — left, untouched (matches main app) */}
           <a href="/" className="flex items-center gap-2.5 group flex-shrink-0">
             <Anchor size={24} className="text-[#c8a46b] group-hover:text-white transition-colors duration-300" strokeWidth={1.8} />
-            <span className="font-['Playfair_Display'] font-normal text-[26px] tracking-[0.22em] text-white group-hover:text-[#c8a46b] transition-colors duration-300">
+            <span className="font-['Gilroy'] font-normal text-[26px] tracking-[0.22em] text-white group-hover:text-[#c8a46b] transition-colors duration-300">
               PDYE
             </span>
           </a>
