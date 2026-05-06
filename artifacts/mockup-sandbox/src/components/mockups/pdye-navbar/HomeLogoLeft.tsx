@@ -64,7 +64,7 @@ export function HomeLogoLeft() {
           <span className="text-[#c8a46b] font-bold tracking-[0.22em] text-[12px] md:text-[13px] uppercase mb-7 inline-block border border-[#c8a46b]/30 px-4 py-1.5 bg-[#070f1a]/30 backdrop-blur-md">
             By Invitation · Off-Market
           </span>
-          <h1 className="text-5xl md:text-7xl text-white font-bold leading-[1.1] mb-7 font-['Playfair_Display']">
+          <h1 className="text-5xl md:text-7xl text-white font-bold leading-[1.1] mb-7 font-['Gilroy'] tracking-tight">
             Private Distressed<br />Yacht Exchange
           </h1>
           <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-light leading-relaxed mb-10">
