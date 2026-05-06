@@ -51,9 +51,12 @@ export function HomeLogoLeft() {
       {/* Hero */}
       <section className="relative h-[90vh] min-h-[640px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1920&q=80"
-            alt="Luxury Yacht"
+          <video
+            src="/__mockup/videos/hero.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
             className="w-full h-full object-cover scale-105"
           />
           <div className="absolute inset-0 bg-[#070f1a]/70 mix-blend-multiply" />
