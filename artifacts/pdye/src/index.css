@@ -113,7 +113,7 @@
   --font-sans: 'DM Sans', sans-serif;
   --font-serif: 'Gilroy', sans-serif;
   --font-mono: 'DM Sans', monospace;
-  --font-display: 'Gilroy', sans-serif;
+  --font-display: 'Fraunces', 'Gilroy', serif;
 
   --radius-sm: 0px;
   --radius-md: 2px;
@@ -218,15 +218,20 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Gilroy', sans-serif;
-    font-weight: 800;
-    @apply tracking-tight;
+    font-family: 'Fraunces', 'Gilroy', serif;
+    font-weight: 400;
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" 144;
+    letter-spacing: -0.015em;
   }
 }
 
 @layer utilities {
   .font-display {
-    font-family: 'Gilroy', sans-serif;
+    font-family: 'Fraunces', 'Gilroy', serif;
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" 144;
+    letter-spacing: -0.015em;
   }
 
   .text-balance {

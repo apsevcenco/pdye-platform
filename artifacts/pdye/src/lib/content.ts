@@ -50,7 +50,7 @@ export const PAGE_DEFAULTS: Record<string, PageContent> = {
 export const HERO_DEFAULTS: HeroContent = {
   title: "Private Access To Off-Market Yachts",
   subtitle: "Confidential brokerage connecting qualified private buyers with distressed and off-market Mediterranean yacht opportunities.",
-  titleFont: "'Gilroy', sans-serif",
+  titleFont: "'Fraunces', 'Gilroy', serif",
   titleSize: "text-4xl sm:text-6xl md:text-7xl lg:text-8xl",
 };
 
