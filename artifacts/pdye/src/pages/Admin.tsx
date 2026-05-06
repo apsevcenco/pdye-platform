@@ -47,6 +47,7 @@ import {
   Type,
   ShieldCheck,
   Upload,
+  AlertTriangle,
 } from "lucide-react";
 import { GOOGLE_FONTS } from "@/lib/googleFonts";
 import {
@@ -1954,31 +1955,41 @@ function DealsManageView() {
     setCreating(false);
   }
 
+  const [loadError, setLoadError] = useState<string>("");
+
   async function load() {
     setLoading(true);
-    const allRooms = (await dealRoomApi.list({ includeArchived: true })) as DealRoom[];
+    setLoadError("");
+    try {
+      const allRooms = (await dealRoomApi.list({ includeArchived: true })) as DealRoom[];
 
-    if (allRooms.length > 0) {
-      const userIds = [...new Set([...allRooms.map(r => r.buyer_user_id), ...allRooms.map(r => r.seller_user_id)].filter(Boolean))];
-      const { data: users } = await supabase.from("users").select("id, email").in("id", userIds as string[]);
-      const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, u.email]));
+      if (allRooms.length > 0) {
+        const userIds = [...new Set([...allRooms.map(r => r.buyer_user_id), ...allRooms.map(r => r.seller_user_id)].filter(Boolean))];
+        const { data: users } = await supabase.from("users").select("id, email").in("id", userIds as string[]);
+        const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, u.email]));
 
-      const yachtIds = [...new Set(allRooms.map(r => r.yacht_id).filter(Boolean))];
-      const { data: yachts } = yachtIds.length > 0
-        ? await supabase.from("yachts").select("id, name").in("id", yachtIds)
-        : { data: [] };
-      const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
+        const yachtIds = [...new Set(allRooms.map(r => r.yacht_id).filter(Boolean))];
+        const { data: yachts } = yachtIds.length > 0
+          ? await supabase.from("yachts").select("id, name").in("id", yachtIds)
+          : { data: [] };
+        const yachtMap = Object.fromEntries((yachts || []).map((y: any) => [y.id, y.name]));
 
-      setRooms(allRooms.map(r => ({
-        ...r,
-        yacht_name: yachtMap[r.yacht_id] || "Unknown",
-        buyer_email: r.buyer_user_id ? userMap[r.buyer_user_id] || "—" : "—",
-        seller_email: r.seller_user_id ? userMap[r.seller_user_id] || "—" : "—",
-      })));
-    } else {
+        setRooms(allRooms.map(r => ({
+          ...r,
+          yacht_name: yachtMap[r.yacht_id] || "Unknown",
+          buyer_email: r.buyer_user_id ? userMap[r.buyer_user_id] || "—" : "—",
+          seller_email: r.seller_user_id ? userMap[r.seller_user_id] || "—" : "—",
+        })));
+      } else {
+        setRooms([]);
+      }
+    } catch (e: any) {
+      console.error("[DealsManageView] load failed:", e);
+      setLoadError(e?.message || "Failed to load deal rooms. Please refresh the page or check your connection.");
       setRooms([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const [restoreRoomId] = useState<string | null>(() => {
@@ -2426,7 +2437,19 @@ function DealsManageView() {
         </div>
       </div>
 
-      {loading ? (
+      {loadError ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <AlertTriangle size={32} className="text-red-400 mb-3" />
+          <p className="text-red-400 text-sm font-sans mb-2">Could not load deal rooms</p>
+          <p className="text-white/40 text-xs font-sans max-w-md mb-4">{loadError}</p>
+          <button
+            onClick={() => load()}
+            className="border border-primary/40 text-primary px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
         <div className="flex items-center justify-center py-20 text-white/30 text-sm">Loading…</div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-white/30">
