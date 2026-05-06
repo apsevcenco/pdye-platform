@@ -2,6 +2,7 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/pdye-navbar/CenteredSplit.tsx": () => import("../components/mockups/pdye-navbar/CenteredSplit.tsx"),
+  "./components/mockups/pdye-navbar/HomeLogoLeft.tsx": () => import("../components/mockups/pdye-navbar/HomeLogoLeft.tsx"),
   "./components/mockups/pdye-navbar/HomeWithSplitNav.tsx": () => import("../components/mockups/pdye-navbar/HomeWithSplitNav.tsx"),
   "./components/mockups/pdye-navbar/SymmetricSerif.tsx": () => import("../components/mockups/pdye-navbar/SymmetricSerif.tsx"),
   "./components/mockups/pdye-navbar/TwoTierUtility.tsx": () => import("../components/mockups/pdye-navbar/TwoTierUtility.tsx")
