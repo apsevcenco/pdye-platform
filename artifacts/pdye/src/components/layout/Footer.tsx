@@ -39,9 +39,8 @@ export function Footer() {
             &copy; {new Date().getFullYear()} {legal.copyright}
           </p>
           <div className="flex gap-6 text-sm text-white/40">
-            <a href="#" className="hover:text-white transition-colors">{legal.privacy}</a>
-            <a href="#" className="hover:text-white transition-colors">{legal.terms}</a>
-            <a href="#" className="hover:text-white transition-colors">{legal.confidentiality}</a>
+            <Link href="/privacy-policy" className="hover:text-white transition-colors">{legal.privacy || "Privacy Policy"}</Link>
+            <Link href="/legal-notice" className="hover:text-white transition-colors">Legal Notice</Link>
             <Link href="/admin" className="hover:text-white/60 transition-colors opacity-20 hover:opacity-60">Admin</Link>
           </div>
         </div>

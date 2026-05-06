@@ -33,6 +33,9 @@ const AdminPlatformNda = lazy(() => import("./pages/AdminPlatformNda"));
 const AdminDealNda = lazy(() => import("./pages/AdminDealNda"));
 const AdminDealCommission = lazy(() => import("./pages/AdminDealCommission"));
 const AdminYachtReview = lazy(() => import("./pages/AdminYachtReview"));
+const AdminLegalPages = lazy(() => import("./pages/AdminLegalPages"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const LegalNotice = lazy(() => import("./pages/LegalNotice"));
 const Profile = lazy(() => import("./pages/Profile"));
 const PlatformNda = lazy(() => import("./pages/PlatformNda"));
 
@@ -126,6 +129,8 @@ function Router() {
         <Route path="/brokers" component={Brokers} />
         <Route path="/private-buyers" component={Investors} />
         <Route path="/valuation" component={Valuation} />
+        <Route path="/privacy-policy" component={PrivacyPolicy} />
+        <Route path="/legal-notice" component={LegalNotice} />
 
         {/* Platform NDA — auth required but bypasses NDA gate (otherwise infinite redirect) */}
         <Route path="/platform-nda" component={() => <ProtectedRoute component={PlatformNda} skipNdaGate />} />
@@ -147,6 +152,7 @@ function Router() {
         <Route path="/admin-platform-nda" component={() => <ProtectedRoute component={AdminPlatformNda} adminOnly />} />
         <Route path="/admin-deal-nda" component={() => <ProtectedRoute component={AdminDealNda} adminOnly />} />
         <Route path="/admin-deal-commission" component={() => <ProtectedRoute component={AdminDealCommission} adminOnly />} />
+        <Route path="/admin-legal" component={() => <ProtectedRoute component={AdminLegalPages} adminOnly />} />
         <Route path="/admin/yachts/:id" component={() => <ProtectedRoute component={AdminYachtReview} adminOnly />} />
 
         <Route component={NotFound} />

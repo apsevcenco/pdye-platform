@@ -13,6 +13,7 @@ import dealLegalRouter from "./dealLegal";
 import dealCommissionRouter from "./dealCommission";
 import userAdminRouter from "./userAdmin";
 import yachtModerationRouter from "./yachtModeration";
+import legalPagesRouter from "./legalPages";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(dealLegalRouter);
 router.use(dealCommissionRouter);
 router.use(userAdminRouter);
 router.use(yachtModerationRouter);
+router.use(legalPagesRouter);
 
 export default router;
