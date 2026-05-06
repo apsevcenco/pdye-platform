@@ -377,7 +377,7 @@ export default function DealDetails() {
           </button>
 
           {/* ══════ 1. TOP HEADER / SUMMARY BAR ══════ */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="bg-[#0f1d33] border border-white/8 p-6 mb-6">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="bg-white/[0.02] border border-white/8 p-6 mb-6">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
@@ -433,7 +433,7 @@ export default function DealDetails() {
                 <button onClick={nextAction.ctaAction} className={`flex-shrink-0 px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${
                   nextAction.urgent
                     ? "bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/25"
-                    : "bg-primary text-background hover:bg-primary/90"
+                    : "bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white"
                 }`}>
                   {nextAction.ctaIcon && <nextAction.ctaIcon size={12} />}
                   {nextAction.cta}
@@ -574,7 +574,7 @@ function TransactionTimeline({ room }: { room: DealRoom }) {
   const isCancelled = room.status === "cancelled";
 
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+    <div className="bg-white/[0.02] border border-white/8 p-5 mb-6">
       <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-5">Transaction Progress</p>
       <div className="flex items-start gap-0 overflow-x-auto pb-2">
         {FULL_TIMELINE.map((step, i) => {
@@ -620,12 +620,12 @@ function OverviewTab({ yacht, room, isBlockUnlocked, isAdmin, canSeeIdentities }
   return (
     <div className="space-y-6">
       {yacht.main_image && (
-        <div className="relative overflow-hidden border border-white/8 bg-[#0f1d33]">
+        <div className="relative overflow-hidden border border-white/8 bg-white/[0.02]">
           <img src={yacht.main_image} alt={yacht.name || "Yacht"} className="w-full h-[300px] object-cover" />
           {!showFull && <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent flex items-end p-6"><p className="text-white/40 text-sm font-sans italic">Full gallery available after room activation</p></div>}
         </div>
       )}
-      <div className="bg-[#0f1d33] border border-white/8 p-6">
+      <div className="bg-white/[0.02] border border-white/8 p-6">
         <h2 className="font-display text-xl text-white mb-4">{showFull ? yacht.name : `${yacht.builder || "Vessel"} · ${yacht.year || ""}`}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
@@ -710,7 +710,7 @@ function SpecificationsTab({ yacht, isBlockUnlocked, isAdmin }: { yacht: YachtFu
         if (!hasData) return null;
         const Icon = section.icon;
         return (
-          <div key={section.title} className="bg-[#0f1d33] border border-white/8">
+          <div key={section.title} className="bg-white/[0.02] border border-white/8">
             <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
               <Icon size={13} className="text-primary/40" />
               <p className="text-white/60 text-xs font-bold uppercase tracking-widest">{section.title}</p>
@@ -743,7 +743,7 @@ function DocumentsTab({ documents, isAdmin, isTerminal }: { documents: DealRoomD
         // Listing docs are merged in by loadRoom() and tagged via _source.
         const fromListing = (doc as DealRoomDocument & { _source?: string })._source === "listing";
         return (
-          <div key={doc.id} className="bg-[#0f1d33] border border-white/8 flex items-center gap-4 px-5 py-4">
+          <div key={doc.id} className="bg-white/[0.02] border border-white/8 flex items-center gap-4 px-5 py-4">
             <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
               <FileText size={16} className="text-primary/60" />
             </div>
@@ -790,7 +790,7 @@ function MediaTab({ yacht, isBlockUnlocked, isAdmin }: { yacht: YachtFull | null
 
   if (!showFull) {
     return (
-      <div className="bg-[#0f1d33] border border-white/8 p-12 text-center">
+      <div className="bg-white/[0.02] border border-white/8 p-12 text-center">
         <Lock size={32} className="text-white/10 mx-auto mb-4" />
         <p className="text-white/40 text-sm font-sans">Full media gallery unlocks after deal room activation.</p>
         {yacht?.main_image && (
@@ -811,7 +811,7 @@ function MediaTab({ yacht, isBlockUnlocked, isAdmin }: { yacht: YachtFull | null
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {unique.map((src, i) => (
         <a key={i} href={src} target="_blank" rel="noopener noreferrer"
-          className="bg-[#0f1d33] border border-white/8 overflow-hidden group cursor-pointer">
+          className="bg-white/[0.02] border border-white/8 overflow-hidden group cursor-pointer">
           <img src={src} alt={`Photo ${i + 1}`} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
         </a>
       ))}
@@ -832,7 +832,7 @@ type MessagesTabProps = {
 };
 function MessagesTab({ messages, participantMap, user, msgText, setMsgText, sendMessage, sending, isTerminal, room, isAdmin, chatContainerRef, messagesEndRef, handleChatScroll, isAtBottom, canSeeIdentities }: MessagesTabProps) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8">
+    <div className="bg-white/[0.02] border border-white/8">
       <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
         <p className="text-white/60 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
           <MessageSquare size={13} /> Communication Hub
@@ -938,7 +938,7 @@ function MessagesTab({ messages, participantMap, user, msgText, setMsgText, send
               onInput={(e: any) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 120) + "px"; }}
             />
             <button onClick={sendMessage} disabled={sending || !msgText.trim()}
-              className="self-end bg-primary text-background px-5 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-20 transition-all flex items-center gap-2 h-[44px]">
+              className="self-end bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-7 py-3 font-bold text-[11px] uppercase tracking-[0.18em] disabled:opacity-20 transition-all flex items-center gap-2 h-[44px]">
               {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Send
             </button>
           </div>
@@ -989,7 +989,7 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
   const showCommissionForm = room.commission_status === "pending" && myCommissionStatus === "sent" && mySide !== "admin";
   return (
     <div className="space-y-6">
-      <div className="bg-[#0f1d33] border border-white/8 p-6">
+      <div className="bg-white/[0.02] border border-white/8 p-6">
         <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-5 flex items-center gap-2"><Shield size={13} /> 1. NDA Compliance (Entry Gate)</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NdaPartyCard side="Buyer" status={room.buyer_nda_status} sentAt={room.buyer_nda_sent_at} signedAt={room.buyer_nda_signed_at} email={canSeeIdentities ? participantMap[room.buyer_user_id || ""]?.email : undefined} />
@@ -1053,7 +1053,7 @@ function LegalTab({ room, mySide, myNdaStatus, showNdaForm, signNda, acceptingNd
       )}
 
       {room.status === "active" && (
-        <div className="bg-[#0f1d33] border border-white/8 p-6">
+        <div className="bg-white/[0.02] border border-white/8 p-6">
           <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-5 flex items-center gap-2"><Scale size={13} /> 2. Commission Agreement (Identity Reveal Gate)</p>
           <p className="text-white/40 text-sm font-sans mb-4">
             Before participant identities, yacht name, and location are disclosed, both parties must sign the Commission Agreement.
@@ -1242,7 +1242,7 @@ function NdaSigningForm({
 
   if (docLoading) {
     return (
-      <div className="bg-[#0f1d33] border border-white/8 p-12 flex items-center justify-center text-white/40 text-xs uppercase tracking-widest gap-3">
+      <div className="bg-white/[0.02] border border-white/8 p-12 flex items-center justify-center text-white/40 text-xs uppercase tracking-widest gap-3">
         <Loader2 size={14} className="animate-spin" /> Loading agreement…
       </div>
     );
@@ -1257,7 +1257,7 @@ function NdaSigningForm({
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#0f1d33] border border-orange-500/20 p-6">
+      <div className="bg-white/[0.02] border border-orange-500/20 p-6">
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} className="text-orange-400" />
@@ -1388,7 +1388,7 @@ function NdaSigningForm({
       <button
         onClick={handleSign}
         disabled={!canSubmit}
-        className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-3.5 font-bold text-[11px] uppercase tracking-[0.18em] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {accepting ? (
           <><RefreshCw size={14} className="animate-spin" /> Signing…</>
@@ -1487,7 +1487,7 @@ function CommissionSigningForm({
 
   if (docLoading) {
     return (
-      <div className="bg-[#0f1d33] border border-white/8 p-12 flex items-center justify-center text-white/40 text-xs uppercase tracking-widest gap-3">
+      <div className="bg-white/[0.02] border border-white/8 p-12 flex items-center justify-center text-white/40 text-xs uppercase tracking-widest gap-3">
         <Loader2 size={14} className="animate-spin" /> Loading Commission Agreement…
       </div>
     );
@@ -1502,7 +1502,7 @@ function CommissionSigningForm({
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#0f1d33] border border-orange-500/20 p-6">
+      <div className="bg-white/[0.02] border border-orange-500/20 p-6">
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
             <Scale size={16} className="text-orange-400" />
@@ -1633,7 +1633,7 @@ function CommissionSigningForm({
       <button
         onClick={handleSign}
         disabled={!canSubmit}
-        className="w-full bg-primary text-background py-4 font-bold text-sm uppercase tracking-widest hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-3.5 font-bold text-[11px] uppercase tracking-[0.18em] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {accepting ? (
           <><RefreshCw size={14} className="animate-spin" /> Signing…</>
@@ -1652,7 +1652,7 @@ function CommissionSigningForm({
    ═══════════════════════════════════════════════════ */
 function OffersTab({ isTerminal }: { isTerminal: boolean }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-8 text-center">
+    <div className="bg-white/[0.02] border border-white/8 p-8 text-center">
       <Gavel size={32} className="text-white/10 mx-auto mb-4" />
       <h3 className="font-display text-lg text-white mb-2">Offers & Negotiation</h3>
       <p className="text-white/40 text-sm font-sans mb-4">No offers submitted yet.</p>
@@ -1667,7 +1667,7 @@ function OffersTab({ isTerminal }: { isTerminal: boolean }) {
 function ActivityTab({ activity, participantMap, isAdmin }: { activity: AuditLog[]; participantMap: Record<string, { email: string; role: string }>; isAdmin: boolean }) {
   if (activity.length === 0) return <EmptyState icon={Activity} text="No activity recorded yet" />;
   return (
-    <div className="bg-[#0f1d33] border border-white/8">
+    <div className="bg-white/[0.02] border border-white/8">
       <div className="px-5 py-3 border-b border-white/5">
         <p className="text-white/50 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
           <Activity size={13} /> Audit Trail ({activity.length} entries)
@@ -1700,7 +1700,7 @@ function ActivityTab({ activity, participantMap, isAdmin }: { activity: AuditLog
 function LockedBlockNotice({ block }: { block: string }) {
   const label = BLOCK_LABELS[block as BlockKey] || block;
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-12 text-center">
+    <div className="bg-white/[0.02] border border-white/8 p-12 text-center">
       <Lock size={32} className="text-white/10 mx-auto mb-4" />
       <h3 className="font-display text-lg text-white mb-2">{label} — Locked</h3>
       <p className="text-white/30 text-sm font-sans">This section is currently locked by admin. It will become available when the admin unlocks it.</p>
@@ -1710,7 +1710,7 @@ function LockedBlockNotice({ block }: { block: string }) {
 
 function SidebarStatus({ room, cfg, roomLabel }: { room: DealRoom; cfg: { label: string; color: string }; roomLabel: string }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Current Status</p>
         <span className="text-primary/80 text-xs font-mono font-bold">{roomLabel}</span>
@@ -1743,7 +1743,7 @@ function SidebarParticipants({ room, participantMap, canSeeIdentities }: { room:
   ].filter(p => p.id);
 
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Users size={11} /> Participants</p>
       <div className="space-y-3">
         {parts.map(p => {
@@ -1773,7 +1773,7 @@ function SidebarParticipants({ room, participantMap, canSeeIdentities }: { room:
 
 function SidebarNda({ room }: { room: DealRoom }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={11} /> NDA Status</p>
       <div className="space-y-2">
         {[
@@ -1796,7 +1796,7 @@ function SidebarNda({ room }: { room: DealRoom }) {
 
 function SidebarCommission({ room }: { room: DealRoom }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Scale size={11} /> Commission</p>
       <div className="space-y-2">
         {[
@@ -1836,7 +1836,7 @@ function SidebarBlocks({ blocks, roomId, onReload }: { blocks: BlockVisibility; 
   }
 
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Settings size={11} /> Block Visibility</p>
       <div className="space-y-1.5">
         {BLOCK_KEYS.map(key => {
@@ -1860,7 +1860,7 @@ function SidebarBlocks({ blocks, roomId, onReload }: { blocks: BlockVisibility; 
 
 function SidebarBlocksReadOnly({ blocks }: { blocks: BlockVisibility }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Eye size={11} /> Information Access</p>
       <div className="space-y-1.5">
         {BLOCK_KEYS.map(key => {
@@ -1882,7 +1882,7 @@ function SidebarBlocksReadOnly({ blocks }: { blocks: BlockVisibility }) {
 
 function SidebarRecentActivity({ activity, participantMap }: { activity: AuditLog[]; participantMap: Record<string, { email: string; role: string }> }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Activity size={11} /> Recent Activity</p>
       <div className="space-y-2">
         {activity.map(log => (
@@ -2003,7 +2003,7 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
   }
 
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-5">
+    <div className="bg-white/[0.02] border border-white/8 p-5">
       <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-3 flex items-center gap-2"><Settings size={11} /> Admin Controls</p>
       <div className="space-y-2">
         {canSendNda && (
@@ -2061,7 +2061,7 @@ function AdminControls({ room, onReload }: { room: DealRoom; onReload: () => voi
    ═══════════════════════════════════════════════════ */
 function EmptyState({ icon: Icon, text, sub }: { icon: any; text: string; sub?: string }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-12 text-center">
+    <div className="bg-white/[0.02] border border-white/8 p-12 text-center">
       <Icon size={32} className="text-white/10 mx-auto mb-4" />
       <p className="text-white/30 text-sm font-sans">{text}</p>
       {sub && <p className="text-white/15 text-xs font-sans mt-2">{sub}</p>}

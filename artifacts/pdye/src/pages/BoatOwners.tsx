@@ -127,7 +127,7 @@ export default function BoatOwners() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="bg-[#0f1d33] border border-white/5 p-8 group hover:border-primary/20 transition-colors"
+                className="bg-white/[0.02] border border-white/5 p-8 group hover:border-primary/20 transition-colors"
               >
                 <b.icon size={28} className="text-primary mb-5" strokeWidth={1.5} />
                 <h3 className="font-display text-xl text-white mb-3" dangerouslySetInnerHTML={{ __html: b.title }} />
@@ -200,7 +200,7 @@ export default function BoatOwners() {
               </div>
               <Link
                 href="/dashboard"
-                className="flex items-center gap-2 bg-primary text-background px-6 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors flex-shrink-0"
+                className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary px-6 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 flex-shrink-0"
               >
                 <LayoutDashboard size={13} /> My Dashboard
               </Link>
@@ -225,7 +225,7 @@ export default function BoatOwners() {
             <motion.div
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-[#0f1d33] border border-primary/20 p-12 text-center"
+              className="bg-white/[0.02] border border-primary/20 p-12 text-center"
             >
               <CheckCircle size={40} className="text-primary mx-auto mb-5" strokeWidth={1.5} />
               <h3 className="font-display text-2xl text-white mb-3" dangerouslySetInnerHTML={{ __html: t.form.success_title }} />
@@ -236,7 +236,7 @@ export default function BoatOwners() {
               </div>
             </motion.div>
           ) : (
-            <form onSubmit={handleSubmit} className="bg-[#0f1d33] border border-white/5 p-8 space-y-5">
+            <form onSubmit={handleSubmit} className="bg-white/[0.02] border border-white/5 p-8 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className={labelCls}>Your Name *</label>

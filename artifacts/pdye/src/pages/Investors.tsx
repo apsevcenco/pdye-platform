@@ -126,7 +126,7 @@ export default function Investors() {
               const Icon = b.icon;
               return (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-                  className="bg-[#0f1d33] border border-white/5 p-8 group hover:border-primary/20 transition-colors">
+                  className="bg-white/[0.02] border border-white/5 p-8 group hover:border-primary/20 transition-colors">
                   <div className="flex items-start gap-5">
                     <div className="w-12 h-12 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:border-primary/40 transition-colors">
                       <Icon size={20} className="text-primary" strokeWidth={1.5} />
@@ -153,13 +153,13 @@ export default function Investors() {
 
           {submitted ? (
             <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
-              className="bg-[#0f1d33] border border-primary/20 p-12 text-center">
+              className="bg-white/[0.02] border border-primary/20 p-12 text-center">
               <CheckCircle size={40} className="text-primary mx-auto mb-5" strokeWidth={1.5} />
               <h3 className="font-display text-2xl text-white mb-3" dangerouslySetInnerHTML={{ __html: t.form.success_title }} />
               <p className="text-white/50 font-sans text-sm leading-relaxed max-w-sm mx-auto" dangerouslySetInnerHTML={{ __html: t.form.success_desc }} />
             </motion.div>
           ) : (
-            <div className="bg-[#0f1d33] border border-white/5 p-8 md:p-10">
+            <div className="bg-white/[0.02] border border-white/5 p-8 md:p-10">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>

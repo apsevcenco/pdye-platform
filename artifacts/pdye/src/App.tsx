@@ -58,7 +58,7 @@ function UnderReview() {
           <Anchor size={28} className="text-primary" strokeWidth={2} />
           <span className="font-display font-normal text-3xl tracking-widest text-white">PDYE</span>
         </div>
-        <div className="bg-[#0f1d33] border border-white/8 p-10">
+        <div className="bg-white/[0.02] border border-white/8 p-10">
           <div className="w-14 h-14 border border-primary/30 flex items-center justify-center mx-auto mb-6">
             <div className="w-6 h-6 border-2 border-primary/60 border-t-primary rounded-full animate-spin" />
           </div>

@@ -382,7 +382,7 @@ export default function AdminRequests() {
               const canCreateRoom = ns === "pending" && !req.escalated_to_deal_room;
 
               return (
-                <div key={req.id} className="bg-[#0f1d33] border border-white/5 hover:border-white/10 transition-colors">
+                <div key={req.id} className="bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
                   <div
                     className="flex items-center gap-4 px-5 py-4 cursor-pointer"
                     onClick={() => setExpanded(isExpanded ? null : req.id)}
@@ -471,7 +471,7 @@ export default function AdminRequests() {
 
       {rejectModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6" onClick={() => setRejectModal(null)}>
-          <div className="bg-[#0f1d33] border border-red-500/30 max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
+          <div className="bg-white/[0.02] border border-red-500/30 max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-red-500/15 border border-red-500/30 flex items-center justify-center">
                 <XCircle size={18} className="text-red-400" />
@@ -527,7 +527,7 @@ export default function AdminRequests() {
 
       {sellerModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6" onClick={closeCreateRoomModal}>
-          <div className="bg-[#0f1d33] border border-white/10 max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
+          <div className="bg-white/[0.02] border border-white/10 max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
             <h3 className="font-display text-xl text-white">Create Deal Room</h3>
             <p className="text-white/50 text-sm font-sans">
               This will create a dedicated deal room. The buyer (requester) is added automatically.
@@ -557,7 +557,7 @@ export default function AdminRequests() {
               <button
                 onClick={createDealRoom}
                 disabled={!!creatingRoom}
-                className="flex-1 bg-primary text-background py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+                className="flex-1 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-3 font-bold text-[11px] uppercase tracking-[0.18em] disabled:opacity-40 transition-all duration-300 flex items-center justify-center gap-2"
               >
                 {creatingRoom ? <><RefreshCw size={12} className="animate-spin" /> Creating…</> : <><Plus size={12} /> Create Deal Room</>}
               </button>

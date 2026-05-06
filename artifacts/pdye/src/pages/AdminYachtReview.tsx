@@ -39,7 +39,7 @@ function Field({ label, value }: { label: string; value: any }) {
 
 function Section({ title, children, icon }: { title: string; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/5 p-6">
+    <div className="bg-white/[0.02] border border-white/5 p-6">
       <div className="flex items-center gap-2 mb-4">
         {icon}
         <h3 className="text-primary text-xs font-bold uppercase tracking-widest">{title}</h3>
@@ -403,7 +403,7 @@ export default function AdminYachtReview() {
               <button
                 onClick={approve}
                 disabled={!!busy || isApproved}
-                className="flex items-center gap-2 bg-primary text-background hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors"
+                className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white disabled:opacity-30 disabled:cursor-not-allowed px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors"
               >
                 {busy === "approve" ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
                 {isApproved ? "Already Approved" : "Approve Listing"}
@@ -417,7 +417,7 @@ export default function AdminYachtReview() {
       {/* Reject modal */}
       {showRejectModal && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-[#0f1d33] border border-white/10 max-w-lg w-full p-6 space-y-4">
+          <div className="bg-white/[0.02] border border-white/10 max-w-lg w-full p-6 space-y-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={18} className="text-red-400" />

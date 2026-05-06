@@ -201,7 +201,7 @@ export default function Home() {
           {featuredLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-[#0f1d33] border border-white/5 animate-pulse" style={{ height: 340 }}>
+                <div key={i} className="bg-white/[0.02] border border-white/5 animate-pulse" style={{ height: 340 }}>
                   <div className="w-full h-52 bg-white/5" />
                   <div className="p-5 space-y-3">
                     <div className="h-3 bg-white/5 rounded w-1/3" />
@@ -229,7 +229,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="bg-[#0f1d33] border border-white/5 px-8 py-20 text-center">
+            <div className="bg-white/[0.02] border border-white/5 px-8 py-20 text-center">
               <Anchor size={32} className="text-primary/40 mx-auto mb-4" strokeWidth={1.5} />
               <p className="text-white/40 text-sm font-sans tracking-wide">Featured listings will appear here once published.</p>
             </div>

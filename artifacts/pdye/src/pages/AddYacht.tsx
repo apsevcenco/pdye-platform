@@ -516,7 +516,7 @@ export default function AddYacht() {
           </div>
           <p className="text-white/40 text-sm font-sans mb-10">Fill in the yacht details. Only the basic information and the cover photo are visible publicly — everything else is shown to approved members only.</p>
 
-          <form onSubmit={handleSubmit} className="bg-[#0f1d33] border border-white/5 p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="bg-white/[0.02] border border-white/5 p-6 space-y-6">
 
             {/* Classification */}
             <div>
@@ -990,7 +990,7 @@ export default function AddYacht() {
                   {docs.length > 0 && (
                     <div className="mt-3 space-y-2">
                       {docs.map((d, i) => (
-                        <div key={d.url + i} className="flex items-center gap-3 bg-[#0f1d33] border border-white/8 px-3 py-2.5">
+                        <div key={d.url + i} className="flex items-center gap-3 bg-white/[0.02] border border-white/8 px-3 py-2.5">
                           <div className="w-8 h-8 bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <FileText size={14} className="text-primary/70" />
                           </div>
@@ -1044,7 +1044,7 @@ export default function AddYacht() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center justify-center gap-2 bg-primary text-background px-8 py-3 font-bold uppercase tracking-widest text-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary px-8 py-3 font-bold uppercase tracking-widest text-sm hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50"
               >
                 {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : editId ? "Update Listing" : <><Plus size={15} /> Submit Listing</>}
               </button>

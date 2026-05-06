@@ -396,7 +396,7 @@ export default function AdminUserDetail() {
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-6">
         {/* Identity header */}
-        <div className="bg-[#0f1d33] border border-white/8 p-8">
+        <div className="bg-white/[0.02] border border-white/8 p-8">
           <div className="flex flex-col sm:flex-row gap-6 sm:items-center sm:justify-between">
             <div className="flex items-center gap-5">
               <div className={`w-16 h-16 rounded-full ${meta.bg} border ${meta.border} flex items-center justify-center flex-shrink-0`}>
@@ -452,7 +452,7 @@ export default function AdminUserDetail() {
 
         {/* Two-column: Contact info + Application */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-[#0f1d33] border border-white/8 p-6">
+          <div className="bg-white/[0.02] border border-white/8 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="text-white/40 text-xs font-sans uppercase tracking-widest">Contact &amp; Profile</div>
               {!editing ? (
@@ -506,7 +506,7 @@ export default function AdminUserDetail() {
             )}
           </div>
 
-          <div className="bg-[#0f1d33] border border-white/8 p-6">
+          <div className="bg-white/[0.02] border border-white/8 p-6">
             <div className="text-white/40 text-xs font-sans uppercase tracking-widest mb-4">Application Profile</div>
             <dl className="space-y-3 text-sm">
               <InfoRow icon={FileText} label="Application Type" value={user.yacht_type || "—"} />
@@ -522,7 +522,7 @@ export default function AdminUserDetail() {
         </div>
 
         {/* Platform NDA section */}
-        <div className="bg-[#0f1d33] border border-white/8 p-6">
+        <div className="bg-white/[0.02] border border-white/8 p-6">
           <div className="flex items-center justify-between gap-4 mb-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -650,7 +650,7 @@ function ClientHistorySection({
   const isBuyerSide = user.role === "investor" || user.role === "buyer";
 
   return (
-    <div className="bg-[#0f1d33] border border-white/8 p-6 space-y-8">
+    <div className="bg-white/[0.02] border border-white/8 p-6 space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg text-white">Client History</h2>
         <span className="text-white/30 text-xs font-sans uppercase tracking-widest">

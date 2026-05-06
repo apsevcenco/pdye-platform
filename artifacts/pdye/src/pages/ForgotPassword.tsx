@@ -36,7 +36,7 @@ export default function ForgotPassword() {
             <ArrowLeft size={14} /> Back to Sign In
           </Link>
 
-          <div className="bg-[#0f1d33] border border-white/8 p-8">
+          <div className="bg-white/[0.02] border border-white/8 p-8">
             <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-2">Account Recovery</p>
             <h1 className="font-display text-3xl text-white font-normal mb-3">Forgot Password</h1>
             <p className="text-white/50 text-sm font-sans mb-8">
@@ -84,7 +84,7 @@ export default function ForgotPassword() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-primary text-[#070f1a] py-3 font-bold tracking-widest uppercase text-xs hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-3 font-bold tracking-[0.18em] uppercase text-[11px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {loading && <Loader2 size={14} className="animate-spin" />}
                   {loading ? "Sending…" : "Send Reset Link"}

@@ -73,7 +73,7 @@ export default function AdminUsers() {
               { label: "Approved",    value: approved,     color: "text-green-400" },
               { label: "Pending",     value: pending,      color: "text-yellow-400" },
             ].map(s => (
-              <div key={s.label} className="bg-[#0f1d33] border border-white/5 px-6 py-5">
+              <div key={s.label} className="bg-white/[0.02] border border-white/5 px-6 py-5">
                 <p className={`font-display text-3xl ${s.color}`}>{s.value}</p>
                 <p className="text-white/40 text-xs uppercase tracking-widest font-sans mt-1">{s.label}</p>
               </div>
@@ -81,7 +81,7 @@ export default function AdminUsers() {
           </div>
 
           {/* Table */}
-          <div className="bg-[#0f1d33] border border-white/5 overflow-x-auto">
+          <div className="bg-white/[0.02] border border-white/5 overflow-x-auto">
             <div className="px-6 py-4 border-b border-white/5">
               <h2 className="font-display text-base text-white">Registered Users</h2>
             </div>

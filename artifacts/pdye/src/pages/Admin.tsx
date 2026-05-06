@@ -222,7 +222,7 @@ function Dashboard() {
 
       <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 mb-10">
         {statItems.map((stat, i) => (
-          <div key={i} className="bg-[#0f1d33] border border-white/5 p-6 hover:border-primary/20 transition-colors">
+          <div key={i} className="bg-white/[0.02] border border-white/5 p-6 hover:border-primary/20 transition-colors">
             <div className="flex items-start justify-between mb-4">
               <stat.icon size={20} className={`${stat.color} opacity-80`} />
               <ArrowUpRight size={14} className="text-white/20" />
@@ -234,7 +234,7 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="bg-[#0f1d33] border border-white/5">
+        <div className="bg-white/[0.02] border border-white/5">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
             <h2 className="font-display text-lg text-white">Recent Access Requests</h2>
           </div>
@@ -253,7 +253,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-[#0f1d33] border border-white/5">
+        <div className="bg-white/[0.02] border border-white/5">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
             <h2 className="font-display text-lg text-white">Recent Messages</h2>
           </div>
@@ -276,7 +276,7 @@ function Dashboard() {
         </div>
 
         {recentActivity.length > 0 && (
-          <div className="bg-[#0f1d33] border border-white/5 xl:col-span-2">
+          <div className="bg-white/[0.02] border border-white/5 xl:col-span-2">
             <div className="px-6 py-4 border-b border-white/5">
               <h2 className="font-display text-lg text-white">Recent Activity</h2>
             </div>
@@ -786,7 +786,7 @@ function YachtsView() {
       </div>
 
       {showForm && (
-        <div className="bg-[#0f1d33] border border-white/5 p-6 mb-6 space-y-6">
+        <div className="bg-white/[0.02] border border-white/5 p-6 mb-6 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg text-white">{editingId ? "Edit Listing" : "New Listing"}</h2>
             <button
@@ -1274,7 +1274,7 @@ function YachtsView() {
             <button
               onClick={editingId ? handleUpdate : handleAdd}
               disabled={saving}
-              className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="bg-white/5 backdrop-blur-md border border-primary text-primary px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50"
             >
               {saving ? "Saving..." : editingId ? "Save Changes" : "Save to Database"}
             </button>
@@ -1320,11 +1320,11 @@ function YachtsView() {
       })()}
 
       {loading ? (
-        <div className="bg-[#0f1d33] border border-white/5 flex items-center justify-center py-16">
+        <div className="bg-white/[0.02] border border-white/5 flex items-center justify-center py-16">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="bg-[#0f1d33] border border-white/5">
+        <div className="bg-white/[0.02] border border-white/5">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">
@@ -1539,7 +1539,7 @@ function YachtsView() {
                               <button
                                 onClick={() => handleAddPhotoUrl(yacht)}
                                 disabled={photoSaving || !newPhotoUrl.trim()}
-                                className="flex items-center gap-2 bg-primary text-background px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-40 whitespace-nowrap"
+                                className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-40 whitespace-nowrap"
                               >
                                 <ImagePlus size={13} />
                                 Add URL
@@ -1994,14 +1994,14 @@ function DealsManageView() {
             { label: "Activated", value: selectedRoom.fully_activated_at ? new Date(selectedRoom.fully_activated_at).toLocaleDateString("en-GB") : "Pending", ok: !!selectedRoom.fully_activated_at },
             { label: "Identities", value: selectedRoom.identities_revealed ? "Revealed" : "Hidden", ok: !!selectedRoom.identities_revealed },
           ].map(s => (
-            <div key={s.label} className="bg-[#0f1d33] border border-white/5 p-3 text-center">
+            <div key={s.label} className="bg-white/[0.02] border border-white/5 p-3 text-center">
               <p className="text-white/30 text-[10px] uppercase tracking-widest mb-1">{s.label}</p>
               <p className={`text-sm font-bold ${s.ok ? "text-green-400" : "text-yellow-400"}`}>{s.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+        <div className="bg-white/[0.02] border border-white/8 p-5 mb-6">
           <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Deal Room Actions</h3>
           <div className="flex flex-wrap gap-3">
             {canSendNda && (
@@ -2062,7 +2062,7 @@ function DealsManageView() {
           </div>
         </div>
 
-        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+        <div className="bg-white/[0.02] border border-white/8 p-5 mb-6">
           <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Data Access Control</h3>
           {blocksLoading ? (
             <p className="text-white/30 text-xs font-sans">Loading blocks...</p>
@@ -2112,7 +2112,7 @@ function DealsManageView() {
           <p className="text-white/20 text-[10px] font-sans mt-3">Toggle blocks to control what participants can see. Changes are saved immediately.</p>
         </div>
 
-        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+        <div className="bg-white/[0.02] border border-white/8 p-5 mb-6">
           <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-3">Notes</h3>
           <textarea
             value={editNotes}
@@ -2124,7 +2124,7 @@ function DealsManageView() {
           {notesDirty && <p className="text-orange-400 text-[10px] font-bold uppercase tracking-widest mb-3">Unsaved changes</p>}
         </div>
 
-        <div className="bg-[#0f1d33] border border-white/8 p-5 mb-6">
+        <div className="bg-white/[0.02] border border-white/8 p-5 mb-6">
           <div className="flex items-center justify-between">
             <button
               disabled={!notesDirty || savingNotes}
@@ -2151,7 +2151,7 @@ function DealsManageView() {
         </div>
 
         {activity.length > 0 && (
-          <div className="bg-[#0f1d33] border border-white/8 p-5">
+          <div className="bg-white/[0.02] border border-white/8 p-5">
             <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Audit Log</h3>
             <div className="max-h-60 overflow-y-auto space-y-2">
               {activity.map(log => (
@@ -2176,14 +2176,14 @@ function DealsManageView() {
           <h1 className="font-display text-3xl text-white font-bold">Deal Rooms</h1>
           <p className="text-white/50 text-sm font-sans mt-1">{rooms.length} room{rooms.length !== 1 ? "s" : ""} total</p>
         </div>
-        <button onClick={() => { setShowCreate(true); setCreateError(""); }} className="flex items-center gap-2 bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
+        <button onClick={() => { setShowCreate(true); setCreateError(""); }} className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300">
           <Plus size={14} /> Create Deal Room
         </button>
       </div>
 
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
-          <div className="bg-[#0f1d33] border border-white/10 w-full max-w-lg mx-4 p-0 shadow-2xl">
+          <div className="bg-white/[0.02] border border-white/10 w-full max-w-lg mx-4 p-0 shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
               <h2 className="font-display text-xl text-white">Create Deal Room</h2>
               <button onClick={() => setShowCreate(false)} className="text-white/30 hover:text-white transition-colors"><X size={18} /></button>
@@ -2231,7 +2231,7 @@ function DealsManageView() {
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">
               <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-white/40 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
-              <button onClick={createDealRoom} disabled={creating} className="flex items-center gap-2 bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50">
+              <button onClick={createDealRoom} disabled={creating} className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50">
                 {creating ? "Creating…" : "Create Room"}
               </button>
             </div>
@@ -2264,7 +2264,7 @@ function DealsManageView() {
           <p className="text-xs text-white/20 mt-2">Create deal rooms from approved access requests.</p>
         </div>
       ) : (
-        <div className="bg-[#0f1d33] border border-white/5">
+        <div className="bg-white/[0.02] border border-white/5">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">
@@ -2476,7 +2476,7 @@ function LeadsView() {
             <p className="text-sm">No leads yet</p>
           </div>
         ) : (
-          <div className="bg-[#0f1d33] border border-white/5">
+          <div className="bg-white/[0.02] border border-white/5">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
@@ -2621,7 +2621,7 @@ function LeadsView() {
               <button
                 onClick={() => approveLead(selected, chosenRole)}
                 disabled={approvingId === selected.id}
-                className="w-full bg-primary text-[#070f1a] py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-2.5 text-[11px] font-bold uppercase tracking-[0.18em] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 data-testid="button-approve-lead"
               >
                 <Mail size={13} />
@@ -2754,7 +2754,7 @@ function InvestorsView() {
             <p className="text-sm">No buyers found</p>
           </div>
         ) : (
-          <div className="bg-[#0f1d33] border border-white/5">
+          <div className="bg-white/[0.02] border border-white/5">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
@@ -2960,7 +2960,7 @@ function BrokersView() {
         ) : (
           <div className="space-y-3">
             {visibleUsers.map(user => (
-              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${user.archived ? "opacity-50" : ""} ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-white/[0.02] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${user.archived ? "opacity-50" : ""} ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
                     <span className="text-primary text-xs font-bold">{initials(user.email)}</span>
@@ -3163,7 +3163,7 @@ function OwnersView() {
         ) : (
           <div className="space-y-3">
             {filtered.map(user => (
-              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-[#0f1d33] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${user.archived ? "opacity-50" : ""} ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
+              <div key={user.id} onClick={() => setLocation(`/admin/users/${user.id}`)} className={`bg-white/[0.02] border hover:border-primary/20 transition-colors p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer ${user.archived ? "opacity-50" : ""} ${selected?.id === user.id ? "border-primary/30 bg-primary/5" : "border-white/5"}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 rounded-full">
                     <span className="text-primary text-xs font-bold">{initials(user)}</span>
@@ -3338,7 +3338,7 @@ function DocumentsView() {
           <p className="text-sm">No documents uploaded yet</p>
         </div>
       ) : (
-        <div className="bg-[#0f1d33] border border-white/5">
+        <div className="bg-white/[0.02] border border-white/5">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">
@@ -3456,7 +3456,7 @@ function MessagesView() {
           <p className="text-sm">No messages yet</p>
         </div>
       ) : (
-        <div className="bg-[#0f1d33] border border-white/5 divide-y divide-white/5">
+        <div className="bg-white/[0.02] border border-white/5 divide-y divide-white/5">
           {filtered.map(msg => (
             <div key={msg.id} onClick={() => setExpandedId(expandedId === msg.id ? null : msg.id)} className="px-6 py-5 hover:bg-white/2 transition-colors cursor-pointer">
               <div className="flex items-start gap-3">
@@ -3600,7 +3600,7 @@ function ContentView() {
         </div>
         <button
           onClick={handleSaveAll}
-          className="bg-primary text-background px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors flex-shrink-0"
+          className="bg-white/5 backdrop-blur-md border border-primary text-primary px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 flex-shrink-0"
         >
           Save All Sections
         </button>
@@ -3631,7 +3631,7 @@ function ContentView() {
           const fieldCount = section.fields.length;
 
           return (
-            <div key={section.id} className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+            <div key={section.id} className="bg-white/[0.02] border border-white/5 overflow-hidden">
               <button
                 onClick={() => toggleSection(section.id)}
                 className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/2 transition-colors"
@@ -3678,7 +3678,7 @@ function ContentView() {
                   <div className="flex gap-3 pt-5 mt-4 border-t border-white/5">
                     <button
                       onClick={() => handleSaveSection(section.id)}
-                      className="bg-primary text-background px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                      className="bg-white/5 backdrop-blur-md border border-primary text-primary px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300"
                     >
                       {isSaved ? "Saved ✓" : "Save Section"}
                     </button>
@@ -3729,7 +3729,7 @@ function HomepageHeroEditor() {
   };
 
   return (
-    <div className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+    <div className="bg-white/[0.02] border border-white/5 overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/2 transition-colors"
@@ -3782,7 +3782,7 @@ function HomepageHeroEditor() {
             </div>
           </div>
           <div className="flex gap-3 pt-5 mt-4 border-t border-white/5">
-            <button onClick={handleSave} className="bg-primary text-background px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors">
+            <button onClick={handleSave} className="bg-white/5 backdrop-blur-md border border-primary text-primary px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300">
               {saved ? "Saved ✓" : "Save Section"}
             </button>
             <button onClick={handleReset} className="border border-white/10 text-white/40 px-5 py-2 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/60 transition-colors">
@@ -3831,7 +3831,7 @@ function FontsView() {
         <p className="text-white/50 text-sm font-sans mt-1">Manage custom Google Fonts available in Page Content editors.</p>
       </div>
 
-      <div className="bg-[#0f1d33] border border-white/5 p-6">
+      <div className="bg-white/[0.02] border border-white/5 p-6">
         <h2 className="font-display text-lg text-white mb-1">Custom Fonts</h2>
         <p className="text-white/40 text-xs mb-6 font-sans">Search from 1,400+ Google Fonts. Start typing to see suggestions, select one, then click Add Font. Added fonts appear in the Headline Font selector inside Page Content → Home.</p>
         <div className="space-y-4">
@@ -3851,7 +3851,7 @@ function FontsView() {
             </div>
             <button
               onClick={handleAddFont}
-              className="bg-primary text-background px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors whitespace-nowrap"
+              className="bg-white/5 backdrop-blur-md border border-primary text-primary px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 whitespace-nowrap"
             >
               {fontAdded ? "Added ✓" : "Add Font"}
             </button>

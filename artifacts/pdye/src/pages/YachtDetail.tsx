@@ -96,7 +96,7 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
         <button
           onClick={onRequest}
           disabled={requesting}
-          className="flex items-center justify-center gap-2 w-full bg-primary text-background py-4 font-bold tracking-widest uppercase text-sm hover:bg-primary/90 transition-colors disabled:opacity-60"
+          className="flex items-center justify-center gap-2 w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-3.5 font-bold tracking-[0.18em] uppercase text-[11px] transition-colors disabled:opacity-60"
         >
           {requesting ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Submitting…</> : <><Lock size={14} /> Request Access</>}
         </button>
