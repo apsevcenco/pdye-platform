@@ -15,6 +15,7 @@ import userAdminRouter from "./userAdmin";
 import yachtModerationRouter from "./yachtModeration";
 import legalPagesRouter from "./legalPages";
 import adminBadgeCountsRouter from "./adminBadgeCounts";
+import adminAnalyticsRouter from "./adminAnalytics";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(userAdminRouter);
 router.use(yachtModerationRouter);
 router.use(legalPagesRouter);
 router.use(adminBadgeCountsRouter);
+router.use(adminAnalyticsRouter);
 
 export default router;

@@ -21,6 +21,7 @@ import {
   Type,
   MessageSquare,
   Scale,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
@@ -49,6 +50,7 @@ const ADMIN_MENU_GROUP: { id: string; label: string; icon: React.ElementType; it
   icon: ShieldCheck,
   items: [
     { href: "/admin?view=dashboard", label: "Dashboard", icon: LayoutDashboard, viewLink: true },
+    { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin?view=yachts", label: "Yachts", icon: Ship, viewLink: true, section: "adminYachts" },
     { href: "/admin?view=dealroom", label: "Deal Room", icon: TrendingUp, viewLink: true, section: "adminDealRoom" },
     { href: "/admin?view=leads", label: "Leads", icon: Inbox, viewLink: true, section: "adminLeads" },
