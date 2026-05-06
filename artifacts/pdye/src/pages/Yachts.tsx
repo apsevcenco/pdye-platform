@@ -49,12 +49,13 @@ export default function Yachts() {
     if (data) {
       (data as AccessRequest[]).forEach(r => { map[r.yacht_id] = r.status; });
     }
-    // Permanent unlock: yachts where the buyer has signed Commission Agreement
-    // stay marked as "approved" forever, regardless of deal room status.
+    // Permanent unlock: yachts where BOTH parties signed Commission Agreement
+    // (same moment identities are revealed) stay marked as "approved" forever
+    // for the buyer, regardless of deal room status.
     try {
       const rooms = (await dealRoomApi.byUser(user.id)) as any[];
       (rooms || []).forEach((r) => {
-        if (r.yacht_id && r.buyer_user_id === user.id && r.buyer_commission_signed_at) {
+        if (r.yacht_id && r.buyer_user_id === user.id && r.commission_fully_signed_at) {
           map[r.yacht_id] = "approved";
         }
       });
