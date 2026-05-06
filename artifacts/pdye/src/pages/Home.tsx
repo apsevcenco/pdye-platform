@@ -109,7 +109,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-24 md:py-32 bg-secondary border-t border-white/5 relative z-20">
+      <section className="py-24 md:py-32 bg-background relative z-20">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <motion.div 
             initial="hidden"
