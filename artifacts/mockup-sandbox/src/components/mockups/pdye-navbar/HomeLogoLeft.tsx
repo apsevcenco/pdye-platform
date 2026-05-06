@@ -74,18 +74,12 @@ export function HomeLogoLeft() {
             A discreet marketplace where vetted owners, brokers, and acquirers
             transact superyachts in confidence.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
+          <div className="flex justify-center">
             <a
-              href="/yachts"
+              href="/access"
               className="bg-[#c8a46b] hover:bg-white text-[#070f1a] px-9 py-4 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[12px] shadow-[0_0_20px_rgba(200,164,107,0.4)]"
             >
-              Browse Inventory
-            </a>
-            <a
-              href="/brokers"
-              className="bg-transparent border border-white/20 hover:border-white text-white px-9 py-4 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[12px]"
-            >
-              For Brokers
+              Request Access
             </a>
           </div>
         </div>
