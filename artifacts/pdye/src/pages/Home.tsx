@@ -2,11 +2,8 @@ import { Layout } from "@/components/layout/Layout";
 import { Link } from "wouter";
 import { motion, type Variants } from "framer-motion";
 import { Shield, TrendingUp, Anchor, FileCheck } from "lucide-react";
-import { YachtCard } from "@/components/ui/YachtCard";
-import { type Yacht } from "@/lib/data";
 import { useState, useEffect } from "react";
 import { getHeroContent, type HeroContent } from "@/lib/content";
-import { supabase } from "@/lib/supabase";
 import { getSiteSectionData } from "@/lib/siteContent";
 
 const fadeUp: Variants = {
@@ -18,13 +15,10 @@ const ICONS = [Anchor, Shield, FileCheck, TrendingUp];
 
 export default function Home() {
   const [hero, setHero] = useState<HeroContent>(getHeroContent());
-  const [featuredYachts, setFeaturedYachts] = useState<Yacht[]>([]);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
   const [t, setT] = useState({
     heroSection: getSiteSectionData("home", "hero"),
     expertise: getSiteSectionData("home", "expertise"),
     valuationCta: getSiteSectionData("home", "valuation_cta"),
-    featured: getSiteSectionData("home", "featured"),
   });
 
   useEffect(() => {
@@ -33,27 +27,7 @@ export default function Home() {
       heroSection: getSiteSectionData("home", "hero"),
       expertise: getSiteSectionData("home", "expertise"),
       valuationCta: getSiteSectionData("home", "valuation_cta"),
-      featured: getSiteSectionData("home", "featured"),
     });
-  }, []);
-
-  useEffect(() => {
-    async function loadFeatured() {
-      try {
-        const { data, error } = await supabase
-          .from("yachts")
-          .select("*")
-          .eq("is_featured", true)
-          .order("created_at", { ascending: false })
-          .limit(6);
-        if (!error && data && data.length > 0) {
-          setFeaturedYachts(data as Yacht[]);
-        }
-      } catch {
-      }
-      setFeaturedLoading(false);
-    }
-    loadFeatured();
   }, []);
 
   const expertiseItems = [
@@ -167,73 +141,12 @@ export default function Home() {
             <div className="flex-shrink-0">
               <Link
                 href="/valuation"
-                className="flex items-center gap-3 bg-primary hover:bg-white text-[#070f1a] px-10 py-5 font-bold tracking-widest uppercase transition-all duration-300 text-sm shadow-[0_0_30px_rgba(200,164,107,0.25)] hover:shadow-none"
+                className="flex items-center gap-3 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-10 py-5 font-bold tracking-widest uppercase transition-all duration-300 text-sm"
               >
                 {t.valuationCta.button}
               </Link>
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      <section className="py-24 md:py-32 bg-background relative">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 blur-[150px] rounded-full pointer-events-none"></div>
-        
-        <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-            <motion.div 
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeUp}
-            >
-              <h2 className="font-display text-3xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: t.featured.title }} />
-              <div className="w-24 h-1 bg-primary"></div>
-            </motion.div>
-            <Link 
-              href="/yachts"
-              className="text-primary hover:text-white uppercase tracking-widest font-bold text-sm transition-colors border-b border-primary hover:border-white pb-1"
-            >
-              {t.featured.link}
-            </Link>
-          </div>
-
-          {featuredLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/5 animate-pulse" style={{ height: 340 }}>
-                  <div className="w-full h-52 bg-white/5" />
-                  <div className="p-5 space-y-3">
-                    <div className="h-3 bg-white/5 rounded w-1/3" />
-                    <div className="h-5 bg-white/8 rounded w-2/3" />
-                    <div className="h-3 bg-white/5 rounded w-1/2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : featuredYachts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredYachts.map((yacht, idx) => (
-                <motion.div
-                  key={yacht.id}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true }}
-                  variants={{
-                    hidden: { opacity: 0, y: 30 },
-                    visible: { opacity: 1, y: 0, transition: { delay: idx * 0.15, duration: 0.7 } }
-                  }}
-                >
-                  <YachtCard yacht={yacht} />
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white/[0.02] border border-white/5 px-8 py-20 text-center">
-              <Anchor size={32} className="text-primary/40 mx-auto mb-4" strokeWidth={1.5} />
-              <p className="text-white/40 text-sm font-sans tracking-wide">Featured listings will appear here once published.</p>
-            </div>
-          )}
         </div>
       </section>
     </Layout>

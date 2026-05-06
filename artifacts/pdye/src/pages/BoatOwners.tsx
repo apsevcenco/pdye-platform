@@ -284,7 +284,7 @@ export default function BoatOwners() {
               <button
                 type="submit"
                 disabled={sending}
-                className="w-full bg-primary hover:bg-primary/90 text-background py-4 text-sm font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-4 text-sm font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50"
               >
                 {sending ? "Submitting..." : t.form.submit_btn}
               </button>

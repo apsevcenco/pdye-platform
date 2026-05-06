@@ -117,7 +117,7 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
       title: "Request Declined",
       body: "Your access request was not approved. Contact our team for further assistance.",
       btn: (
-        <a href="/#/access" className="flex items-center justify-center gap-2 w-full border border-primary/50 text-primary py-4 text-sm font-bold tracking-widest uppercase hover:bg-primary hover:text-background transition-colors">
+        <a href="/#/access" className="flex items-center justify-center gap-2 w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-4 text-sm font-bold tracking-widest uppercase transition-all duration-300">
           Contact Team
         </a>
       ),
@@ -617,7 +617,7 @@ export default function YachtDetail() {
               )}
 
               <div className="mt-8 space-y-3">
-                <Link href="/dealroom" className="block w-full text-center bg-primary text-primary-foreground py-4 font-bold tracking-widest uppercase text-sm hover:bg-primary/90 transition-all duration-300">
+                <Link href="/dealroom" className="block w-full text-center bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white py-4 font-bold tracking-widest uppercase text-sm transition-all duration-300">
                   Enter Deal Room
                 </Link>
                 <button onClick={handleIntro} disabled={introSent} className="block w-full text-center border border-white/15 text-white/60 hover:border-primary/40 hover:text-primary py-3 font-sans tracking-widest uppercase text-xs transition-all duration-300 disabled:opacity-40">

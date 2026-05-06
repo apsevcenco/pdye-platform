@@ -779,7 +779,7 @@ function YachtsView() {
         </div>
         <button
           onClick={() => { setShowForm(s => !s); setFormError(""); setEditingId(null); setForm(EMPTY_FORM); setFormPhotos([]); setFormIsPrivate(false); setAiNote(null); }}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors"
+          className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300"
         >
           <Plus size={14} /> {showForm ? "Cancel" : "Add Yacht"}
         </button>
@@ -2835,7 +2835,7 @@ function InvestorsView() {
                 <p className="text-primary font-bold text-lg">{requestCounts[selected.id] || 0}</p>
               </div>
               <div className="flex gap-2 mt-5">
-                <button onClick={() => { setEditForm({ company: selected.company || "", phone: selected.phone || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">Edit</button>
+                <button onClick={() => { setEditForm({ company: selected.company || "", phone: selected.phone || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300">Edit</button>
                 <button onClick={() => toggleApproval(selected)} className={`text-xs px-4 py-2 font-bold uppercase tracking-wider transition-colors border ${selected.approved ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10" : "border-green-500/30 text-green-400 hover:bg-green-500/10"}`}>
                   {selected.approved ? "Revoke" : "Approve"}
                 </button>
@@ -2857,7 +2857,7 @@ function InvestorsView() {
                 <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex gap-2">
-                <button onClick={saveEdit} disabled={saving} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                <button onClick={saveEdit} disabled={saving} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
                 <button onClick={() => setEditing(false)} className="text-xs border border-white/10 text-white/60 px-4 py-2 font-bold uppercase tracking-wider hover:border-white/30 transition-colors">Cancel</button>
               </div>
             </div>
@@ -3017,7 +3017,7 @@ function BrokersView() {
                 </div>
               )}
               <div className="flex gap-2 mt-5">
-                <button onClick={() => { setEditForm({ company: selected.company || "", phone: selected.phone || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">Edit</button>
+                <button onClick={() => { setEditForm({ company: selected.company || "", phone: selected.phone || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300">Edit</button>
                 <button onClick={() => deleteUser(selected.id)} className="text-xs border border-red-500/30 text-red-400 px-3 py-2 font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors"><Trash2 size={12} /></button>
               </div>
             </>
@@ -3036,7 +3036,7 @@ function BrokersView() {
                 <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex gap-2">
-                <button onClick={saveEdit} disabled={saving} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                <button onClick={saveEdit} disabled={saving} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
                 <button onClick={() => setEditing(false)} className="text-xs border border-white/10 text-white/60 px-4 py-2 font-bold uppercase tracking-wider hover:border-white/30 transition-colors">Cancel</button>
               </div>
             </div>
@@ -3227,7 +3227,7 @@ function OwnersView() {
                 </div>
               )}
               <div className="flex gap-2 mt-5">
-                <button onClick={() => { setEditForm({ name: selected.name || "", company: selected.company || "", phone: selected.phone || "", location: selected.location || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors">Edit</button>
+                <button onClick={() => { setEditForm({ name: selected.name || "", company: selected.company || "", phone: selected.phone || "", location: selected.location || "", notes: selected.notes || "" }); setEditing(true); }} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300">Edit</button>
                 <button onClick={() => toggleApproval(selected)} className={`text-xs px-4 py-2 font-bold uppercase tracking-wider transition-colors border ${selected.approved ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10" : "border-green-500/30 text-green-400 hover:bg-green-500/10"}`}>
                   {selected.approved ? "Revoke" : "Approve"}
                 </button>
@@ -3257,7 +3257,7 @@ function OwnersView() {
                 <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex gap-2">
-                <button onClick={saveEdit} disabled={saving} className="text-xs bg-primary text-primary-foreground px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/80 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                <button onClick={saveEdit} disabled={saving} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
                 <button onClick={() => setEditing(false)} className="text-xs border border-white/10 text-white/60 px-4 py-2 font-bold uppercase tracking-wider hover:border-white/30 transition-colors">Cancel</button>
               </div>
             </div>

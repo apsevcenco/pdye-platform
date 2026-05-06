@@ -268,7 +268,7 @@ export default function PlatformNda() {
                 <button
                   onClick={handleSign}
                   disabled={!canSubmit}
-                  className="bg-[#c8a46b] text-[#070f1a] font-bold text-xs uppercase tracking-widest px-8 py-3 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90"
+                  className="bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold text-xs uppercase tracking-widest px-8 py-3 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   {submitting ? "Signing…" : success ? "Signed ✓" : "Sign Agreement"}
                 </button>

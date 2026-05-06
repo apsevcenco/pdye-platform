@@ -220,7 +220,7 @@ export default function Brokers() {
                 </div>
                 {error && <p className="text-red-400 text-xs font-sans">{error}</p>}
                 <button type="submit" disabled={sending}
-                  className="w-full bg-primary hover:bg-white text-[#070f1a] font-bold uppercase tracking-widest py-4 mt-2 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold uppercase tracking-widest py-4 mt-2 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2">
                   {sending ? "Submitting..." : <><span>{t.form.submit_btn}</span><ChevronRight size={16} /></>}
                 </button>
                 <p className="text-white/20 text-[11px] text-center font-sans" dangerouslySetInnerHTML={{ __html: t.form.disclaimer }} />

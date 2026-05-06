@@ -429,7 +429,7 @@ const data = text ? JSON.parse(text) : {};
 
                   <div className="pt-2">
                     <button type="submit" disabled={loading}
-                      className="w-full bg-primary hover:bg-white text-[#070f1a] font-bold uppercase tracking-[0.2em] py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2.5 text-sm shadow-[0_0_30px_rgba(200,164,107,0.2)]">
+                      className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold uppercase tracking-[0.2em] py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2.5 text-sm">
                       {loading
                         ? <><span className="w-4 h-4 border-2 border-[#070f1a]/30 border-t-[#070f1a] rounded-full animate-spin" /><span>{t.formT.loading_text}</span></>
                         : <><TrendingUp size={15} /><span>{t.formT.submit_btn}</span></>
@@ -510,7 +510,7 @@ const data = text ? JSON.parse(text) : {};
                   <p className="text-white font-display text-xl mb-2">Want a Professional Valuation?</p>
                   <p className="text-white/35 font-sans text-sm mb-5 max-w-sm mx-auto">Our maritime experts provide certified appraisals with full market analysis and documentation.</p>
                   <a href="#/boat-owners"
-                    className="inline-flex items-center gap-2 bg-primary hover:bg-white text-[#070f1a] font-bold uppercase tracking-widest px-8 py-3.5 text-xs transition-all duration-300">
+                    className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold uppercase tracking-widest px-8 py-3.5 text-xs transition-all duration-300">
                     <ChevronRight size={13} />
                     Contact Our Team
                   </a>

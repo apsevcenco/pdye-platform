@@ -178,7 +178,7 @@ export default function AdminLegalPages() {
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="inline-flex items-center gap-2 bg-transparent border border-[#c8a46b] text-[#c8a46b] font-bold text-xs uppercase tracking-widest px-8 py-3 hover:bg-[#c8a46b]/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold text-xs uppercase tracking-widest px-8 py-3 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Save size={14} />
                     {saving ? "Saving…" : "Save Changes"}

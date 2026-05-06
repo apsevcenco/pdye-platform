@@ -348,7 +348,7 @@ export default function Access() {
                   )}
 
                   <button type="submit" disabled={loading}
-                    className="w-full bg-primary hover:bg-white text-[#070f1a] font-bold uppercase tracking-widest py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2">
+                    className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold uppercase tracking-widest py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2">
                     {loading ? <><Loader2 size={15} className="animate-spin" /><span>Submitting...</span></> : <span>{t.common.submit_btn}</span>}
                   </button>
 

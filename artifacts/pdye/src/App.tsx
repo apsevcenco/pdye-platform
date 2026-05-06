@@ -115,6 +115,35 @@ function ProtectedRoute({ component: Component, adminOnly = false, skipNdaGate =
   return <Component />;
 }
 
+// Public showcase route: lets non-authenticated visitors view the page
+// (used by /yachts marketing showcase). For logged-in users, applies the
+// same approval and NDA checks as ProtectedRoute so existing gates keep
+// working.
+function OptionalProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, userProfile, ndaStatus, loading, refreshProfile } = useAuth();
+  const [retried, setRetried] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user && userProfile === null && !retried) {
+      setRetried(true);
+      refreshProfile();
+    }
+  }, [loading, user, userProfile, retried, refreshProfile]);
+
+  if (loading) return <Spinner />;
+  if (!user) return <Component />;
+  if (userProfile === null) return <Spinner />;
+
+  const isAdmin = userProfile.role === "admin";
+  if (!isAdmin && !userProfile.approved) return <UnderReview />;
+  if (!isAdmin) {
+    if (ndaStatus === null) return <Spinner />;
+    if (!ndaStatus.signed) return <Redirect to="/platform-nda" />;
+  }
+
+  return <Component />;
+}
+
 function Router() {
   return (
     <Suspense fallback={<Spinner />}>
@@ -139,7 +168,7 @@ function Router() {
         <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
         <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
         <Route path="/add-yacht" component={() => <ProtectedRoute component={AddYacht} />} />
-        <Route path="/yachts" component={() => <ProtectedRoute component={Yachts} />} />
+        <Route path="/yachts" component={() => <OptionalProtectedRoute component={Yachts} />} />
         <Route path="/yacht/:id" component={() => <ProtectedRoute component={YachtDetail} />} />
         <Route path="/dealroom" component={() => <ProtectedRoute component={DealRoom} />} />
         <Route path="/dealroom/:id" component={() => <ProtectedRoute component={DealDetails} />} />

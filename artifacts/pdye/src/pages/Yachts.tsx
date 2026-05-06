@@ -1,4 +1,5 @@
 import { CabinetLayout } from "@/components/layout/CabinetLayout";
+import { Layout } from "@/components/layout/Layout";
 import { YachtCard, type RequestStatus } from "@/components/ui/YachtCard";
 import { type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
@@ -61,7 +62,9 @@ export default function Yachts() {
         .select("*")
         .or("listing_status.eq.approved,listing_status.is.null");
       if (!error && data) {
-        const visible = user ? (data as Yacht[]) : (data as Yacht[]).filter(y => !y.is_private);
+        const visible = user
+          ? (data as Yacht[])
+          : (data as Yacht[]).filter(y => !y.is_private && y.is_featured);
         setYachts(visible);
       } else {
         setYachts([]);
@@ -162,8 +165,10 @@ export default function Yachts() {
   };
   const filters: Filter[] = ["All", "Motor Yachts", "Sailing Yachts", "Distressed Deals"];
 
+  const PageLayout = user ? CabinetLayout : Layout;
+
   return (
-    <CabinetLayout>
+    <PageLayout>
       <div className="pt-12 pb-12 bg-background border-b border-white/6">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
@@ -247,6 +252,6 @@ export default function Yachts() {
           </div>
         </div>
       </section>
-    </CabinetLayout>
+    </PageLayout>
   );
 }
