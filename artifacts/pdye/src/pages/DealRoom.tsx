@@ -140,8 +140,8 @@ export default function DealRoomPage() {
       <div className="min-h-screen bg-background pt-8 pb-20">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-12">
-            <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-3">Secure Platform</span>
-            <h1 className="font-display text-3xl md:text-4xl text-white mb-4">My Deal Rooms</h1>
+            <span className="text-primary text-[12px] font-bold tracking-[0.22em] uppercase mb-3 inline-block">Secure Platform</span>
+            <h1 className="font-display text-4xl md:text-5xl text-white font-bold tracking-tight mb-4">My Deal Rooms</h1>
             <p className="text-white/50 font-sans max-w-xl">
               Track your yacht access requests, approved specifications, and active deal rooms.
             </p>
@@ -193,7 +193,7 @@ export default function DealRoomPage() {
               <p className="font-display text-xl text-white/30 mb-2">No Active Deal Rooms</p>
               <p className="text-white/25 text-sm font-sans mb-6">Browse yacht listings and request details to start.</p>
               <Link href="/yachts">
-                <div className="bg-primary text-background px-6 py-3 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors cursor-pointer">
+                <div className="bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-7 py-3 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[11px] cursor-pointer">
                   Browse Yachts
                 </div>
               </Link>
@@ -208,7 +208,7 @@ export default function DealRoomPage() {
                   <p className="text-white/30 text-xs font-sans mb-4">
                     These vessels have granted you extended specification access. Deal rooms have not been opened yet.
                   </p>
-                  <div className="bg-[#0f1d33] border border-blue-500/15">
+                  <div className="bg-white/[0.02] border border-white/8">
                     {approvedSpecs.map(spec => (
                       <Link key={spec.id} href={`/yacht/${spec.yacht_id}`}>
                         <div className="group flex items-center justify-between px-6 py-4 border-b border-white/5 last:border-b-0 hover:bg-blue-500/5 transition-colors cursor-pointer">
@@ -288,7 +288,7 @@ function RoomSection({
         {icon} {title}
       </h2>
       {hint && <p className="text-white/30 text-xs font-sans mb-4">{hint}</p>}
-      <div className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+      <div className="bg-white/[0.02] border border-white/8 overflow-hidden">
         {/* Compact single-line rows: yacht name, room number, status, my side,
          *  NDA badges, action arrow. Click anywhere on the row → open detail.
          *  Mirrors the admin yacht-list layout the user asked for. */}
@@ -382,13 +382,13 @@ function RestrictedScreen({ icon, title, text, action }: {
           <Anchor size={26} className="text-primary" strokeWidth={2} />
           <span className="font-display text-2xl tracking-widest text-white">PDYE</span>
         </div>
-        <div className="bg-[#0f1d33] border border-white/8 p-10">
+        <div className="bg-white/[0.02] border border-white/8 p-10">
           <div className="w-16 h-16 border border-primary/25 flex items-center justify-center mx-auto mb-6">{icon}</div>
-          <h2 className="font-display text-2xl text-white mb-3">{title}</h2>
+          <h2 className="font-display text-2xl md:text-3xl text-white font-bold tracking-tight mb-3">{title}</h2>
           <p className="text-white/50 font-sans text-sm leading-relaxed mb-6">{text}</p>
           {action && (
             <Link href={action.href}>
-              <div className="bg-primary text-background font-bold uppercase tracking-widest py-3.5 px-8 text-xs hover:bg-primary/85 transition-colors cursor-pointer inline-block">
+              <div className="bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold tracking-[0.18em] uppercase py-3 px-7 text-[11px] transition-all duration-300 cursor-pointer inline-block">
                 {action.label}
               </div>
             </Link>

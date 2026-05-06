@@ -164,10 +164,11 @@ export default function Yachts() {
 
   return (
     <CabinetLayout>
-      <div className="pt-8 pb-12 bg-secondary border-b border-white/5">
+      <div className="pt-12 pb-12 bg-background border-b border-white/6">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <h1 className="font-display text-4xl md:text-5xl text-white mb-4" dangerouslySetInnerHTML={{ __html: content.heading }} />
+            <span className="text-primary text-[12px] font-bold tracking-[0.22em] uppercase mb-3 inline-block">Catalogue</span>
+            <h1 className="font-display text-4xl md:text-5xl text-white font-bold tracking-tight mb-4" dangerouslySetInnerHTML={{ __html: content.heading }} />
             <p className="text-white/60 max-w-2xl font-sans text-lg" dangerouslySetInnerHTML={{ __html: content.subheading }} />
             <p className="mt-4 text-white/30 text-xs font-sans tracking-wide">
               <span dangerouslySetInnerHTML={{ __html: confT.text }} />
@@ -237,10 +238,10 @@ export default function Yachts() {
             </div>
           )}
 
-          <div className="mt-16 text-center bg-card p-10 border border-white/5">
-            <h3 className="font-display text-2xl text-white mb-3" dangerouslySetInnerHTML={{ __html: ctaT.title }} />
+          <div className="mt-16 text-center bg-white/[0.02] p-10 border border-white/8">
+            <h3 className="font-display text-2xl md:text-3xl text-white font-bold tracking-tight mb-3" dangerouslySetInnerHTML={{ __html: ctaT.title }} />
             <p className="text-white/60 mb-6 max-w-xl mx-auto" dangerouslySetInnerHTML={{ __html: ctaT.desc }} />
-            <a href="/#/access" className="inline-block border border-primary text-primary px-8 py-3 font-bold uppercase tracking-widest text-sm hover:bg-primary hover:text-background transition-colors">
+            <a href="/#/access" className="inline-block bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-7 py-3 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[11px]">
               {ctaT.button}
             </a>
           </div>

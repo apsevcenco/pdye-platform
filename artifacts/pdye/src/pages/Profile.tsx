@@ -110,9 +110,9 @@ export default function Profile() {
       <div className="min-h-screen bg-background pt-8 pb-20">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
           <div className="mb-10">
-            <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-2">Account</p>
-            <h1 className="font-display text-4xl text-white font-normal">My Profile</h1>
-            <p className="text-white/50 font-sans text-sm mt-2">{user.email}</p>
+            <span className="text-primary text-[12px] font-bold tracking-[0.22em] uppercase mb-3 inline-block">Account</span>
+            <h1 className="font-display text-4xl md:text-5xl text-white font-bold tracking-tight">My Profile</h1>
+            <p className="text-white/50 font-sans text-sm mt-3">{user.email}</p>
           </div>
 
           {/* Role-specific workspace (non-admin only — admin uses /dashboard) */}
@@ -124,7 +124,7 @@ export default function Profile() {
           )}
 
           {/* Account info */}
-          <div className="bg-[#0f1d33] border border-white/8 p-8 mb-6">
+          <div className="bg-white/[0.02] border border-white/8 p-8 mb-6">
             <h2 className="font-display text-lg text-white mb-6 flex items-center gap-2">
               <User size={18} className="text-primary" /> Account Information
             </h2>
@@ -156,7 +156,7 @@ export default function Profile() {
           </div>
 
           {/* Change password */}
-          <div className="bg-[#0f1d33] border border-white/8 p-8">
+          <div className="bg-white/[0.02] border border-white/8 p-8">
             {!expanded ? (
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
@@ -175,7 +175,7 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={openPasswordForm}
-                  className="bg-primary text-[#070f1a] px-6 py-3 font-bold tracking-widest uppercase text-xs hover:bg-primary/90 transition-colors"
+                  className="bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-7 py-3 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[11px]"
                   data-testid="button-open-change-password"
                 >
                   Change Password
@@ -263,7 +263,7 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="bg-primary text-[#070f1a] px-8 py-3 font-bold tracking-widest uppercase text-xs hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-7 py-3 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid="button-change-password"
                 >
                   {saving ? "Updating…" : "Update Password"}

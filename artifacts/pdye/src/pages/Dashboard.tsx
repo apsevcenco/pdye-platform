@@ -57,7 +57,7 @@ const DEAL_STATUS: Record<string, { label: string; style: string }> = {
 /* ─── Reusable block ─── */
 function Block({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="bg-[#0f1d33] border border-white/5">
+    <div className="bg-white/[0.02] border border-white/8">
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
         <p className="text-white/70 text-xs font-bold uppercase tracking-widest">{title}</p>
         {action}
@@ -190,7 +190,7 @@ export function BuyerDashboard({ userId }: { userId: string }) {
             <p className="text-white font-display text-lg mb-1">Deal Room</p>
             <p className="text-white/50 text-sm font-sans">View all your deals and access deal rooms.</p>
           </div>
-          <div className="flex items-center gap-2 bg-primary text-background px-5 py-3 font-bold text-xs uppercase tracking-widest">
+          <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-7 py-3 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[11px]">
             Enter Deal Room <ArrowRight size={13} />
           </div>
         </div>
@@ -719,20 +719,20 @@ export function OwnerDashboard({ userId }: { userId: string }) {
     return (
       <div className="space-y-6">
         {/* Hero CTA */}
-        <div className="relative bg-[#0f1d33] border border-white/5 overflow-hidden">
+        <div className="relative bg-white/[0.02] border border-white/8 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(200,164,107,0.06),transparent_60%)]" />
           <div className="relative px-8 py-12 text-center max-w-xl mx-auto">
             <div className="w-16 h-16 border border-primary/20 flex items-center justify-center mx-auto mb-6">
               <Anchor size={28} className="text-primary/60" />
             </div>
-            <h2 className="font-display text-3xl text-white mb-3">Submit Your Vessel</h2>
+            <h2 className="font-display text-3xl md:text-4xl text-white font-bold tracking-tight mb-3">Submit Your Vessel</h2>
             <p className="text-white/40 text-sm font-sans leading-relaxed mb-8">
               List your yacht on PDYE's exclusive off-market exchange. Your listing remains confidential —
               only verified buyers approved by our team will gain access.
             </p>
             <Link
               href="/add-yacht"
-              className="inline-flex items-center gap-2 bg-primary text-background px-8 py-4 font-bold text-xs uppercase tracking-widest hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-8 py-3.5 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[11px]"
             >
               <Plus size={14} /> Submit Your Yacht
             </Link>
@@ -740,7 +740,7 @@ export function OwnerDashboard({ userId }: { userId: string }) {
         </div>
 
         {/* Process steps */}
-        <div className="bg-[#0f1d33] border border-white/5 p-6">
+        <div className="bg-white/[0.02] border border-white/8 p-6">
           <p className="text-white/30 text-[10px] uppercase tracking-widest mb-6 font-sans">How It Works</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
             {[
@@ -804,7 +804,7 @@ export function OwnerDashboard({ userId }: { userId: string }) {
 
       {/* Active vessel card */}
       {activeYacht && (
-        <div className="bg-[#0f1d33] border border-white/5 overflow-hidden">
+        <div className="bg-white/[0.02] border border-white/8 overflow-hidden">
           <div className="flex items-stretch gap-0">
             {/* Image */}
             <div className="hidden sm:block w-40 flex-shrink-0 bg-white/3">
@@ -872,7 +872,7 @@ export function OwnerDashboard({ userId }: { userId: string }) {
                   <button
                     onClick={() => submitToDealRoom(activeYacht.id)}
                     disabled={submitting === activeYacht.id}
-                    className="flex items-center gap-2 bg-primary text-background px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-5 py-2.5 text-[10px] font-bold tracking-[0.18em] uppercase transition-all duration-300 disabled:opacity-50"
                   >
                     {submitting === activeYacht.id ? "Submitting…" : <><Send size={11} /> Submit to Deal Room</>}
                   </button>
@@ -886,7 +886,7 @@ export function OwnerDashboard({ userId }: { userId: string }) {
       <MyDealRoomsSection userId={userId} />
 
       {/* Pipeline tracker */}
-      <div className="bg-[#0f1d33] border border-white/5 p-6">
+      <div className="bg-white/[0.02] border border-white/8 p-6">
         <p className="text-white/30 text-[10px] uppercase tracking-widest mb-6 font-sans">Sale Pipeline</p>
         <div className="relative">
           {/* Connector line */}
@@ -926,7 +926,7 @@ export function OwnerDashboard({ userId }: { userId: string }) {
 
       {/* Add another / valuation row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Link href="/add-yacht" className="flex items-center gap-3 border border-white/5 hover:border-primary/30 bg-[#0f1d33] px-5 py-4 transition-all group">
+        <Link href="/add-yacht" className="flex items-center gap-3 border border-white/8 hover:border-primary/40 bg-white/[0.02] px-5 py-4 transition-all group">
           <div className="w-9 h-9 border border-white/10 group-hover:border-primary/30 flex items-center justify-center text-primary/50 transition-all">
             <Plus size={16} />
           </div>
@@ -937,7 +937,7 @@ export function OwnerDashboard({ userId }: { userId: string }) {
           <ChevronRight size={13} className="ml-auto text-white/20 group-hover:text-primary transition-colors" />
         </Link>
 
-        <Link href="/valuation" className="flex items-center gap-3 border border-white/5 hover:border-primary/30 bg-[#0f1d33] px-5 py-4 transition-all group">
+        <Link href="/valuation" className="flex items-center gap-3 border border-white/8 hover:border-primary/40 bg-white/[0.02] px-5 py-4 transition-all group">
           <div className="w-9 h-9 border border-white/10 group-hover:border-primary/30 flex items-center justify-center text-primary/50 transition-all">
             <Calculator size={16} />
           </div>
@@ -978,7 +978,7 @@ function AdminDashboard() {
                   setLocation(item.href!);
                 }
               }}
-              className="flex items-center gap-4 bg-[#0f1d33] border border-white/5 hover:border-primary/30 p-5 transition-all group cursor-pointer"
+              className="flex items-center gap-4 bg-white/[0.02] border border-white/8 hover:border-primary/40 p-5 transition-all group cursor-pointer"
             >
               <div className="w-10 h-10 border border-white/10 flex items-center justify-center text-primary/60 group-hover:border-primary/30 group-hover:text-primary transition-all flex-shrink-0">
                 {item.icon}
@@ -1031,11 +1031,11 @@ export default function Dashboard() {
         <div className="max-w-6xl mx-auto px-3 sm:px-6 md:px-10">
 
           {/* Header */}
-          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-1">Dashboard</p>
-              <h1 className="font-display text-3xl md:text-4xl text-white">Welcome back</h1>
-              <p className="text-white/50 font-sans text-sm mt-1">{email}</p>
+              <span className="text-primary text-[12px] font-bold tracking-[0.22em] uppercase mb-3 inline-block">Dashboard</span>
+              <h1 className="font-display text-4xl md:text-5xl text-white font-bold tracking-tight">Welcome back</h1>
+              <p className="text-white/50 font-sans text-sm mt-3">{email}</p>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
