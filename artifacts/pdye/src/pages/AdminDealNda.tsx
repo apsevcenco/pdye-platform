@@ -133,11 +133,11 @@ export default function AdminDealNda() {
             {/* CURRENT ACTIVE DOCUMENT */}
             <section>
               <div className="flex items-center gap-2 mb-4">
-                <FileText size={16} className="text-[#c8a46b]" />
+                <FileText size={16} className="text-[#c8a96a]" />
                 <h2 className="font-display text-xl">Current Active Document</h2>
               </div>
               {active ? (
-                <div className="border border-white/10 bg-[#0a1426] p-6">
+                <div className="border border-white/10 bg-[#0f1d33] p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-4 border-b border-white/5">
                     <div>
                       <div className="text-white font-bold">{active.title}</div>
@@ -161,10 +161,10 @@ export default function AdminDealNda() {
             {/* PUBLISH NEW VERSION */}
             <section>
               <div className="flex items-center gap-2 mb-4">
-                <Save size={16} className="text-[#c8a46b]" />
+                <Save size={16} className="text-[#c8a96a]" />
                 <h2 className="font-display text-xl">Publish New Version</h2>
               </div>
-              <div className="border border-[#c8a46b]/25 bg-[#c8a46b]/5 p-6 space-y-4">
+              <div className="border border-[#c8a96a]/25 bg-[#c8a96a]/5 p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">New Version Label</label>
@@ -173,7 +173,7 @@ export default function AdminDealNda() {
                       value={editVersion}
                       onChange={e => setEditVersion(e.target.value)}
                       placeholder="e.g. v1.1"
-                      className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a46b]/60"
+                      className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a96a]/60"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -183,7 +183,7 @@ export default function AdminDealNda() {
                       value={editTitle}
                       onChange={e => setEditTitle(e.target.value)}
                       placeholder="PDYE Deal Room Non-Disclosure Agreement"
-                      className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a46b]/60"
+                      className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a96a]/60"
                     />
                   </div>
                 </div>
@@ -193,7 +193,7 @@ export default function AdminDealNda() {
                     value={editContent}
                     onChange={e => setEditContent(e.target.value)}
                     rows={20}
-                    className="w-full bg-[#070f1a] border border-white/15 px-4 py-3 text-white text-sm font-mono leading-relaxed focus:outline-none focus:border-[#c8a46b]/60"
+                    className="w-full bg-[#0a1628] border border-white/15 px-4 py-3 text-white text-sm font-mono leading-relaxed focus:outline-none focus:border-[#c8a96a]/60"
                   />
                   <div className="mt-1 text-[10px] text-white/35">{editContent.length} characters</div>
                 </div>
@@ -217,10 +217,10 @@ export default function AdminDealNda() {
             {/* VERSION HISTORY */}
             <section>
               <div className="flex items-center gap-2 mb-4">
-                <History size={16} className="text-[#c8a46b]" />
+                <History size={16} className="text-[#c8a96a]" />
                 <h2 className="font-display text-xl">Version History</h2>
               </div>
-              <div className="border border-white/10 bg-[#0a1426]">
+              <div className="border border-white/10 bg-[#0f1d33]">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase tracking-widest text-white/40 border-b border-white/5">
                     <tr>
@@ -234,7 +234,7 @@ export default function AdminDealNda() {
                   <tbody>
                     {history.map(h => (
                       <tr key={h.id} className="border-b border-white/5 last:border-b-0">
-                        <td className="p-3 font-mono text-[#c8a46b]">{h.version}</td>
+                        <td className="p-3 font-mono text-[#c8a96a]">{h.version}</td>
                         <td className="p-3 text-white/70">{h.title}</td>
                         <td className="p-3 font-mono text-[10px] text-white/40">{h.content_hash.slice(0, 16)}…</td>
                         <td className="p-3 text-white/60">{fmtDate(h.created_at)}</td>
@@ -258,10 +258,10 @@ export default function AdminDealNda() {
             {/* SIGNATURES LOG */}
             <section>
               <div className="flex items-center gap-2 mb-4">
-                <FileText size={16} className="text-[#c8a46b]" />
+                <FileText size={16} className="text-[#c8a96a]" />
                 <h2 className="font-display text-xl">Signature Log ({signatures.length})</h2>
               </div>
-              <div className="border border-white/10 bg-[#0a1426] overflow-x-auto">
+              <div className="border border-white/10 bg-[#0f1d33] overflow-x-auto">
                 <table className="w-full text-sm min-w-[1100px]">
                   <thead className="text-[10px] uppercase tracking-widest text-white/40 border-b border-white/5">
                     <tr>
@@ -281,7 +281,7 @@ export default function AdminDealNda() {
                       <tr key={s.id} className="border-b border-white/5 last:border-b-0">
                         <td className="p-3 text-white/80">{s.user_email}</td>
                         <td
-                          className="p-3 text-[#c8a46b]"
+                          className="p-3 text-[#c8a96a]"
                           style={{ fontFamily: "'Great Vibes', 'Snell Roundhand', cursive", fontSize: "22px", lineHeight: 1.1 }}
                         >
                           {s.signature_name}
@@ -299,7 +299,7 @@ export default function AdminDealNda() {
                             type="button"
                             onClick={() => handleDownloadSig(s)}
                             disabled={downloadingId === s.id}
-                            className="inline-flex items-center gap-1.5 border border-[#c8a46b]/40 px-2.5 py-1 text-[10px] uppercase tracking-widest text-[#c8a46b] hover:bg-[#c8a46b]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-1.5 border border-[#c8a96a]/40 px-2.5 py-1 text-[10px] uppercase tracking-widest text-[#c8a96a] hover:bg-[#c8a96a]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Download signed NDA PDF"
                           >
                             <Download size={11} /> {downloadingId === s.id ? "…" : "PDF"}

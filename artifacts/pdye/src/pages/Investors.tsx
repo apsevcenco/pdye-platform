@@ -79,12 +79,12 @@ export default function Investors() {
     setSubmitted(true);
   }
 
-  const inputClass = "w-full bg-[#070f1a] border border-white/10 focus:border-primary px-4 py-3 text-white focus:outline-none transition-colors placeholder:text-white/20 font-sans text-sm";
+  const inputClass = "w-full bg-[#0a1628] border border-white/10 focus:border-primary px-4 py-3 text-white focus:outline-none transition-colors placeholder:text-white/20 font-sans text-sm";
   const labelClass = "block text-white/50 text-[10px] uppercase tracking-widest mb-2 font-sans font-bold";
 
   return (
     <Layout>
-      <div className="pt-32 pb-20 bg-[#070f1a] relative overflow-hidden border-b border-white/5">
+      <div className="pt-32 pb-20 bg-[#0a1628] relative overflow-hidden border-b border-white/5">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
         <div className="absolute top-20 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
@@ -101,7 +101,7 @@ export default function Investors() {
         </div>
       </div>
 
-      <div className="bg-[#0a1426] border-b border-white/5">
+      <div className="bg-[#0f1d33] border-b border-white/5">
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/5">
             {stats.map((s, i) => (
@@ -115,7 +115,7 @@ export default function Investors() {
         </div>
       </div>
 
-      <section className="py-20 bg-[#070f1a]">
+      <section className="py-20 bg-[#0a1628]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
             <h2 className="font-display text-3xl text-white mb-3" dangerouslySetInnerHTML={{ __html: t.benefits.title }} />
@@ -143,7 +143,7 @@ export default function Investors() {
         </div>
       </section>
 
-      <section className="py-20 bg-[#0a1426] border-t border-white/5">
+      <section className="py-20 bg-[#0f1d33] border-t border-white/5">
         <div className="max-w-2xl mx-auto px-6">
           <div className="text-center mb-12">
             <span className="text-primary text-[10px] font-bold tracking-[0.25em] uppercase block mb-4" dangerouslySetInnerHTML={{ __html: t.form.tag }} />

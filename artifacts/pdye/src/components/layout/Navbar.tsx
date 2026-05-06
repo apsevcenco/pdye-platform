@@ -27,7 +27,7 @@ export function Navbar() {
   }, []);
 
   const navBackground = (isScrolled || !isHome)
-    ? "bg-[#070f1a]/97 backdrop-blur-md border-b border-white/6 shadow-[0_1px_0_rgba(255,255,255,0.04)]"
+    ? "bg-[#0a1628]/97 backdrop-blur-md border-b border-white/6 shadow-[0_1px_0_rgba(255,255,255,0.04)]"
     : "bg-transparent";
 
   async function handleLogout() {
@@ -123,7 +123,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="absolute top-[72px] left-0 w-full bg-[#070f1a] border-b border-white/10 lg:hidden shadow-2xl">
+        <div className="absolute top-[72px] left-0 w-full bg-[#0a1628] border-b border-white/10 lg:hidden shadow-2xl">
           <div className="flex flex-col p-6 gap-0">
             <div className="space-y-0 divide-y divide-white/5 mb-4">
               {NAV_LINKS.map((l) => (

@@ -206,7 +206,7 @@ export default function Access() {
                   <button key={r.key} type="button" onClick={() => switchRole(r.key)}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 font-sans ${
                       active
-                        ? "bg-primary text-[#070f1a] shadow-[0_0_12px_rgba(200,164,107,0.25)]"
+                        ? "bg-primary text-[#0a1628] shadow-[0_0_12px_rgba(200,164,107,0.25)]"
                         : "text-white/60 hover:text-white hover:bg-white/8"
                     }`}>
                     <Icon size={13} strokeWidth={active ? 2.5 : 1.8} />

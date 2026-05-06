@@ -382,7 +382,7 @@ export default function AdminYachtReview() {
           </Section>
 
           {/* Decision bar */}
-          <div className="sticky bottom-4 bg-[#0a1426]/95 backdrop-blur-md border border-primary/20 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-2xl">
+          <div className="sticky bottom-4 bg-[#0f1d33]/95 backdrop-blur-md border border-primary/20 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-2xl">
             <div className="flex items-center gap-3">
               <ShieldCheck size={18} className="text-primary" />
               <div>
@@ -435,7 +435,7 @@ export default function AdminYachtReview() {
               onChange={e => setRejectComment(e.target.value)}
               rows={6}
               placeholder="e.g. Please re-upload the main photo in higher resolution and add the engine hours."
-              className="w-full bg-[#070f1a] border border-white/10 focus:border-red-400/60 px-4 py-3 text-white text-sm focus:outline-none placeholder:text-white/20 font-sans resize-none"
+              className="w-full bg-[#0a1628] border border-white/10 focus:border-red-400/60 px-4 py-3 text-white text-sm focus:outline-none placeholder:text-white/20 font-sans resize-none"
               maxLength={4000}
             />
             <div className="flex items-center justify-between text-[10px] text-white/30 font-sans">

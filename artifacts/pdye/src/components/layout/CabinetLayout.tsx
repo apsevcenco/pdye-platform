@@ -287,7 +287,7 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background text-white selection:bg-primary/30 selection:text-white overflow-x-hidden">
-      <aside className="hidden lg:flex flex-col w-64 bg-[#070f1a] border-r border-white/8 fixed inset-y-0 left-0 z-30">
+      <aside className="hidden lg:flex flex-col w-64 bg-[#0a1628] border-r border-white/8 fixed inset-y-0 left-0 z-30">
         {sidebarContent}
       </aside>
 
@@ -297,14 +297,14 @@ export function CabinetLayout({ children }: { children: ReactNode }) {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative flex flex-col w-64 bg-[#070f1a] border-r border-white/8">
+          <aside className="relative flex flex-col w-64 bg-[#0a1628] border-r border-white/8">
             {sidebarContent}
           </aside>
         </div>
       )}
 
       <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
-        <header className="sticky top-0 z-20 h-14 bg-[#070f1a]/95 backdrop-blur-md border-b border-white/8 flex items-center justify-between px-4 sm:px-6">
+        <header className="sticky top-0 z-20 h-14 bg-[#0a1628]/95 backdrop-blur-md border-b border-white/8 flex items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <button
               className="lg:hidden text-white/60 hover:text-white p-2 -ml-2"

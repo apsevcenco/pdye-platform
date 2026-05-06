@@ -111,11 +111,11 @@ export default function PlatformNda() {
   }
 
   return (
-    <div className="min-h-screen bg-[#070f1a] text-white">
-      <header className="border-b border-white/10 bg-[#0a1426]/90 backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen bg-[#0a1628] text-white">
+      <header className="border-b border-white/10 bg-[#0f1d33]/90 backdrop-blur sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Anchor size={22} className="text-[#c8a46b]" strokeWidth={2} />
+            <Anchor size={22} className="text-[#c8a96a]" strokeWidth={2} />
             <span className="font-display text-xl tracking-widest">PDYE</span>
           </div>
           <div className="flex items-center gap-4 text-xs uppercase tracking-widest text-white/50">
@@ -132,8 +132,8 @@ export default function PlatformNda() {
 
       <main className="max-w-4xl mx-auto px-6 py-10">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 border border-[#c8a46b]/40 mb-4">
-            <ShieldCheck size={22} className="text-[#c8a46b]" strokeWidth={1.5} />
+          <div className="inline-flex items-center justify-center w-12 h-12 border border-[#c8a96a]/40 mb-4">
+            <ShieldCheck size={22} className="text-[#c8a96a]" strokeWidth={1.5} />
           </div>
           <h1 className="font-display text-3xl mb-2">Platform Confidentiality & Non-Circumvention Agreement</h1>
           <p className="text-white/50 text-sm max-w-xl mx-auto leading-relaxed">
@@ -161,11 +161,11 @@ export default function PlatformNda() {
               <span>{doc.title}</span>
               <span>Version {doc.version} · Hash {doc.content_hash.slice(0, 12)}…</span>
             </div>
-            <div className="border border-white/10 bg-[#0a1426] p-6 sm:p-8 max-h-[55vh] overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/80">
+            <div className="border border-white/10 bg-[#0f1d33] p-6 sm:p-8 max-h-[55vh] overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/80">
               {doc.content}
             </div>
 
-            <div className="mt-8 border border-[#c8a46b]/25 bg-[#c8a46b]/5 p-6 sm:p-8">
+            <div className="mt-8 border border-[#c8a96a]/25 bg-[#c8a96a]/5 p-6 sm:p-8">
               <h2 className="font-display text-lg mb-4 text-white">Acknowledgement & Signature</h2>
 
               <div className="space-y-3 mb-6">
@@ -174,7 +174,7 @@ export default function PlatformNda() {
                     type="checkbox"
                     checked={acceptedRead}
                     onChange={e => setAcceptedRead(e.target.checked)}
-                    className="mt-0.5 accent-[#c8a46b] cursor-pointer"
+                    className="mt-0.5 accent-[#c8a96a] cursor-pointer"
                     disabled={submitting || success}
                   />
                   <span>I confirm that I have read the full text of this Agreement.</span>
@@ -184,7 +184,7 @@ export default function PlatformNda() {
                     type="checkbox"
                     checked={acceptedUnderstand}
                     onChange={e => setAcceptedUnderstand(e.target.checked)}
-                    className="mt-0.5 accent-[#c8a46b] cursor-pointer"
+                    className="mt-0.5 accent-[#c8a96a] cursor-pointer"
                     disabled={submitting || success}
                   />
                   <span>I understand my obligations and the legal consequences of breaching this Agreement.</span>
@@ -194,7 +194,7 @@ export default function PlatformNda() {
                     type="checkbox"
                     checked={acceptedAgree}
                     onChange={e => setAcceptedAgree(e.target.checked)}
-                    className="mt-0.5 accent-[#c8a46b] cursor-pointer"
+                    className="mt-0.5 accent-[#c8a96a] cursor-pointer"
                     disabled={submitting || success}
                   />
                   <span>I agree to be legally bound by all terms of this Agreement.</span>
@@ -211,13 +211,13 @@ export default function PlatformNda() {
                   onChange={e => setSignatureName(e.target.value)}
                   placeholder="Type your full legal name"
                   disabled={submitting || success}
-                  className="w-full bg-transparent border border-white/15 px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a46b]/60 transition-colors"
+                  className="w-full bg-transparent border border-white/15 px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a96a]/60 transition-colors"
                 />
                 {nameValid && (
-                  <div className="mt-3 px-4 py-4 border border-[#c8a46b]/30 bg-[#070f1a]">
+                  <div className="mt-3 px-4 py-4 border border-[#c8a96a]/30 bg-[#0a1628]">
                     <div className="text-[9px] uppercase tracking-widest text-white/35 mb-2">Signature preview</div>
                     <div
-                      className="text-[#c8a46b]"
+                      className="text-[#c8a96a]"
                       style={{
                         fontFamily: "'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive",
                         fontSize: "44px",

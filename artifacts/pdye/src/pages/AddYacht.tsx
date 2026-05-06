@@ -17,9 +17,9 @@ type YachtDoc = { name: string; url: string; size: string; type: string };
 const MAX_DOCS = 20;
 const MAX_DOC_BYTES = 25 * 1024 * 1024;
 
-const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+const inputCls = "w-full bg-[#0a1628] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
 const labelCls = "block text-white/50 text-[10px] uppercase tracking-widest mb-2 font-sans font-bold";
-const unitInputCls = "w-full bg-[#070f1a] border border-white/10 text-white pl-4 pr-14 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+const unitInputCls = "w-full bg-[#0a1628] border border-white/10 text-white pl-4 pr-14 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://pdye-platform.onrender.com/api";
 

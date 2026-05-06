@@ -373,8 +373,8 @@ function YachtsView() {
     setUnitSystem(toImp ? "imperial" : "metric");
   }
 
-  const unitInputCls = "w-full bg-[#070f1a] border border-white/10 text-white pl-4 pr-14 py-2.5 font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
-  const specInputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+  const unitInputCls = "w-full bg-[#0a1628] border border-white/10 text-white pl-4 pr-14 py-2.5 font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+  const specInputCls = "w-full bg-[#0a1628] border border-white/10 text-white px-4 py-2.5 font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
   function UnitBadge({ unit }: { unit: string }) {
     return (
       <span className="absolute right-0 top-0 bottom-0 flex items-center px-3 text-[10px] font-bold text-primary/60 border-l border-white/10 pointer-events-none select-none tracking-wider">
@@ -767,7 +767,7 @@ function YachtsView() {
     await saveDocs(yacht.id, updated);
   }
 
-  const inputCls = "w-full bg-[#070f1a] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
+  const inputCls = "w-full bg-[#0a1628] border border-white/10 text-white px-4 py-2.5 text-sm font-sans focus:outline-none focus:border-primary transition-colors placeholder:text-white/20";
   const labelCls = "block text-white/50 text-[10px] uppercase tracking-widest mb-1.5 font-sans";
 
   return (
@@ -863,7 +863,7 @@ function YachtsView() {
             </div>
           </div>
 
-          <div className="bg-[#0a1426] border border-white/8 p-4 space-y-6">
+          <div className="bg-[#0f1d33] border border-white/8 p-4 space-y-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="text-primary text-[10px] uppercase tracking-widest font-bold font-sans flex items-center gap-2">
                 <PenLine size={12} />
@@ -1473,7 +1473,7 @@ function YachtsView() {
                   {/* Photo management panel */}
                   {expandedPhotoYacht === yacht.id && (
                     <tr>
-                      <td colSpan={7} className="bg-[#070f1a] border-b border-white/5 px-6 py-5">
+                      <td colSpan={7} className="bg-[#0a1628] border-b border-white/5 px-6 py-5">
                         <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-4">
                           Photo Gallery — {yacht.name} ({yacht.photos?.length || 0} / 30)
                         </p>
@@ -1561,7 +1561,7 @@ function YachtsView() {
                   {/* Document management panel */}
                   {expandedDocYacht === yacht.id && (
                     <tr>
-                      <td colSpan={7} className="bg-[#070f1a] border-b border-white/5 px-6 py-5">
+                      <td colSpan={7} className="bg-[#0a1628] border-b border-white/5 px-6 py-5">
                         <p className="text-primary text-[10px] uppercase tracking-widest font-bold mb-4">
                           Deal Room Documents — {yacht.name} ({yacht.documents?.length || 0} files)
                         </p>
@@ -2472,7 +2472,7 @@ function LeadsView() {
               onClick={() => setFilter(t)}
               className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${
                 filter === t
-                  ? "bg-primary text-[#070f1a]"
+                  ? "bg-primary text-[#0a1628]"
                   : "text-white/50 hover:text-white hover:bg-white/5"
               }`}
             >
@@ -2555,7 +2555,7 @@ function LeadsView() {
 
       {/* Detail panel */}
       {selected && (
-        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+        <div className="w-80 flex-shrink-0 bg-[#0a1628] border border-white/8 p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border ${LEAD_TYPE_STYLES[selected.yacht_type] || "text-white/50 bg-white/5 border-white/10"}`}>
               {selected.yacht_type}
@@ -2624,7 +2624,7 @@ function LeadsView() {
               <select
                 value={chosenRole}
                 onChange={e => setChosenRole(e.target.value)}
-                className="w-full bg-[#0a1426] border border-white/10 px-3 py-2 text-white text-xs font-sans mb-3 focus:border-primary/50 focus:outline-none"
+                className="w-full bg-[#0f1d33] border border-white/10 px-3 py-2 text-white text-xs font-sans mb-3 focus:border-primary/50 focus:outline-none"
                 data-testid="select-approve-role"
               >
                 {ROLE_OPTIONS.map(r => (
@@ -2755,7 +2755,7 @@ function InvestorsView() {
 
         <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
           {(["all", "approved", "pending"] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+            <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#0a1628]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
               {f === "all" ? `All (${baseUsers.length})` : f === "approved" ? `Approved (${baseUsers.filter(u => u.approved).length})` : `Pending (${baseUsers.filter(u => !u.approved).length})`}
             </button>
           ))}
@@ -2819,7 +2819,7 @@ function InvestorsView() {
       </div>
 
       {selected && (
-        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+        <div className="w-80 flex-shrink-0 bg-[#0a1628] border border-white/8 p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <StatusBadge status={selected.approved ? "approved" : "pending"} />
             <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors"><X size={16} /></button>
@@ -2859,15 +2859,15 @@ function InvestorsView() {
             <div className="space-y-4">
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Company</label>
-                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Phone</label>
-                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Notes</label>
-                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
+                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex gap-2">
                 <button onClick={saveEdit} disabled={saving} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
@@ -3005,7 +3005,7 @@ function BrokersView() {
       </div>
 
       {selected && (
-        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+        <div className="w-80 flex-shrink-0 bg-[#0a1628] border border-white/8 p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <StatusBadge status={selected.approved ? "approved" : "pending"} />
             <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors"><X size={16} /></button>
@@ -3038,15 +3038,15 @@ function BrokersView() {
             <div className="space-y-4">
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Company</label>
-                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Phone</label>
-                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Notes</label>
-                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
+                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex gap-2">
                 <button onClick={saveEdit} disabled={saving} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
@@ -3162,7 +3162,7 @@ function OwnersView() {
 
         <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
           {(["all", "approved", "pending"] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+            <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#0a1628]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
               {f === "all" ? `All (${baseUsers.length})` : f === "approved" ? `Approved (${baseUsers.filter(u => u.approved).length})` : `Pending (${baseUsers.filter(u => !u.approved).length})`}
             </button>
           ))}
@@ -3208,7 +3208,7 @@ function OwnersView() {
       </div>
 
       {selected && (
-        <div className="w-80 flex-shrink-0 bg-[#0a1629] border border-white/8 p-6 overflow-y-auto">
+        <div className="w-80 flex-shrink-0 bg-[#0a1628] border border-white/8 p-6 overflow-y-auto">
           <div className="flex items-center justify-between mb-5">
             <StatusBadge status={selected.approved ? "approved" : "pending"} />
             <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white transition-colors"><X size={16} /></button>
@@ -3251,23 +3251,23 @@ function OwnersView() {
             <div className="space-y-4">
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Name</label>
-                <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Company</label>
-                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.company} onChange={e => setEditForm(f => ({ ...f, company: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Phone</label>
-                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Location</label>
-                <input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+                <input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-white/40 text-[10px] uppercase tracking-widest mb-1">Notes</label>
-                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
+                <textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex gap-2">
                 <button onClick={saveEdit} disabled={saving} className="text-xs bg-white/5 backdrop-blur-md border border-primary text-primary px-4 py-2 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
@@ -3457,7 +3457,7 @@ function MessagesView() {
 
       <div className="flex gap-1 mb-6 bg-white/3 border border-white/8 p-1">
         {(["all", "user", "system"] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#070f1a]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+          <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-2 px-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-150 font-sans ${filter === f ? "bg-primary text-[#0a1628]" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
             {f === "all" ? `All (${messages.length})` : f === "user" ? `User (${messages.filter(m => !m.is_system).length})` : `System (${messages.filter(m => m.is_system).length})`}
           </button>
         ))}
@@ -3619,7 +3619,7 @@ function ContentView() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 mb-6 bg-[#050c16] border border-white/5 p-1.5">
+      <div className="flex flex-wrap gap-1.5 mb-6 bg-[#06101e] border border-white/5 p-1.5">
         {SITE_PAGES.map((p: any) => (
           <button
             key={p.id}

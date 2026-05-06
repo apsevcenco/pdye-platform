@@ -200,7 +200,7 @@ export default function Profile() {
                     onChange={e => setCurrentPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="w-full bg-[#0a1426] border border-white/10 px-4 py-3 pr-12 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
+                    className="w-full bg-[#0f1d33] border border-white/10 px-4 py-3 pr-12 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
                     data-testid="input-current-password"
                   />
                   <button
@@ -224,7 +224,7 @@ export default function Profile() {
                     required
                     minLength={6}
                     autoComplete="new-password"
-                    className="w-full bg-[#0a1426] border border-white/10 px-4 py-3 pr-12 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
+                    className="w-full bg-[#0f1d33] border border-white/10 px-4 py-3 pr-12 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
                     data-testid="input-new-password"
                   />
                   <button
@@ -248,7 +248,7 @@ export default function Profile() {
                   required
                   minLength={6}
                   autoComplete="new-password"
-                  className="w-full bg-[#0a1426] border border-white/10 px-4 py-3 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
+                  className="w-full bg-[#0f1d33] border border-white/10 px-4 py-3 text-white text-sm font-sans focus:border-primary/50 focus:outline-none"
                   data-testid="input-confirm-password"
                 />
               </div>

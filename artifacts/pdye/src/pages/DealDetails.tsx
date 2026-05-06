@@ -1332,7 +1332,7 @@ function NdaSigningForm({
             className="w-full bg-transparent border border-white/15 px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-primary/60 transition-colors"
           />
           {nameValid && (
-            <div className="mt-3 px-4 py-4 border border-primary/30 bg-[#070f1a]">
+            <div className="mt-3 px-4 py-4 border border-primary/30 bg-[#0a1628]">
               <div className="text-[9px] uppercase tracking-widest text-white/35 mb-2">
                 Signature preview
               </div>
@@ -1577,7 +1577,7 @@ function CommissionSigningForm({
             className="w-full bg-transparent border border-white/15 px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-primary/60 transition-colors"
           />
           {nameValid && (
-            <div className="mt-3 px-4 py-4 border border-primary/30 bg-[#070f1a]">
+            <div className="mt-3 px-4 py-4 border border-primary/30 bg-[#0a1628]">
               <div className="text-[9px] uppercase tracking-widest text-white/35 mb-2">
                 Signature preview
               </div>

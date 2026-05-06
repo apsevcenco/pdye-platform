@@ -394,22 +394,17 @@ export const SITE_PAGES: SitePage[] = [
         ],
       },
       {
-        id: "marketplace",
-        label: "Marketplace Links",
+        id: "contact",
+        label: "Contact Us Block",
         fields: [
-          { key: "title", label: "Column Title", type: "input" },
-          { key: "link1", label: "Link 1", type: "input" },
-          { key: "link2", label: "Link 2", type: "input" },
-        ],
-      },
-      {
-        id: "services",
-        label: "Client Services Links",
-        fields: [
-          { key: "title", label: "Column Title", type: "input" },
-          { key: "link1", label: "Link 1", type: "input" },
-          { key: "link2", label: "Link 2", type: "input" },
-          { key: "link3", label: "Link 3", type: "input" },
+          { key: "tag", label: "Eyebrow / Tag", type: "input" },
+          { key: "title", label: "Block Title", type: "input" },
+          { key: "intro", label: "Intro Text", type: "textarea", rows: 2 },
+          { key: "email", label: "Email", type: "input" },
+          { key: "phone", label: "Phone", type: "input" },
+          { key: "whatsapp", label: "WhatsApp (number or full URL)", type: "input" },
+          { key: "address", label: "Address", type: "textarea", rows: 2 },
+          { key: "hours", label: "Office Hours", type: "input" },
         ],
       },
       {
@@ -677,16 +672,15 @@ export const SITE_DEFAULTS: Record<string, Record<string, Record<string, string>
       name: "PDYE",
       desc: "The premier private marketplace for distressed and off-market Mediterranean yacht opportunities. Confidential brokerage for qualified private buyers.",
     },
-    marketplace: {
-      title: "Marketplace",
-      link1: "Available Yachts",
-      link2: "For Brokers",
-    },
-    services: {
-      title: "Client Services",
-      link1: "Request Access",
-      link2: "Deal Room",
-      link3: "Client Login",
+    contact: {
+      tag: "Contact",
+      title: "Contact Us",
+      intro: "For confidential enquiries, broker introductions, or to discuss a specific opportunity, reach out through any of the channels below. All correspondence is treated as private.",
+      email: "contact@pdye.com",
+      phone: "+33 1 00 00 00 00",
+      whatsapp: "+33 6 00 00 00 00",
+      address: "Port Hercule, 98000 Monaco",
+      hours: "Mon – Fri · 09:00 – 19:00 CET",
     },
     legal: {
       copyright: "Private Distressed Yacht Exchange. All rights reserved.",

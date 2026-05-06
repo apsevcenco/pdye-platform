@@ -46,7 +46,7 @@ function FontLoader() {
 
 function Spinner() {
   return (
-    <div className="min-h-screen bg-[#070f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
     </div>
   );
@@ -55,7 +55,7 @@ function Spinner() {
 function UnderReview() {
   const { logout, userProfile } = useAuth();
   return (
-    <div className="min-h-screen bg-[#070f1a] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-[#0a1628] flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center">
         <div className="flex items-center justify-center gap-2 mb-10">
           <Anchor size={28} className="text-primary" strokeWidth={2} />

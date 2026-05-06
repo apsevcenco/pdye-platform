@@ -134,7 +134,7 @@ function LockedView({ yacht, status, onRequest, requesting, introSent, onIntro }
         </Link>
       </div>
 
-      <div className="relative h-[55vh] min-h-[400px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
+      <div className="relative h-[55vh] min-h-[400px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0f1d33]">
         {image ? (
           <img src={image} alt="Confidential Listing" className="w-full h-full object-cover" />
         ) : (
@@ -455,7 +455,7 @@ export default function YachtDetail() {
         )}
       </div>
 
-      <div className="relative h-[70vh] min-h-[480px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
+      <div className="relative h-[70vh] min-h-[480px] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0f1d33]">
         {allPhotos.length > 0 ? (
           <img key={allPhotos[idx]} src={allPhotos[idx]} alt={`${yacht.name} — ${idx + 1}`} className="w-full h-full object-cover transition-all duration-500" onClick={() => setLightbox(idx)} style={{ cursor: "zoom-in" }} />
         ) : (

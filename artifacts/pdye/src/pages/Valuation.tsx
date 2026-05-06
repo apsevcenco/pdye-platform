@@ -46,7 +46,7 @@ function SectionHead({ icon: Icon, title }: { icon: React.ElementType; title: st
   );
 }
 
-const baseInp = "bg-[#070f1a] border border-white/10 focus:border-primary text-white focus:outline-none transition-colors placeholder:text-white/20 font-sans text-sm";
+const baseInp = "bg-[#0a1628] border border-white/10 focus:border-primary text-white focus:outline-none transition-colors placeholder:text-white/20 font-sans text-sm";
 const sel = `w-full ${baseInp} px-4 py-2.5 cursor-pointer`;
 const inp = `w-full ${baseInp} px-4 py-2.5`;
 const inpUnit = `w-full ${baseInp} pl-4 pr-14 py-2.5`;
@@ -168,7 +168,7 @@ const data = text ? JSON.parse(text) : {};
   return (
     <Layout>
       {/* Hero */}
-      <div className="pt-24 pb-10 bg-[#070f1a] border-b border-white/5 relative overflow-hidden">
+      <div className="pt-24 pb-10 bg-[#0a1628] border-b border-white/5 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/4 via-transparent to-transparent pointer-events-none" />
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
@@ -182,7 +182,7 @@ const data = text ? JSON.parse(text) : {};
         </div>
       </div>
 
-      <div className="min-h-screen bg-[#070f1a] py-10">
+      <div className="min-h-screen bg-[#0a1628] py-10">
         <div className="max-w-4xl mx-auto px-6">
 
           {!result ? (
@@ -211,7 +211,7 @@ const data = text ? JSON.parse(text) : {};
                 </button>
               </div>
 
-              <div className="bg-[#0c1929] border border-white/6 p-7 space-y-5">
+              <div className="bg-[#0f1d33] border border-white/6 p-7 space-y-5">
                 <form onSubmit={handleSubmit} className="space-y-5">
 
                   {/* GENERAL */}
@@ -431,7 +431,7 @@ const data = text ? JSON.parse(text) : {};
                     <button type="submit" disabled={loading}
                       className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold uppercase tracking-[0.2em] py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2.5 text-sm">
                       {loading
-                        ? <><span className="w-4 h-4 border-2 border-[#070f1a]/30 border-t-[#070f1a] rounded-full animate-spin" /><span>{t.formT.loading_text}</span></>
+                        ? <><span className="w-4 h-4 border-2 border-[#0a1628]/30 border-t-[#0a1628] rounded-full animate-spin" /><span>{t.formT.loading_text}</span></>
                         : <><TrendingUp size={15} /><span>{t.formT.submit_btn}</span></>
                       }
                     </button>
@@ -447,7 +447,7 @@ const data = text ? JSON.parse(text) : {};
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="space-y-5">
 
                 {/* Price estimate card */}
-                <div className="bg-[#0c1929] border border-primary/25 p-8">
+                <div className="bg-[#0f1d33] border border-primary/25 p-8">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
                     <div>
                       <p className="text-white/35 text-[9.5px] uppercase tracking-[0.22em] font-bold mb-3 font-sans">{t.formT.result_label}</p>
@@ -475,7 +475,7 @@ const data = text ? JSON.parse(text) : {};
                   <div className="space-y-2">
                     {(result.comparables || []).map((c, i) => (
                       <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.07 }}
-                        className="bg-[#0c1929] border border-white/5 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-colors">
+                        className="bg-[#0f1d33] border border-white/5 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-colors">
                         <div className="flex items-start gap-3.5">
                           <span className="text-primary/35 font-display text-base w-4 flex-shrink-0 pt-0.5">{i + 1}</span>
                           <div>

@@ -107,7 +107,7 @@ export default function AdminLegalPages() {
                     onClick={() => switchTab(t.kind)}
                     className={`px-5 py-3 text-xs uppercase tracking-widest font-sans transition-colors ${
                       activeKind === t.kind
-                        ? "text-[#c8a46b] border-b-2 border-[#c8a46b] -mb-px"
+                        ? "text-[#c8a96a] border-b-2 border-[#c8a96a] -mb-px"
                         : "text-white/50 hover:text-white"
                     }`}
                   >
@@ -130,7 +130,7 @@ export default function AdminLegalPages() {
                     href={currentTab.publicPath}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 border border-[#c8a46b]/40 text-[#c8a46b] text-[10px] uppercase tracking-widest hover:bg-[#c8a46b]/10 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-[#c8a96a]/40 text-[#c8a96a] text-[10px] uppercase tracking-widest hover:bg-[#c8a96a]/10 transition-colors"
                   >
                     <Eye size={12} />
                     Preview public page
@@ -143,7 +143,7 @@ export default function AdminLegalPages() {
                     type="text"
                     value={titleDraft}
                     onChange={(e) => setTitleDraft(e.target.value)}
-                    className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a46b]/60"
+                    className="w-full bg-transparent border border-white/15 px-3 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#c8a96a]/60"
                   />
                 </div>
 
@@ -155,7 +155,7 @@ export default function AdminLegalPages() {
                     value={contentDraft}
                     onChange={(e) => setContentDraft(e.target.value)}
                     rows={24}
-                    className="w-full bg-[#070f1a] border border-white/15 px-4 py-3 text-white text-sm font-mono leading-relaxed focus:outline-none focus:border-[#c8a46b]/60"
+                    className="w-full bg-[#0a1628] border border-white/15 px-4 py-3 text-white text-sm font-mono leading-relaxed focus:outline-none focus:border-[#c8a96a]/60"
                   />
                   <div className="mt-1 text-[10px] text-white/35">
                     {contentDraft.length} characters · use &lt;p&gt;, &lt;h2&gt;, &lt;h3&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;a&gt; tags for formatting

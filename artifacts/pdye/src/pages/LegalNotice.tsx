@@ -26,9 +26,9 @@ export default function LegalNotice() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[#070f1a] text-white">
+      <div className="min-h-screen bg-[#0a1628] text-white">
         <section className="max-w-4xl mx-auto px-6 md:px-12 py-24 md:py-32">
-          <p className="text-[#c8a46b] text-[10px] uppercase tracking-[0.3em] mb-4 font-sans">Legal</p>
+          <p className="text-[#c8a96a] text-[10px] uppercase tracking-[0.3em] mb-4 font-sans">Legal</p>
           <h1 className="font-display text-4xl md:text-5xl text-white mb-10 leading-tight">
             {page?.title || "Legal Notice"}
           </h1>
@@ -41,7 +41,7 @@ export default function LegalNotice() {
             )}
             {page && (
               <div
-                className="prose prose-invert max-w-none font-sans text-white/80 leading-relaxed [&_h2]:font-display [&_h2]:text-white [&_h2]:mt-8 [&_h2]:mb-4 [&_h3]:font-display [&_h3]:text-white [&_a]:text-[#c8a46b] [&_p]:mb-4"
+                className="prose prose-invert max-w-none font-sans text-white/80 leading-relaxed [&_h2]:font-display [&_h2]:text-white [&_h2]:mt-8 [&_h2]:mb-4 [&_h3]:font-display [&_h3]:text-white [&_a]:text-[#c8a96a] [&_p]:mb-4"
                 dangerouslySetInnerHTML={{ __html: safeHtml }}
               />
             )}

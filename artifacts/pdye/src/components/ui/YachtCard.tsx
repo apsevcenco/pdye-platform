@@ -52,7 +52,7 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
     <div className="group bg-card border border-white/5 hover:border-primary/30 transition-all duration-500 overflow-hidden flex flex-col">
 
       {/* Photo */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0a1426]">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#0f1d33] to-[#0f1d33]">
         {image ? (
           <img
             src={image}

@@ -132,35 +132,35 @@
   --elevate-1: rgba(255,255,255, .03);
   --elevate-2: rgba(255,255,255, .07);
 
-  /* DARK NAVY LUXURY THEME - inspired by aayachts.fr */
-  --background: 219 58% 9%; /* #0a1426 deep navy */
-  --foreground: 45 20% 95%; /* cream white */
+  /* NAVY DISCIPLINE — disciplined dark-navy + champagne-gold + ivory */
+  --background: 217 53% 10%; /* #0a1628 deep navy */
+  --foreground: 38 56% 91%; /* #f4ecd8 ivory */
 
-  --card: 222 51% 14%; /* #111c35 card bg */
-  --card-foreground: 45 20% 95%;
-  --card-border: 217 40% 18%;
+  --card: 217 39% 13%; /* #0f1d33 lifted navy surface */
+  --card-foreground: 38 56% 91%;
+  --card-border: 217 30% 22%;
 
-  --popover: 222 51% 14%;
-  --popover-foreground: 45 20% 95%;
-  --popover-border: 217 40% 18%;
+  --popover: 217 39% 13%;
+  --popover-foreground: 38 56% 91%;
+  --popover-border: 217 30% 22%;
 
-  --primary: 37 46% 60%; /* #c8a46b gold */
-  --primary-foreground: 0 0% 100%;
+  --primary: 37 46% 60%; /* #c8a96a champagne gold */
+  --primary-foreground: 217 53% 10%;
 
-  --secondary: 217 54% 13%; /* #0f1d33 section bg */
-  --secondary-foreground: 45 20% 95%;
+  --secondary: 217 39% 13%; /* single surface tier with --card */
+  --secondary-foreground: 38 56% 91%;
 
-  --muted: 217 40% 16%;
-  --muted-foreground: 215 20% 60%;
+  --muted: 217 32% 16%;
+  --muted-foreground: 38 30% 78%;
 
   --accent: 37 46% 60%;
-  --accent-foreground: 0 0% 100%;
+  --accent-foreground: 217 53% 10%;
 
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 217 40% 18%;
-  --input: 217 40% 16%;
+  --border: 217 30% 22%;
+  --input: 217 32% 16%;
   --ring: 37 46% 60%;
 
   --chart-1: 37 46% 60%;
@@ -169,13 +169,13 @@
   --chart-4: 37 30% 45%;
   --chart-5: 217 60% 45%;
 
-  --sidebar: 219 58% 8%;
-  --sidebar-foreground: 45 20% 95%;
-  --sidebar-border: 217 40% 15%;
+  --sidebar: 217 53% 8%;
+  --sidebar-foreground: 38 56% 91%;
+  --sidebar-border: 217 30% 18%;
   --sidebar-primary: 37 46% 60%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217 40% 16%;
-  --sidebar-accent-foreground: 45 20% 95%;
+  --sidebar-primary-foreground: 217 53% 10%;
+  --sidebar-accent: 217 32% 16%;
+  --sidebar-accent-foreground: 38 56% 91%;
   --sidebar-ring: 37 46% 60%;
 
   --app-font-sans: 'DM Sans', sans-serif;
@@ -234,7 +234,7 @@
   }
 
   .gold-gradient-text {
-    background: linear-gradient(to right, #c8a46b, #e6c88f, #c8a46b);
+    background: linear-gradient(to right, #c8a96a, #e6c88f, #c8a96a);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

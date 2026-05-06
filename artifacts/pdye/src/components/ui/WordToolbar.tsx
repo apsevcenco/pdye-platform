@@ -29,7 +29,7 @@ const FONT_SIZES = [
 const COLORS = [
   { label: "Default", value: "" },
   { label: "White", value: "#ffffff" },
-  { label: "Gold", value: "#c8a46b" },
+  { label: "Gold", value: "#c8a96a" },
   { label: "Light Gray", value: "#b0b0b0" },
   { label: "Dark Gray", value: "#666666" },
   { label: "Red", value: "#ef4444" },
@@ -94,7 +94,7 @@ function ToolbarDropdown({
       <button
         type="button"
         onMouseDown={e => { e.preventDefault(); setOpen(!open); }}
-        className="flex items-center justify-between w-full gap-1 px-2 py-1 bg-[#050c16] border border-white/10 hover:border-primary/40 text-white/70 text-[11px] font-sans transition-colors h-7"
+        className="flex items-center justify-between w-full gap-1 px-2 py-1 bg-[#06101e] border border-white/10 hover:border-primary/40 text-white/70 text-[11px] font-sans transition-colors h-7"
       >
         <span className="flex items-center gap-1.5 truncate">
           {icon}
@@ -103,7 +103,7 @@ function ToolbarDropdown({
         <ChevronDown size={10} className={`text-white/30 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute z-50 top-full left-0 mt-0.5 w-full max-h-48 overflow-y-auto bg-[#0a1426] border border-white/15 shadow-xl">
+        <div className="absolute z-50 top-full left-0 mt-0.5 w-full max-h-48 overflow-y-auto bg-[#0f1d33] border border-white/15 shadow-xl">
           {options.map(o => (
             <button
               key={o.value}
@@ -141,7 +141,7 @@ function ToolbarButton({
       className={`flex items-center justify-center w-7 h-7 border transition-colors ${
         active
           ? "bg-primary/20 border-primary/40 text-primary"
-          : "bg-[#050c16] border-white/10 text-white/50 hover:text-white hover:border-primary/30"
+          : "bg-[#06101e] border-white/10 text-white/50 hover:text-white hover:border-primary/30"
       }`}
     >
       {children}

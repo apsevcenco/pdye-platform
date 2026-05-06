@@ -542,13 +542,13 @@ export default function AdminUserDetail() {
           {ndaLoading ? (
             <div className="text-white/40 text-sm font-sans">Loading…</div>
           ) : signatures.length === 0 ? (
-            <div className="bg-[#070f1a] border border-white/5 p-5 text-white/50 text-sm font-sans">
+            <div className="bg-[#0a1628] border border-white/5 p-5 text-white/50 text-sm font-sans">
               This user has not signed the platform CNCA yet. They will be required to sign on next login before reaching protected pages.
             </div>
           ) : (
             <div className="space-y-3">
               {signatures.map(sig => (
-                <div key={sig.id} className="bg-[#070f1a] border border-white/5 p-5">
+                <div key={sig.id} className="bg-[#0a1628] border border-white/5 p-5">
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div className="space-y-2 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -682,7 +682,7 @@ function ClientHistorySection({
                 <button
                   key={l.id}
                   onClick={() => onNavigate(`/yacht/${l.id}`)}
-                  className="w-full text-left bg-[#0a1426] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
+                  className="w-full text-left bg-[#0f1d33] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
                   data-testid={`history-listing-${l.id}`}
                 >
                   <div className="min-w-0">
@@ -724,7 +724,7 @@ function ClientHistorySection({
                 <button
                   key={r.id}
                   onClick={() => onNavigate(`/yacht/${r.yacht_id}`)}
-                  className="w-full text-left bg-[#0a1426] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
+                  className="w-full text-left bg-[#0f1d33] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
                   data-testid={`history-request-${r.id}`}
                 >
                   <div className="min-w-0">
@@ -772,7 +772,7 @@ function ClientHistorySection({
                 <button
                   key={room.id}
                   onClick={() => onNavigate(`/dealroom/${room.id}`)}
-                  className="w-full text-left bg-[#0a1426] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
+                  className="w-full text-left bg-[#0f1d33] border border-white/8 hover:border-primary/30 transition-colors p-3 flex items-center justify-between gap-3"
                   data-testid={`history-deal-${room.id}`}
                 >
                   <div className="min-w-0">
@@ -832,13 +832,13 @@ function EditField({ label, value, onChange, multiline = false }: { label: strin
           value={value}
           onChange={e => onChange(e.target.value)}
           rows={4}
-          className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm font-sans focus:outline-none focus:border-primary resize-none"
+          className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm font-sans focus:outline-none focus:border-primary resize-none"
         />
       ) : (
         <input
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="w-full bg-[#070f1a] border border-white/10 text-white px-3 py-2 text-sm font-sans focus:outline-none focus:border-primary"
+          className="w-full bg-[#0a1628] border border-white/10 text-white px-3 py-2 text-sm font-sans focus:outline-none focus:border-primary"
         />
       )}
     </div>
