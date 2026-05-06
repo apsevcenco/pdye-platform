@@ -509,7 +509,7 @@ const data = text ? JSON.parse(text) : {};
                 <div className="bg-primary/5 border border-primary/15 p-7 text-center">
                   <p className="text-white font-display text-xl mb-2">Want a Professional Valuation?</p>
                   <p className="text-white/35 font-sans text-sm mb-5 max-w-sm mx-auto">Our maritime experts provide certified appraisals with full market analysis and documentation.</p>
-                  <a href="#/boat-owners"
+                  <a href="/boat-owners"
                     className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold uppercase tracking-widest px-8 py-3.5 text-xs transition-all duration-300">
                     <ChevronRight size={13} />
                     Contact Our Team

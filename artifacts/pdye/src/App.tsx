@@ -1,5 +1,4 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect, useState, lazy, Suspense } from "react";
@@ -199,7 +198,7 @@ function App() {
       <CurrencyProvider>
         <TooltipProvider>
           <FontLoader />
-          <WouterRouter hook={useHashLocation}>
+          <WouterRouter>
             <Router />
           </WouterRouter>
           <Toaster />

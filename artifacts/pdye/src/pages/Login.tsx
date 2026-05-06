@@ -133,7 +133,7 @@ export default function Login() {
 
           <p className="text-center mt-6 text-white/40 text-xs font-sans">
             Don't have an account?{" "}
-            <a href="#/access" className="text-primary/80 hover:text-primary transition-colors">
+            <a href="/access" className="text-primary/80 hover:text-primary transition-colors">
               Request access →
             </a>
           </p>

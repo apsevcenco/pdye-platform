@@ -132,7 +132,7 @@ async function sendAdminSubmissionEmail(opts: {
     return;
   }
   const fromAddress = process.env["RESEND_FROM_EMAIL"] || "PDYE <onboarding@resend.dev>";
-  const reviewUrl = `${opts.siteUrl}/#/admin/yachts/${opts.yacht.id}`;
+  const reviewUrl = `${opts.siteUrl}/admin/yachts/${opts.yacht.id}`;
   const inner = `
     <tr><td style="padding:0 32px 8px 32px;color:#ffffff;font-size:20px;font-weight:300;">New listing awaits review</td></tr>
     <tr><td style="padding:8px 32px 0 32px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">
@@ -171,8 +171,8 @@ async function sendOwnerDecisionEmail(opts: {
     return;
   }
   const fromAddress = process.env["RESEND_FROM_EMAIL"] || "PDYE <onboarding@resend.dev>";
-  const dashboardUrl = `${opts.siteUrl}/#/dashboard`;
-  const editUrl = `${opts.siteUrl}/#/add-yacht?edit=${opts.yacht.id}`;
+  const dashboardUrl = `${opts.siteUrl}/dashboard`;
+  const editUrl = `${opts.siteUrl}/add-yacht?edit=${opts.yacht.id}`;
   const greeting = opts.ownerName ? `Hello ${escapeHtml(opts.ownerName)},` : "Hello,";
 
   let inner: string;
