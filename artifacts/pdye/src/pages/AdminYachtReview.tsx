@@ -317,7 +317,6 @@ export default function AdminYachtReview() {
             <Section title="Pricing & Location">
               <Field label="Asking Price" value={yacht.price} />
               <Field label="Market Value" value={yacht.market_price} />
-              <Field label="Distressed Price" value={yacht.distressed_price} />
               <Field label="Location" value={yacht.location} />
             </Section>
 

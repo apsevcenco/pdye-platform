@@ -32,7 +32,7 @@ type FormState = {
   fuel_capacity: string; water_capacity: string;
   max_speed: string; cruise_speed: string; range: string;
   cabins: string; heads: string; berths: string; crew: string;
-  location: string; price: string; market_price: string; distressed_price: string;
+  location: string; price: string; market_price: string;
   image: string; description: string;
 };
 
@@ -45,7 +45,7 @@ const EMPTY_FORM: FormState = {
   fuel_capacity: "", water_capacity: "",
   max_speed: "", cruise_speed: "", range: "",
   cabins: "", heads: "", berths: "", crew: "",
-  location: "", price: "", market_price: "", distressed_price: "",
+  location: "", price: "", market_price: "",
   image: "", description: "",
 };
 
@@ -159,7 +159,6 @@ export default function AddYacht() {
         location: data.location || "",
         price: data.price || "",
         market_price: data.market_price || "",
-        distressed_price: data.distressed_price || "",
         image: data.image || "",
         description: data.description || "",
       });
@@ -351,7 +350,7 @@ export default function AddYacht() {
     setErr("");
     try {
       const payload = { ...form, photos };
-      const res = await fetch("/api/estimate-market-price", {
+      const res = await fetch(`${API_BASE}/estimate-market-price`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -408,7 +407,6 @@ export default function AddYacht() {
       location: str(form.location),
       price: form.price || null,
       market_price: str(form.market_price),
-      distressed_price: str(form.distressed_price),
       image: str(form.image) || (photos[0] ?? null),
       description: str(form.description),
       photos: photos.length > 0 ? photos : null,
@@ -817,10 +815,6 @@ export default function AddYacht() {
                       )}
                     </div>
                   )}
-                </div>
-                <div>
-                  <label className={labelCls}>Distressed Price</label>
-                  <input className={inputCls} placeholder="€ 10,000,000" value={form.distressed_price} onChange={e => setF("distressed_price", e.target.value)} />
                 </div>
               </div>
             </div>

@@ -436,7 +436,11 @@ export default function YachtDetail() {
     return pool;
   })();
 
-  const hasDistressed = yacht.distressed_price && yacht.market_price;
+  const hasDistressed = (() => {
+    const askNum = parseFloat(String(yacht.price ?? "").replace(/[^0-9.]/g, ""));
+    const mktNum = parseFloat(String(yacht.market_price ?? "").replace(/[^0-9.]/g, ""));
+    return isFinite(askNum) && isFinite(mktNum) && askNum > 0 && mktNum > 0 && askNum < mktNum;
+  })();
   const prev = () => setIdx(i => (i - 1 + allPhotos.length) % allPhotos.length);
   const next = () => setIdx(i => (i + 1) % allPhotos.length);
 
@@ -617,10 +621,10 @@ export default function YachtDetail() {
                 <>
                   <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-1">Market Value</p>
                   <p className="font-sans text-white/40 text-lg line-through mb-4">{formatPrice(yacht.market_price!)}</p>
-                  <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-1">Distressed Asking Price</p>
-                  <p className="font-display text-4xl text-primary mb-2">{formatPrice(yacht.distressed_price!)}</p>
+                  <p className="text-white/40 text-xs font-sans tracking-widest uppercase mb-1">Asking Price</p>
+                  <p className="font-display text-4xl text-primary mb-2">{formatPrice(yacht.price)}</p>
                   <div className="bg-primary/10 border border-primary/20 px-4 py-2 mt-4">
-                    <p className="text-primary text-xs font-sans tracking-widest uppercase text-center font-bold">Distressed Sale Opportunity</p>
+                    <p className="text-primary text-xs font-sans tracking-widest uppercase text-center font-bold">Below Market Opportunity</p>
                   </div>
                 </>
               ) : (

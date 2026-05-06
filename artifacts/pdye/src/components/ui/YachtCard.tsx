@@ -109,12 +109,17 @@ export function YachtCard({ yacht, requestStatus = "none", onRequest, requesting
             )}
             <p className="text-white/30 text-[10px] font-sans tracking-widest uppercase mt-0.5">Confidential Listing</p>
           </div>
-          {yacht.distressed_price && yacht.distressed_price !== yacht.price && (
-            <div className="text-right flex-shrink-0">
-              <p className="text-white/25 text-xs line-through font-sans">{yacht.market_price ? formatPrice(yacht.market_price) : ""}</p>
-              <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Distressed</p>
-            </div>
-          )}
+          {(() => {
+            const askNum = parseFloat(String(yacht.price ?? "").replace(/[^0-9.]/g, ""));
+            const mktNum = parseFloat(String(yacht.market_price ?? "").replace(/[^0-9.]/g, ""));
+            if (!isFinite(askNum) || !isFinite(mktNum) || askNum <= 0 || mktNum <= 0 || askNum >= mktNum) return null;
+            return (
+              <div className="text-right flex-shrink-0">
+                <p className="text-white/25 text-xs line-through font-sans">{formatPrice(yacht.market_price!)}</p>
+                <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Below Market</p>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Public specs — only builder, length, year */}
