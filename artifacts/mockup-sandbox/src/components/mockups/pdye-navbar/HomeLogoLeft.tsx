@@ -77,7 +77,7 @@ export function HomeLogoLeft() {
           <div className="flex justify-center">
             <a
               href="/access"
-              className="bg-[#c8a46b] hover:bg-white text-[#070f1a] px-9 py-4 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[12px] shadow-[0_0_20px_rgba(200,164,107,0.4)]"
+              className="bg-white/5 backdrop-blur-md border border-[#c8a46b] text-[#c8a46b] hover:bg-[#c8a46b]/10 hover:text-white hover:border-white px-9 py-4 font-bold tracking-[0.18em] uppercase transition-all duration-300 text-[12px]"
             >
               Request Access
             </a>
