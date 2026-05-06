@@ -51,7 +51,7 @@ export const HERO_DEFAULTS: HeroContent = {
   title: "Private Access To Off-Market Yachts",
   subtitle: "Confidential brokerage connecting qualified private buyers with distressed and off-market Mediterranean yacht opportunities.",
   titleFont: "'Gilroy', sans-serif",
-  titleSize: "text-7xl md:text-8xl",
+  titleSize: "text-4xl sm:text-6xl md:text-7xl lg:text-8xl",
 };
 
 export function getCustomFonts(): CustomFont[] {

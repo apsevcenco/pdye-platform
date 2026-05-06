@@ -65,7 +65,7 @@ export default function Home() {
 
   return (
     <Layout>
-      <section className="relative h-[90vh] min-h-[600px] flex items-start sm:items-center justify-center overflow-hidden pt-28 sm:pt-0">
+      <section className="relative min-h-[100svh] sm:h-[90vh] sm:min-h-[600px] flex items-center justify-center overflow-hidden pt-20 pb-10 sm:pt-0 sm:pb-0">
         <div className="absolute inset-0 z-0">
           <video
             src={`${import.meta.env.BASE_URL}videos/hero.mp4`}
@@ -80,21 +80,21 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/20 to-background"></div>
         </div>
 
-        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center mt-4 sm:mt-20">
+        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
           <motion.div
             initial="hidden"
             animate="visible"
             variants={fadeUp}
             className="flex flex-col items-center"
           >
-            <span className="text-primary font-bold tracking-[0.2em] text-sm md:text-base uppercase mb-6 inline-block" dangerouslySetInnerHTML={{ __html: t.heroSection.badge }} />
+            <span className="text-primary font-bold tracking-[0.2em] text-xs sm:text-sm md:text-base uppercase mb-4 sm:mb-6 inline-block" dangerouslySetInnerHTML={{ __html: t.heroSection.badge }} />
             <h1
-              className={`${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}
+              className={`${hero.titleSize} text-white font-bold leading-[1.1] mb-4 sm:mb-6`}
               style={{ fontFamily: hero.titleFont }}
               dangerouslySetInnerHTML={{ __html: hero.title }}
             />
             <p
-              className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-sans font-light leading-relaxed mb-10"
+              className="text-base sm:text-lg md:text-xl text-white/70 max-w-2xl mx-auto font-sans font-light leading-relaxed mb-6 sm:mb-10"
               dangerouslySetInnerHTML={{ __html: hero.subtitle }}
             />
             <div className="flex justify-center">
