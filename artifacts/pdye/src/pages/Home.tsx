@@ -87,7 +87,7 @@ export default function Home() {
             variants={fadeUp}
             className="flex flex-col items-center"
           >
-            <span className="text-primary font-bold tracking-[0.2em] text-sm md:text-base uppercase mb-6 inline-block border border-primary/30 px-4 py-1.5 bg-background/30 backdrop-blur-md" dangerouslySetInnerHTML={{ __html: t.heroSection.badge }} />
+            <span className="text-primary font-bold tracking-[0.2em] text-sm md:text-base uppercase mb-6 inline-block" dangerouslySetInnerHTML={{ __html: t.heroSection.badge }} />
             <h1
               className={`${hero.titleSize} text-white font-bold leading-[1.1] mb-6`}
               style={{ fontFamily: hero.titleFont }}
@@ -100,7 +100,7 @@ export default function Home() {
             <div className="flex justify-center">
               <Link
                 href="/access"
-                className="bg-primary hover:bg-white text-background hover:text-background px-9 py-4 font-bold tracking-widest uppercase transition-all duration-300 text-sm shadow-[0_0_20px_rgba(200,164,107,0.4)]"
+                className="bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white px-9 py-4 font-bold tracking-widest uppercase transition-all duration-300 text-sm"
               >
                 {t.heroSection.cta1}
               </Link>
