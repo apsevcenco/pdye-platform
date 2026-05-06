@@ -5,7 +5,7 @@ const NAV_LINKS = [
   { name: "Yachts", href: "/yachts" },
   { name: "Boat Owners", href: "/boat-owners" },
   { name: "Brokers", href: "/brokers" },
-  { name: "Buyers", href: "/private-buyers" },
+  { name: "Private Buyers", href: "/private-buyers" },
   { name: "Yacht Valuation", href: "/valuation" },
 ];
 
