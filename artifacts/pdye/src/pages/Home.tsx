@@ -67,10 +67,14 @@ export default function Home() {
     <Layout>
       <section className="relative h-[90vh] min-h-[600px] flex items-start sm:items-center justify-center overflow-hidden pt-28 sm:pt-0">
         <div className="absolute inset-0 z-0">
-          <img 
-            src="https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1920&q=80" 
-            alt="Luxury Yacht" 
-            className="w-full h-full object-cover scale-105 motion-safe:animate-[pulse_20s_ease-in-out_infinite_alternate]"
+          <video
+            src={`${import.meta.env.BASE_URL}videos/hero.mp4`}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className="w-full h-full object-cover scale-105"
           />
           <div className="absolute inset-0 bg-background/70 mix-blend-multiply"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/20 to-background"></div>
