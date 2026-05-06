@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Anchor, LogIn, LogOut, Ship, Briefcase, Users, TrendingUp, Calculator, LayoutDashboard, User } from "lucide-react";
-import { CurrencySelector } from "@/components/ui/CurrencySelector";
 import { useAuth } from "@/context/AuthContext";
 
 const MEMBER_LINKS = [
@@ -112,8 +111,6 @@ export function Navbar() {
 
         {/* Right side */}
         <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
-          <CurrencySelector compact />
-          <div className="h-5 w-[1px] bg-white/12" />
           {user ? (
             <div className="flex items-center gap-3">
               {isAdmin && (
@@ -210,11 +207,6 @@ export function Navbar() {
               <Calculator size={14} />
               {TOOL_LINK.name}
             </Link>
-
-            <div className="flex items-center justify-between mb-5">
-              <span className="text-white/30 text-xs font-sans tracking-widest uppercase">Currency</span>
-              <CurrencySelector />
-            </div>
 
             <div className="h-[1px] w-full bg-white/8 mb-4" />
 
