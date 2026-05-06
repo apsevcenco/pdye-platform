@@ -231,7 +231,7 @@ export default function AdminUserDetail() {
         // Access requests this user made (buyer/investor side)
         supabase
           .from("access_requests")
-          .select("id, yacht_id, status, message, created_at, yachts(name)")
+          .select("id, yacht_id, status, created_at, yachts(name)")
           .eq("requester_id", forUser.id)
           .order("created_at", { ascending: false }),
         // Deal rooms — best-effort; backend may 4xx for some role mixes
@@ -250,7 +250,7 @@ export default function AdminUserDetail() {
         yacht_id: r.yacht_id,
         yacht_name: r.yachts?.name || null,
         status: r.status || null,
-        message: r.message || null,
+        message: null,
         created_at: r.created_at,
       }));
       setAccessRequests(reqs);
