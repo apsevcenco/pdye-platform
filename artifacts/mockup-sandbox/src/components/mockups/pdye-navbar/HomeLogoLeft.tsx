@@ -25,7 +25,7 @@ export function HomeLogoLeft() {
           </a>
 
           {/* Centered nav — perfectly symmetric, evenly spaced */}
-          <nav className="hidden lg:flex items-center gap-14 absolute left-1/2 -translate-x-1/2 whitespace-nowrap">
+          <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2 whitespace-nowrap">
             {NAV_LINKS.map(l => (
               <a
                 key={l.href}
