@@ -150,7 +150,7 @@ export default function DealRoomPage() {
           <div className="flex items-center gap-3 bg-primary/8 border border-primary/20 px-5 py-3.5 mb-10">
             <Lock size={14} className="text-primary flex-shrink-0" />
             <p className="text-primary text-xs font-sans tracking-wide">
-              You are accessing a secure environment. All activity is logged. Information is subject to CNCA.
+              You are accessing a secure environment. All activity is logged. Information is subject to NDA.
             </p>
           </div>
 
@@ -174,7 +174,7 @@ export default function DealRoomPage() {
                         {label && <span className="text-primary/40 text-[10px] font-mono">{label}</span>}
                       </div>
                       <span className="text-orange-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 group-hover:underline">
-                        {isNda ? "Sign CNCA" : "Sign Commission"} <ChevronRight size={11} />
+                        {isNda ? "Sign NDA" : "Sign Commission"} <ChevronRight size={11} />
                       </span>
                     </div>
                   );
@@ -244,12 +244,12 @@ export default function DealRoomPage() {
 
               {ndaPendingRooms.length > 0 && (
                 <RoomSection
-                  title="CNCA Pending"
+                  title="NDA Pending"
                   icon={<Clock size={16} className="text-orange-400" />}
                   rooms={ndaPendingRooms}
                   userId={user?.id}
                   onSelect={goToFullView}
-                  hint="Deal rooms awaiting CNCA signature from one or both parties."
+                  hint="Deal rooms awaiting NDA signature from one or both parties."
                 />
               )}
 
@@ -290,7 +290,7 @@ function RoomSection({
       {hint && <p className="text-white/30 text-xs font-sans mb-4">{hint}</p>}
       <div className="bg-white/[0.02] border border-white/8 overflow-hidden">
         {/* Compact single-line rows: yacht name, room number, status, my side,
-         *  CNCA badges, action arrow. Click anywhere on the row → open detail.
+         *  NDA badges, action arrow. Click anywhere on the row → open detail.
          *  Mirrors the admin yacht-list layout the user asked for. */}
         <div className="hidden md:grid grid-cols-[1fr_120px_140px_100px_1fr_60px] gap-3 px-6 py-3 border-b border-white/5 text-white/30 text-[10px] uppercase tracking-wider font-bold font-sans">
           <span>Vessel</span>

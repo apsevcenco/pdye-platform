@@ -201,7 +201,7 @@ export default function AdminRequests() {
 
     try {
       // Seller is auto-resolved by the backend from yachts.owner_id and the
-      // seller-side participant + CNCA envelope + nda_pending status are all
+      // seller-side participant + NDA envelope + nda_pending status are all
       // created server-side. We only handle the buyer side here, plus the
       // admin participant for the platform.
       const room = await dealRoomApi.create({
@@ -217,7 +217,7 @@ export default function AdminRequests() {
       await dealRoomApi.addParticipant(room.id, { user_id: req.requester_id, role: "buyer", side: "buyer", can_view: true, can_message: true, can_download: true });
       await dealRoomApi.addParticipant(room.id, { user_id: user.id, role: "admin", side: "platform", can_view: true, can_message: true, can_download: true });
 
-      // Buyer-side CNCA envelope + status flip (mirrors Admin.tsx).
+      // Buyer-side NDA envelope + status flip (mirrors Admin.tsx).
       try {
         await dealRoomApi.createNdaEnvelope({
           deal_room_id: room.id,
@@ -233,7 +233,7 @@ export default function AdminRequests() {
           buyer_nda_sent_at: now,
         });
       } catch (ndaErr: any) {
-        console.warn("[AdminRequests] buyer-side CNCA send failed:", ndaErr?.message || ndaErr);
+        console.warn("[AdminRequests] buyer-side NDA send failed:", ndaErr?.message || ndaErr);
       }
 
       // Write the audit log FIRST so provenance from deal_room → access_request
@@ -254,7 +254,7 @@ export default function AdminRequests() {
 
       await dealRoomApi.sendMessage(room.id, {
         sender_id: user.id,
-        message: "Deal room created. CNCA invitations are being sent to both parties for review and signature.",
+        message: "Deal room created. NDA invitations are being sent to both parties for review and signature.",
         is_system: true,
       });
 
@@ -531,7 +531,7 @@ export default function AdminRequests() {
             <h3 className="font-display text-xl text-white">Create Deal Room</h3>
             <p className="text-white/50 text-sm font-sans">
               This will create a dedicated deal room. The buyer (requester) is added automatically.
-              Assign the seller below. CNCA will be sent to both parties.
+              Assign the seller below. NDA will be sent to both parties.
             </p>
 
             {createError && (
@@ -550,7 +550,7 @@ export default function AdminRequests() {
 
             <div className="bg-primary/5 border border-primary/20 px-4 py-3 text-white/70 text-xs font-sans">
               <p className="font-bold uppercase tracking-widest text-[10px] text-primary/80 mb-1">Seller — automatic</p>
-              <p>The vessel owner is auto-attached as Seller and receives the CNCA invitation in their cabinet automatically. No manual entry needed.</p>
+              <p>The vessel owner is auto-attached as Seller and receives the NDA invitation in their cabinet automatically. No manual entry needed.</p>
             </div>
 
             <div className="flex gap-3 pt-2">

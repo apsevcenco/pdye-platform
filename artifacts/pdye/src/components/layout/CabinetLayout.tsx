@@ -62,7 +62,7 @@ const ADMIN_MENU_GROUP: { id: string; label: string; icon: React.ElementType; it
     { href: "/admin-users", label: "Users", icon: Users, section: "adminUsers" },
     { href: "/admin-requests", label: "Access Requests", icon: Inbox, section: "adminAccessRequests" },
     { href: "/admin-platform-nda", label: "Platform CNCA", icon: ShieldCheck },
-    { href: "/admin-deal-nda", label: "Deal CNCA", icon: FileText },
+    { href: "/admin-deal-nda", label: "Deal NDA", icon: FileText },
     { href: "/admin-deal-commission", label: "Commission", icon: Scale },
     { href: "/admin-legal", label: "Legal Pages", icon: FileText },
   ],

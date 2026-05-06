@@ -20,9 +20,9 @@ type HeliumRef = { table: string; column: string; label: string };
 // These rows belong to the specific user and have no shared usage.
 const CASCADE_USER_REFS: HeliumRef[] = [
   { table: "platform_nda_signatures",   column: "user_id",        label: "Platform CNCA signature(s)" },
-  { table: "deal_nda_signatures",       column: "user_id",        label: "Deal Room CNCA signature(s)" },
+  { table: "deal_nda_signatures",       column: "user_id",        label: "Deal Room NDA signature(s)" },
   { table: "deal_commission_signatures", column: "user_id",       label: "Commission Agreement signature(s)" },
-  { table: "nda_envelopes",             column: "user_id",        label: "CNCA envelope(s)" },
+  { table: "nda_envelopes",             column: "user_id",        label: "NDA envelope(s)" },
   { table: "deal_room_participants",   column: "user_id",        label: "deal room participation(s)" },
   { table: "deal_rooms",               column: "buyer_user_id",  label: "deal room(s) as buyer" },
   { table: "deal_rooms",               column: "seller_user_id", label: "deal room(s) as seller" },
@@ -38,7 +38,7 @@ const CASCADE_USER_REFS: HeliumRef[] = [
 // keep showing the old CNCA signature (because the admin UI matches by email too).
 const CASCADE_EMAIL_REFS: HeliumRef[] = [
   { table: "platform_nda_signatures",   column: "user_email", label: "Platform CNCA signature(s) (by email)" },
-  { table: "deal_nda_signatures",       column: "user_email", label: "Deal Room CNCA signature(s) (by email)" },
+  { table: "deal_nda_signatures",       column: "user_email", label: "Deal Room NDA signature(s) (by email)" },
   { table: "deal_commission_signatures", column: "user_email", label: "Commission Agreement signature(s) (by email)" },
 ];
 
@@ -47,7 +47,7 @@ const CASCADE_EMAIL_REFS: HeliumRef[] = [
 // If a user has any of these, delete is REFUSED — admin must manually reassign.
 const BLOCK_USER_REFS: HeliumRef[] = [
   { table: "platform_nda_documents",     column: "created_by",          label: "Platform CNCA version(s) (shared template!)" },
-  { table: "deal_nda_documents",         column: "created_by",          label: "Deal Room CNCA version(s) (shared template!)" },
+  { table: "deal_nda_documents",         column: "created_by",          label: "Deal Room NDA version(s) (shared template!)" },
   { table: "deal_commission_documents",  column: "created_by",          label: "Commission Agreement version(s) (shared template!)" },
   { table: "deal_rooms",                 column: "created_by_admin_id", label: "deal room(s) created by this admin" },
 ];

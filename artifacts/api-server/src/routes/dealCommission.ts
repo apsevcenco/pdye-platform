@@ -40,7 +40,7 @@ const INITIAL_COMMISSION_CONTENT = `DEAL ROOM COMMISSION AGREEMENT
 This Commission Agreement ("Agreement") is entered into by the undersigned party ("Party") and Private Distressed Yacht Exchange ("PDYE") with respect to the brokerage and advisory services rendered by PDYE in connection with the transaction facilitated through the PDYE Deal Room.
 
 1. SCOPE
-This Agreement governs the commission, fees, and economic terms applicable to the transaction conducted through the Deal Room to which the undersigned Party has been admitted. It supplements and operates in conjunction with the Deal Room Confidentiality & Non-Circumvention & Terms of Access Agreement previously executed by the Party.
+This Agreement governs the commission, fees, and economic terms applicable to the transaction conducted through the Deal Room to which the undersigned Party has been admitted. It supplements and operates in conjunction with the Deal Room Non-Disclosure & Terms of Access Agreement previously executed by the Party.
 
 2. INTRODUCTION & EXCLUSIVITY
 The Party acknowledges that PDYE is the introducing intermediary for this transaction. PDYE has performed sourcing, identity verification, vessel due diligence, and counterparty matching services that constitute material consideration for the commission described below.
@@ -77,7 +77,7 @@ Any dispute arising out of or in connection with this Agreement shall be resolve
 This Agreement is governed by, and construed in accordance with, the laws of England and Wales, without regard to conflict-of-laws principles.
 
 11. ENTIRE AGREEMENT; AMENDMENTS
-This Agreement, together with the Deal Room intake brief and the Deal Room Confidentiality & Non-Circumvention & Terms of Access Agreement, constitutes the entire agreement between the Party and PDYE concerning the commission economics of this transaction. Any amendment must be in writing and signed by both parties (electronic signature accepted).
+This Agreement, together with the Deal Room intake brief and the Deal Room Non-Disclosure & Terms of Access Agreement, constitutes the entire agreement between the Party and PDYE concerning the commission economics of this transaction. Any amendment must be in writing and signed by both parties (electronic signature accepted).
 
 12. ACKNOWLEDGEMENT
 By signing below, the Party confirms having read, understood, and agreed to be legally bound by all terms of this Agreement, and authorises the disbursement of the Commission to PDYE at closing in accordance with Section 4.`;

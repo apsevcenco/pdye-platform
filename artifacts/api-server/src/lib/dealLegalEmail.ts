@@ -88,13 +88,13 @@ export interface DealNdaInviteEmailInput {
 }
 
 /**
- * Notify a deal-room participant that a new CNCA awaits their signature.
+ * Notify a deal-room participant that a new NDA awaits their signature.
  * No-op if RESEND_API_KEY is not configured (warns to console). Throws on Resend errors.
  */
 export async function sendDealNdaInviteEmail(input: DealNdaInviteEmailInput): Promise<void> {
   const resendKey = process.env["RESEND_API_KEY"];
   if (!resendKey) {
-    console.warn(`[deal-legal] RESEND_API_KEY not set — skipping CNCA invite to ${input.toEmail}`);
+    console.warn(`[deal-legal] RESEND_API_KEY not set — skipping NDA invite to ${input.toEmail}`);
     return;
   }
 
@@ -117,22 +117,22 @@ export async function sendDealNdaInviteEmail(input: DealNdaInviteEmailInput): Pr
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#070f1a;border:1px solid rgba(200,164,107,0.25);">
         <tr><td style="padding:32px 32px 16px 32px;">
           <div style="font-size:11px;letter-spacing:3px;color:#c8a46b;text-transform:uppercase;">Private Distressed Yacht Exchange</div>
-          <div style="margin-top:14px;font-size:22px;color:#ffffff;font-weight:300;">A new Deal Room awaits your CNCA</div>
+          <div style="margin-top:14px;font-size:22px;color:#ffffff;font-weight:300;">A new Deal Room awaits your NDA</div>
           <div style="margin-top:6px;font-size:12px;color:rgba(255,255,255,0.45);">Deal Room ${escapeHtml(input.dealRoomCode)} · ${escapeHtml(sideLabel)}</div>
           ${yachtLine}
         </td></tr>
         <tr><td style="padding:0 32px 16px 32px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">
-          A PDYE administrator has opened a confidential Deal Room for which you are listed as the <strong style="color:#c8a46b;">${escapeHtml(sideLabel)}</strong>. To proceed, please review and sign the Deal Room Confidentiality & Non-Circumvention &amp; Terms of Access Agreement.
+          A PDYE administrator has opened a confidential Deal Room for which you are listed as the <strong style="color:#c8a46b;">${escapeHtml(sideLabel)}</strong>. To proceed, please review and sign the Deal Room Non-Disclosure &amp; Terms of Access Agreement.
         </td></tr>
         <tr><td style="padding:0 32px 24px 32px;">
-          <a href="${escapeHtml(link)}" style="display:inline-block;background:#c8a46b;color:#0a1426;padding:12px 22px;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;text-decoration:none;">Review &amp; Sign CNCA</a>
+          <a href="${escapeHtml(link)}" style="display:inline-block;background:#c8a46b;color:#0a1426;padding:12px 22px;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;text-decoration:none;">Review &amp; Sign NDA</a>
         </td></tr>
         <tr><td style="padding:0 32px 8px 32px;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.6;">
           If the button above does not work, paste this link into your browser:<br/>
           <span style="font-family:monospace;color:rgba(255,255,255,0.7);font-size:11px;">${escapeHtml(link)}</span>
         </td></tr>
         <tr><td style="padding:24px 32px 32px 32px;color:rgba(255,255,255,0.4);font-size:11px;line-height:1.7;">
-          PDYE Holdings · Confidential. Until both parties have signed the CNCA the Deal Room remains restricted and the counterparty's identity is masked.
+          PDYE Holdings · Confidential. Until both parties have signed the NDA the Deal Room remains restricted and the counterparty's identity is masked.
         </td></tr>
       </table>
     </td></tr>
@@ -143,9 +143,9 @@ export async function sendDealNdaInviteEmail(input: DealNdaInviteEmailInput): Pr
   const { data, error } = await resend.emails.send({
     from: fromAddress,
     to: input.toEmail,
-    subject: `Action required: sign CNCA for Deal Room ${input.dealRoomCode}`,
+    subject: `Action required: sign NDA for Deal Room ${input.dealRoomCode}`,
     html,
   });
   if (error) throw new Error(error.message);
-  console.log(`[deal-legal] Emailed CNCA invite to ${input.toEmail} for room ${input.dealRoomCode} (resend id=${data?.id || "n/a"})`);
+  console.log(`[deal-legal] Emailed NDA invite to ${input.toEmail} for room ${input.dealRoomCode} (resend id=${data?.id || "n/a"})`);
 }

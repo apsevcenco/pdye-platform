@@ -1706,7 +1706,7 @@ function DealsManageView() {
       const buyerUserId = bu.id;
 
       // Seller side: NOT sent — backend auto-resolves from yachts.owner_id
-      // and handles participant + CNCA envelope + nda_pending status itself.
+      // and handles participant + NDA envelope + nda_pending status itself.
       const room = await dealRoomApi.create({
         yacht_id: yachtId,
         created_by_admin_id: user?.id || "",
@@ -1735,7 +1735,7 @@ function DealsManageView() {
         meta: { buyer_email: buyerEmail, yacht_id: yachtId },
       });
 
-      // Buyer-side CNCA envelope + status flip. Seller side is handled by
+      // Buyer-side NDA envelope + status flip. Seller side is handled by
       // the backend during POST /deal-rooms (auto-resolved from yacht owner).
       let ndaSentOk = true;
       try {
@@ -1762,14 +1762,14 @@ function DealsManageView() {
         });
         await dealRoomApi.sendMessage(room.id, {
           sender_id: user?.id || "",
-          message: "CNCA invitation sent to Buyer. Seller (vessel owner) was auto-attached and notified by the system.",
+          message: "NDA invitation sent to Buyer. Seller (vessel owner) was auto-attached and notified by the system.",
           is_system: true,
         });
       } catch (ndaErr: any) {
         ndaSentOk = false;
-        console.warn("[Admin] buyer-side CNCA send failed:", ndaErr);
+        console.warn("[Admin] buyer-side NDA send failed:", ndaErr);
         setCreateError(
-          `Deal room created, but buyer CNCA send failed: ${ndaErr?.message || "Unknown error"}. Open the room and click "Send CNCA" to retry.`
+          `Deal room created, but buyer NDA send failed: ${ndaErr?.message || "Unknown error"}. Open the room and click "Send NDA" to retry.`
         );
       }
 
@@ -1884,17 +1884,17 @@ function DealsManageView() {
       });
       await dealRoomApi.sendMessage(room.id, {
         sender_id: room.created_by_admin_id || "",
-        message: "[SIMULATION] CNCA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.",
+        message: "[SIMULATION] NDA documents sent to both parties for review and signature. Participants can sign from their Deal Room → Legal tab.",
         is_system: true,
       });
       setSelectedRoom(null);
     } catch (e: any) {
       // Without this catch, any failed await above (network, 4xx, 5xx) would
-      // leave actionLoading=true → admin stares at "Send CNCA (Simulation)"
-      // button stuck spinning forever, can never deliver CNCA to participants,
-      // which then looks to participants like "the deal CNCA never arrives".
+      // leave actionLoading=true → admin stares at "Send NDA (Simulation)"
+      // button stuck spinning forever, can never deliver NDA to participants,
+      // which then looks to participants like "the deal NDA never arrives".
       console.error("[Admin] sendNda failed:", e);
-      alert(`Failed to send CNCA: ${e?.message || "Unknown error"}`);
+      alert(`Failed to send NDA: ${e?.message || "Unknown error"}`);
     } finally {
       setActionLoading(false);
     }
@@ -1959,7 +1959,7 @@ function DealsManageView() {
 
   if (selectedRoom) {
     const cfg = DEAL_ROOM_STATUS_CONFIG[selectedRoom.status] || DEAL_ROOM_STATUS_CONFIG.draft;
-    // Allow manual "Send CNCA" not only in the initial 'draft' state but
+    // Allow manual "Send NDA" not only in the initial 'draft' state but
     // also in 'nda_pending' when any side is still 'not_sent'. This is the
     // recovery path for the auto-send-on-create flow: if the per-side
     // envelope/status writes succeeded but the room-level status flip or
@@ -1987,8 +1987,8 @@ function DealsManageView() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Buyer CNCA", value: selectedRoom.buyer_nda_status === "signed" ? "Signed" : selectedRoom.buyer_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.buyer_nda_status === "signed" },
-            { label: "Seller CNCA", value: selectedRoom.seller_nda_status === "signed" ? "Signed" : selectedRoom.seller_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.seller_nda_status === "signed" },
+            { label: "Buyer NDA", value: selectedRoom.buyer_nda_status === "signed" ? "Signed" : selectedRoom.buyer_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.buyer_nda_status === "signed" },
+            { label: "Seller NDA", value: selectedRoom.seller_nda_status === "signed" ? "Signed" : selectedRoom.seller_nda_status === "sent" ? "Sent" : "Not Sent", ok: selectedRoom.seller_nda_status === "signed" },
             { label: "Room Status", value: cfg.label, ok: selectedRoom.status === "active" },
             { label: "Commission", value: selectedRoom.identities_revealed ? "Fully Signed" : selectedRoom.commission_status === "pending" ? "Pending" : "Not Started", ok: !!selectedRoom.identities_revealed },
             { label: "Activated", value: selectedRoom.fully_activated_at ? new Date(selectedRoom.fully_activated_at).toLocaleDateString("en-GB") : "Pending", ok: !!selectedRoom.fully_activated_at },
@@ -2008,10 +2008,10 @@ function DealsManageView() {
               <div className="flex flex-col gap-2">
                 <div className="bg-yellow-500/5 border border-yellow-500/20 px-3 py-2">
                   <p className="text-yellow-400/70 text-[9px] font-bold uppercase tracking-widest">Simulation — No DocuSign</p>
-                  <p className="text-white/30 text-[10px] font-sans">CNCA will appear in each participant's Deal Room for internal signing</p>
+                  <p className="text-white/30 text-[10px] font-sans">NDA will appear in each participant's Deal Room for internal signing</p>
                 </div>
                 <button disabled={actionLoading} onClick={() => sendNda(selectedRoom)} className="bg-orange-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-orange-700 disabled:opacity-50 transition-colors">
-                  Send CNCA (Simulation)
+                  Send NDA (Simulation)
                 </button>
               </div>
             )}
@@ -2216,7 +2216,7 @@ function DealsManageView() {
                   placeholder="Will be auto-attached from selected yacht"
                 />
                 <p className="text-white/30 text-[10px] mt-1 font-sans">
-                  The vessel owner is auto-attached as Seller and receives the CNCA automatically. No manual entry needed.
+                  The vessel owner is auto-attached as Seller and receives the NDA automatically. No manual entry needed.
                 </p>
               </div>
               <div>
@@ -2271,8 +2271,8 @@ function DealsManageView() {
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Yacht</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Buyer</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Seller</th>
-                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Buyer CNCA</th>
-                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Seller CNCA</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Buyer NDA</th>
+                <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Seller NDA</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold">Status</th>
                 <th className="text-left px-5 py-3 text-white/40 text-[10px] uppercase tracking-wider font-bold hidden md:table-cell">Created</th>
               </tr>

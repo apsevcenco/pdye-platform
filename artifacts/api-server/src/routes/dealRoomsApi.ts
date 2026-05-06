@@ -346,7 +346,7 @@ router.post("/deal-rooms", requireAdmin, validateBody(CreateDealRoomBody), async
           `INSERT INTO nda_envelopes
              (deal_room_id, user_id, side, provider, status, sent_at, document_name)
            VALUES ($1, $2, 'seller', 'internal', 'sent', $3, $4)`,
-          [room.id, seller_user_id, now, "Deal Room CNCA — auto-sent on room creation"]
+          [room.id, seller_user_id, now, "Deal Room NDA — auto-sent on room creation"]
         );
         await db().query(
           `INSERT INTO audit_logs (entity_type, entity_id, user_id, action, meta)
@@ -355,17 +355,17 @@ router.post("/deal-rooms", requireAdmin, validateBody(CreateDealRoomBody), async
         );
         await db().query(
           `INSERT INTO deal_room_messages (deal_room_id, sender_id, message, is_system)
-           VALUES ($1, $2, 'Vessel owner automatically attached to this Deal Room as Seller. CNCA invitation sent.', true)`,
+           VALUES ($1, $2, 'Vessel owner automatically attached to this Deal Room as Seller. NDA invitation sent.', true)`,
           [room.id, creatorId]
         );
-        console.log(`[deal-rooms:create] seller side-effects ok (room=${room.id}, seller=${seller_user_id}) — firing CNCA email`);
+        console.log(`[deal-rooms:create] seller side-effects ok (room=${room.id}, seller=${seller_user_id}) — firing NDA email`);
         // Fire the email invite (non-blocking).
         void sendDealNdaInvite({ deal_room_id: room.id, user_id: seller_user_id, side: "seller" })
-          .then(() => console.log(`[deal-rooms:create] seller CNCA invite email path completed (room=${room.id})`))
-          .catch(err => console.error(`[deal-rooms:create] seller CNCA invite FAILED (room=${room.id}):`, err?.message || err));
+          .then(() => console.log(`[deal-rooms:create] seller NDA invite email path completed (room=${room.id})`))
+          .catch(err => console.error(`[deal-rooms:create] seller NDA invite FAILED (room=${room.id}):`, err?.message || err));
       } catch (sideErr: any) {
         console.error(`[deal-rooms:create] seller-side auto-setup FAILED (room=${room.id}):`, sideErr?.message || sideErr);
-        // Non-fatal: room is already created; admin can retry via Send CNCA button.
+        // Non-fatal: room is already created; admin can retry via Send NDA button.
       }
     }
 
@@ -537,13 +537,13 @@ router.post("/nda-envelopes", requireAdmin, validateBody(NdaEnvelopeBody), async
        RETURNING *`,
       [deal_room_id, user_id, side, provider || 'internal', status || 'pending', sent_at, signed_at, completed_at, document_name]
     );
-    // Fire-and-forget invite email when this envelope represents a "send CNCA" event.
+    // Fire-and-forget invite email when this envelope represents a "send NDA" event.
     // We send only on status='sent' (the create + manual-send paths) and only when
     // the envelope hasn't already been signed/completed (idempotent retry safety).
     const finalStatus = status || 'pending';
     if (finalStatus === 'sent' && !signed_at && !completed_at) {
       void sendDealNdaInvite({ deal_room_id, user_id, side })
-        .catch(err => console.error("[deal-rooms] CNCA invite email failed:", err?.message || err));
+        .catch(err => console.error("[deal-rooms] NDA invite email failed:", err?.message || err));
     }
     res.json(rows[0]);
   } catch (e: any) {
@@ -551,7 +551,7 @@ router.post("/nda-envelopes", requireAdmin, validateBody(NdaEnvelopeBody), async
   }
 });
 
-/* ─────────── CNCA invite email helper ─────────── */
+/* ─────────── NDA invite email helper ─────────── */
 
 let supabaseAdminClient: ReturnType<typeof createClient> | null = null;
 function getSupabaseAdmin() {
@@ -579,7 +579,7 @@ async function sendDealNdaInvite(opts: { deal_room_id: string; user_id: string; 
 
   const sb = getSupabaseAdmin();
   if (!sb) {
-    console.warn("[deal-rooms] Supabase env not set — cannot look up email for CNCA invite");
+    console.warn("[deal-rooms] Supabase env not set — cannot look up email for NDA invite");
     return;
   }
 
@@ -597,10 +597,10 @@ async function sendDealNdaInvite(opts: { deal_room_id: string; user_id: string; 
     } catch { /* ignore */ }
   }
   if (!toEmail) {
-    console.warn(`[deal-rooms] No email found for user ${user_id} — skipping CNCA invite`);
+    console.warn(`[deal-rooms] No email found for user ${user_id} — skipping NDA invite`);
     return;
   }
-  console.log(`[deal-rooms] Sending CNCA invite to ${toEmail} (side=${side}, room=${dealRoomCode})`);
+  console.log(`[deal-rooms] Sending NDA invite to ${toEmail} (side=${side}, room=${dealRoomCode})`);
 
   let yachtName: string | null = null;
   if (room.yacht_id) {

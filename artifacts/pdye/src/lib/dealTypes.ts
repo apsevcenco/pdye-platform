@@ -96,8 +96,8 @@ export const DEAL_STATUS_CONFIG: Record<DealStatus, { label: string; color: stri
   pending_admin_review: { label: "Pending Review",    color: "text-yellow-400", step: 1 },
   approved:             { label: "Approved",          color: "text-blue-400",   step: 2 },
   rejected:             { label: "Rejected",          color: "text-red-400",    step: -1 },
-  nda_pending:          { label: "CNCA Pending",       color: "text-orange-400", step: 3 },
-  nda_signed:           { label: "CNCA Signed",        color: "text-green-400",  step: 4 },
+  nda_pending:          { label: "NDA Pending",       color: "text-orange-400", step: 3 },
+  nda_signed:           { label: "NDA Signed",        color: "text-green-400",  step: 4 },
   intro_sent:           { label: "Intro Sent",        color: "text-cyan-400",   step: 5 },
   active:               { label: "Active",            color: "text-green-400",  step: 6 },
   closed:               { label: "Closed",            color: "text-white/30",   step: 7 },
@@ -108,8 +108,8 @@ export const TIMELINE_STEPS = [
   { key: "created",              label: "Request Submitted" },
   { key: "pending_admin_review", label: "Admin Review" },
   { key: "approved",             label: "Approved" },
-  { key: "nda_pending",          label: "CNCA Pending" },
-  { key: "nda_signed",           label: "CNCA Signed" },
+  { key: "nda_pending",          label: "NDA Pending" },
+  { key: "nda_signed",           label: "NDA Signed" },
   { key: "intro_sent",           label: "Intro Sent" },
   { key: "active",               label: "Deal Active" },
   { key: "closed",               label: "Closed" },
@@ -223,7 +223,7 @@ export const BLOCK_LABELS: Record<BlockKey, string> = {
 
 export const DEAL_ROOM_STATUS_CONFIG: Record<DealRoomStatus, { label: string; color: string; step: number }> = {
   draft:            { label: "Draft",            color: "text-white/40",   step: 0 },
-  nda_pending:      { label: "CNCA Pending",      color: "text-orange-400", step: 1 },
+  nda_pending:      { label: "NDA Pending",      color: "text-orange-400", step: 1 },
   partially_signed: { label: "Partially Signed", color: "text-yellow-400", step: 2 },
   active:           { label: "Active",           color: "text-green-400",  step: 3 },
   closed:           { label: "Closed",           color: "text-white/30",   step: 4 },
@@ -232,7 +232,7 @@ export const DEAL_ROOM_STATUS_CONFIG: Record<DealRoomStatus, { label: string; co
 
 export const DEAL_ROOM_TIMELINE = [
   { key: "draft",            label: "Room Created" },
-  { key: "nda_pending",      label: "CNCA Sent" },
+  { key: "nda_pending",      label: "NDA Sent" },
   { key: "partially_signed", label: "Partial Sign" },
   { key: "active",           label: "Room Active" },
   { key: "closed",           label: "Closed" },
