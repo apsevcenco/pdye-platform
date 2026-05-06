@@ -232,7 +232,7 @@ export default function Yachts() {
                 >
                   <YachtCard
                     yacht={yacht}
-                    requestStatus={requests[yacht.id] || "none"}
+                    requestStatus={(userProfile as any)?.role === "admin" ? "approved" : (requests[yacht.id] || "none")}
                     onRequest={() => handleRequest(yacht.id)}
                     requesting={requesting === yacht.id}
                     isOwner={!!user && yacht.owner_id === user.id}
