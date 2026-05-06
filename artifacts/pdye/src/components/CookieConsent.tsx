@@ -120,12 +120,12 @@ export function CookieConsent() {
             session. With your consent, we may also use analytics cookies to understand how the
             platform is used so we can improve it. You can change your choice at any time from
             the footer.{" "}
-            <Link
-              href="/cookie-policy"
+            <a
+              href="#/cookie-policy"
               className="text-[#c8a46b] underline underline-offset-2 hover:text-[#c8a46b]/80"
             >
               Read our Cookie Policy
-            </Link>
+            </a>
             .
           </p>
 
