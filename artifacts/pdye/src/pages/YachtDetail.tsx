@@ -290,6 +290,20 @@ export default function YachtDetail() {
     //    the source of truth for "I'm already in a deal room" state.
     try {
       const rooms = await dealRoomApi.byUser(user.id);
+      // Permanent unlock: once buyer has signed Commission Agreement on this
+      // yacht, the listing stays open forever — even if the deal room is later
+      // cancelled. Mirrors how participants stay revealed after commission.
+      const commissionUnlocked = (rooms || []).some(
+        (r: any) =>
+          r.yacht_id === id &&
+          r.buyer_user_id === user.id &&
+          !!r.buyer_commission_signed_at
+      );
+      if (commissionUnlocked) {
+        setAccessLevel("deal_room_active");
+        setAccessLoading(false);
+        return;
+      }
       const myRoom = (rooms || []).find(
         (r: any) =>
           r.yacht_id === id &&

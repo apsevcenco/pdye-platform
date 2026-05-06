@@ -3,6 +3,7 @@ import { Layout } from "@/components/layout/Layout";
 import { YachtCard, type RequestStatus } from "@/components/ui/YachtCard";
 import { type Yacht } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { dealRoomApi } from "@/lib/dealRoomApi";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
@@ -40,15 +41,27 @@ export default function Yachts() {
 
   const loadRequests = useCallback(async () => {
     if (!user) { setRequests({}); return; }
+    const map: Record<string, RequestStatus> = {};
     const { data } = await supabase
       .from("access_requests")
       .select("id, yacht_id, status")
       .eq("requester_id", user.id);
     if (data) {
-      const map: Record<string, RequestStatus> = {};
       (data as AccessRequest[]).forEach(r => { map[r.yacht_id] = r.status; });
-      setRequests(map);
     }
+    // Permanent unlock: yachts where the buyer has signed Commission Agreement
+    // stay marked as "approved" forever, regardless of deal room status.
+    try {
+      const rooms = (await dealRoomApi.byUser(user.id)) as any[];
+      (rooms || []).forEach((r) => {
+        if (r.yacht_id && r.buyer_user_id === user.id && r.buyer_commission_signed_at) {
+          map[r.yacht_id] = "approved";
+        }
+      });
+    } catch {
+      // Non-fatal — fall back to access_requests-only state.
+    }
+    setRequests(map);
   }, [user]);
 
   useEffect(() => {
