@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { requireUser } from "../middlewares/auth";
 import { strictLimiter } from "../middlewares/rateLimit";
 import { EstimateMarketPriceBody, ValuationBody } from "@workspace/api-zod";
 import { validateBody } from "../middlewares/validate";
@@ -197,7 +196,10 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
   }
 });
 
-router.post("/valuation", strictLimiter, requireUser, validateBody(ValuationBody), async (req, res) => {
+// Public free valuation tool — advertised on the home page as
+// "No registration required". Rate-limited (strictLimiter) to deter
+// abuse, but intentionally NOT gated behind requireUser.
+router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req, res) => {
   try {
     const b = req.body as Record<string, unknown>;
     const { mode, units } = b;

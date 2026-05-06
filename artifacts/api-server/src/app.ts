@@ -159,7 +159,13 @@ const openai = new OpenAI({
   apiKey: process.env["OPENAI_API_KEY"],
 });
 
-app.post("/api/valuation", strictLimiter, requireUser, validateBody(ValuationBody), async (req, res) => {
+// NOTE: this route is shadowed by the canonical handler in
+// `routes/estimate.ts` (mounted via `app.use("/api", router)` above).
+// Express matches the router first, so this inline handler is dead
+// code — left in place only as a reference fallback. Public access:
+// the canonical handler intentionally has no requireUser gate
+// because the tool is advertised as "No registration required".
+app.post("/api/valuation", strictLimiter, validateBody(ValuationBody), async (req, res) => {
   try {
     const data = req.body;
 
