@@ -5,7 +5,7 @@ import {
   Calculator, TrendingUp, ChevronRight, RotateCcw,
   Building2, Sliders, Gauge, Anchor, Users
 } from "lucide-react";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 
 const YACHT_TYPES = ["Motor Yacht", "Sailing Yacht", "Catamaran", "Superyacht", "Explorer Yacht", "Sport Cruiser", "Trawler", "Classic Yacht", "Gulet", "Flybridge"];
 const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
@@ -93,17 +93,9 @@ export default function Valuation() {
   const [result, setResult] = useState<ValuationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [t, setT] = useState({
-    hero: getSiteSectionData("valuation", "hero"),
-    formT: getSiteSectionData("valuation", "form"),
-  });
-
-  useEffect(() => {
-    setT({
-      hero: getSiteSectionData("valuation", "hero"),
-      formT: getSiteSectionData("valuation", "form"),
-    });
-  }, []);
+  const heroT = useSiteSection("valuation", "hero");
+  const formT = useSiteSection("valuation", "form");
+  const t = { hero: heroT, formT };
 
   function setF(k: string, v: string) { setForm(p => ({ ...p, [k]: v })); }
 

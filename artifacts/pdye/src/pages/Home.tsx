@@ -4,7 +4,7 @@ import { motion, type Variants } from "framer-motion";
 import { Shield, TrendingUp, Anchor, FileCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getHeroContent, type HeroContent } from "@/lib/content";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 40 },
@@ -15,19 +15,13 @@ const ICONS = [Anchor, Shield, FileCheck, TrendingUp];
 
 export default function Home() {
   const [hero, setHero] = useState<HeroContent>(getHeroContent());
-  const [t, setT] = useState({
-    heroSection: getSiteSectionData("home", "hero"),
-    expertise: getSiteSectionData("home", "expertise"),
-    valuationCta: getSiteSectionData("home", "valuation_cta"),
-  });
+  const heroSection = useSiteSection("home", "hero");
+  const expertise = useSiteSection("home", "expertise");
+  const valuationCta = useSiteSection("home", "valuation_cta");
+  const t = { heroSection, expertise, valuationCta };
 
   useEffect(() => {
     setHero(getHeroContent());
-    setT({
-      heroSection: getSiteSectionData("home", "hero"),
-      expertise: getSiteSectionData("home", "expertise"),
-      valuationCta: getSiteSectionData("home", "valuation_cta"),
-    });
   }, []);
 
   const expertiseItems = [

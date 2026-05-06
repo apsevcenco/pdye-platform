@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { loadAllCustomFonts } from "@/lib/content";
+import { loadSiteContentFromServer } from "@/lib/siteContent";
 import { CurrencyProvider } from "@/lib/currency";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Anchor } from "lucide-react";
@@ -43,6 +44,11 @@ const PlatformNda = lazy(() => import("./pages/PlatformNda"));
 
 function FontLoader() {
   useEffect(() => { loadAllCustomFonts(); }, []);
+  return null;
+}
+
+function SiteContentLoader() {
+  useEffect(() => { loadSiteContentFromServer(); }, []);
   return null;
 }
 
@@ -200,6 +206,7 @@ function App() {
       <CurrencyProvider>
         <TooltipProvider>
           <FontLoader />
+          <SiteContentLoader />
           <WouterRouter>
             <Router />
           </WouterRouter>

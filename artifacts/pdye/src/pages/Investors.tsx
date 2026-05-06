@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { TrendingUp, Lock, Globe, Users, ChevronRight, CheckCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 
 const ICONS = [TrendingUp, Lock, Globe, Users];
 
@@ -17,21 +17,11 @@ const CAPACITY_OPTIONS = [
 ];
 
 export default function Investors() {
-  const [t, setT] = useState({
-    hero: getSiteSectionData("buyers", "hero"),
-    stats: getSiteSectionData("buyers", "stats"),
-    benefits: getSiteSectionData("buyers", "benefits"),
-    form: getSiteSectionData("buyers", "form"),
-  });
-
-  useEffect(() => {
-    setT({
-      hero: getSiteSectionData("buyers", "hero"),
-      stats: getSiteSectionData("buyers", "stats"),
-      benefits: getSiteSectionData("buyers", "benefits"),
-      form: getSiteSectionData("buyers", "form"),
-    });
-  }, []);
+  const heroT = useSiteSection("buyers", "hero");
+  const statsT = useSiteSection("buyers", "stats");
+  const benefitsT = useSiteSection("buyers", "benefits");
+  const formT = useSiteSection("buyers", "form");
+  const t = { hero: heroT, stats: statsT, benefits: benefitsT, form: formT };
 
   const benefits = [
     { icon: ICONS[0], title: t.benefits.item1_title, desc: t.benefits.item1_desc },

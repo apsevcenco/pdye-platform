@@ -697,44 +697,135 @@ export const SITE_DEFAULTS: Record<string, Record<string, Record<string, string>
   },
 };
 
-const STORAGE_PREFIX = "site_";
+// ─────────────────────────────────────────────────────────────────────────────
+// Site content store
+//
+// Source of truth: server (Postgres `site_content` table, served by
+// `/api/site-content`). On boot we hydrate a module-level cache from the
+// server. Components read synchronously from the cache; until the first
+// fetch resolves we fall back to a localStorage snapshot (saved from the
+// most recent server load) and finally to SITE_DEFAULTS, so first paint is
+// never blank.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { useEffect, useState } from "react";
+import {
+  fetchSiteContent,
+  saveSiteSectionRemote,
+  deleteSiteSectionRemote,
+  type SiteContentMap,
+} from "./siteContentApi";
+
+const SNAPSHOT_KEY = "site_content_snapshot_v1";
+
+let cache: SiteContentMap = (() => {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as SiteContentMap) : {};
+  } catch {
+    return {};
+  }
+})();
+let loaded = false;
+const subscribers = new Set<() => void>();
+
+function notify(): void {
+  subscribers.forEach((fn) => {
+    try { fn(); } catch { /* ignore subscriber errors */ }
+  });
+}
+
+function persistSnapshot(): void {
+  try {
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(cache));
+  } catch { /* quota / privacy mode — ignore */ }
+}
+
+export function isSiteContentLoaded(): boolean {
+  return loaded;
+}
+
+// Bumped on every local write (saveSiteSection / resetSiteSection). The initial
+// load captures the version at fetch start; if any writes happened while the
+// fetch was in flight, we skip clobbering the cache so newer local writes win.
+let writeVersion = 0;
+let inflight: Promise<void> | null = null;
+export function loadSiteContentFromServer(): Promise<void> {
+  if (inflight) return inflight;
+  const startVersion = writeVersion;
+  inflight = (async () => {
+    try {
+      const data = await fetchSiteContent();
+      if (writeVersion !== startVersion) {
+        // Local writes occurred during fetch — they already updated cache &
+        // server, so the response we just got may be stale. Keep cache as-is.
+        loaded = true;
+        return;
+      }
+      cache = data || {};
+      loaded = true;
+      persistSnapshot();
+      notify();
+    } catch (e) {
+      // Keep whatever snapshot we already have so the UI still renders.
+      console.warn("[siteContent] Failed to load from server:", e);
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
+}
 
 export function getSiteText(pageId: string, sectionId: string, fieldKey: string): string {
-  const storageKey = `${STORAGE_PREFIX}${pageId}_${sectionId}_${fieldKey}`;
-  const stored = localStorage.getItem(storageKey);
-  if (stored !== null) return stored;
+  const remote = cache[pageId]?.[sectionId]?.[fieldKey];
+  if (remote !== undefined) return remote;
   return SITE_DEFAULTS[pageId]?.[sectionId]?.[fieldKey] || "";
-}
-
-export function setSiteText(pageId: string, sectionId: string, fieldKey: string, value: string): void {
-  const storageKey = `${STORAGE_PREFIX}${pageId}_${sectionId}_${fieldKey}`;
-  localStorage.setItem(storageKey, value);
-}
-
-export function resetSiteSection(pageId: string, sectionId: string): Record<string, string> {
-  const defaults = SITE_DEFAULTS[pageId]?.[sectionId] || {};
-  Object.keys(defaults).forEach(key => {
-    const storageKey = `${STORAGE_PREFIX}${pageId}_${sectionId}_${key}`;
-    localStorage.removeItem(storageKey);
-  });
-  return { ...defaults };
 }
 
 export function getSiteSectionData(pageId: string, sectionId: string): Record<string, string> {
   const defaults = SITE_DEFAULTS[pageId]?.[sectionId] || {};
   const result: Record<string, string> = {};
-  Object.keys(defaults).forEach(key => {
+  Object.keys(defaults).forEach((key) => {
     result[key] = getSiteText(pageId, sectionId, key);
   });
   return result;
 }
 
-export function saveSiteSection(pageId: string, sectionId: string, data: Record<string, string>): void {
-  Object.entries(data).forEach(([key, value]) => {
-    setSiteText(pageId, sectionId, key, value);
-  });
+export async function saveSiteSection(
+  pageId: string,
+  sectionId: string,
+  data: Record<string, string>,
+): Promise<void> {
+  await saveSiteSectionRemote(pageId, sectionId, data);
+  if (!cache[pageId]) cache[pageId] = {};
+  cache[pageId][sectionId] = { ...data };
+  writeVersion++;
+  persistSnapshot();
+  notify();
+}
+
+export async function resetSiteSection(
+  pageId: string,
+  sectionId: string,
+): Promise<Record<string, string>> {
+  await deleteSiteSectionRemote(pageId, sectionId);
+  if (cache[pageId]) {
+    delete cache[pageId][sectionId];
+  }
+  writeVersion++;
+  persistSnapshot();
+  notify();
+  return { ...(SITE_DEFAULTS[pageId]?.[sectionId] || {}) };
 }
 
 export function useSiteSection(pageId: string, sectionId: string): Record<string, string> {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const sub = () => force((n) => n + 1);
+    subscribers.add(sub);
+    return () => { subscribers.delete(sub); };
+  }, []);
   return getSiteSectionData(pageId, sectionId);
 }

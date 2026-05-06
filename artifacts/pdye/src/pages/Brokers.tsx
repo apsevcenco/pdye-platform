@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Briefcase, DollarSign, Globe, Shield, ChevronRight, CheckCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 
 const ICONS = [DollarSign, Globe, Briefcase, Shield];
 
@@ -11,21 +11,11 @@ const EXPERIENCE_OPTIONS = ["Under 2 years", "2–5 years", "5–10 years", "10+
 const TYPE_OPTIONS = ["List off-market vessels", "Source for buyers", "Both"];
 
 export default function Brokers() {
-  const [t, setT] = useState({
-    hero: getSiteSectionData("brokers", "hero"),
-    benefits: getSiteSectionData("brokers", "benefits"),
-    process: getSiteSectionData("brokers", "process"),
-    form: getSiteSectionData("brokers", "form"),
-  });
-
-  useEffect(() => {
-    setT({
-      hero: getSiteSectionData("brokers", "hero"),
-      benefits: getSiteSectionData("brokers", "benefits"),
-      process: getSiteSectionData("brokers", "process"),
-      form: getSiteSectionData("brokers", "form"),
-    });
-  }, []);
+  const heroT = useSiteSection("brokers", "hero");
+  const benefitsT = useSiteSection("brokers", "benefits");
+  const processT = useSiteSection("brokers", "process");
+  const formT = useSiteSection("brokers", "form");
+  const t = { hero: heroT, benefits: benefitsT, process: processT, form: formT };
 
   const benefits = [
     { icon: ICONS[0], title: t.benefits.item1_title, desc: t.benefits.item1_desc },

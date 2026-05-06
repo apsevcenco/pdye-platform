@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle, Loader2 } from "lucide-react";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 
 const lbl = "block text-white/55 text-[10px] font-bold mb-1.5 uppercase tracking-widest font-sans";
 const inp = "w-full bg-background border border-white/10 focus:border-primary px-4 py-3 text-white text-sm focus:outline-none transition-colors placeholder:text-white/20 font-sans";
@@ -16,21 +16,11 @@ const BROKER_TYPE_OPTIONS = ["List off-market vessels", "Source for buyers", "Bo
 type RoleKey = "investor" | "broker" | "owner";
 
 export default function Access() {
-  const [t, setT] = useState({
-    investor: getSiteSectionData("access", "investor"),
-    broker: getSiteSectionData("access", "broker"),
-    owner: getSiteSectionData("access", "owner"),
-    common: getSiteSectionData("access", "common"),
-  });
-
-  useEffect(() => {
-    setT({
-      investor: getSiteSectionData("access", "investor"),
-      broker: getSiteSectionData("access", "broker"),
-      owner: getSiteSectionData("access", "owner"),
-      common: getSiteSectionData("access", "common"),
-    });
-  }, []);
+  const investor = useSiteSection("access", "investor");
+  const broker = useSiteSection("access", "broker");
+  const owner = useSiteSection("access", "owner");
+  const common = useSiteSection("access", "common");
+  const t = { investor, broker, owner, common };
 
   // Note: role tabs intentionally have NO icons — labels only — to match the
   // rest of the Navy Discipline UI and the user's explicit design ask.

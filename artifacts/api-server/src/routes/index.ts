@@ -14,6 +14,7 @@ import dealCommissionRouter from "./dealCommission";
 import userAdminRouter from "./userAdmin";
 import yachtModerationRouter from "./yachtModeration";
 import legalPagesRouter from "./legalPages";
+import siteContentRouter from "./siteContent";
 import adminBadgeCountsRouter from "./adminBadgeCounts";
 import adminAnalyticsRouter from "./adminAnalytics";
 
@@ -34,6 +35,7 @@ router.use(dealCommissionRouter);
 router.use(userAdminRouter);
 router.use(yachtModerationRouter);
 router.use(legalPagesRouter);
+router.use(siteContentRouter);
 router.use(adminBadgeCountsRouter);
 router.use(adminAnalyticsRouter);
 

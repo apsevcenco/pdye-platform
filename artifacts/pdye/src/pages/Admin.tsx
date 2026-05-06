@@ -77,6 +77,7 @@ import {
   getSiteSectionData,
   saveSiteSection,
   resetSiteSection,
+  loadSiteContentFromServer,
   type SitePage,
   type SiteSection,
   type SiteTextBlock,
@@ -3745,6 +3746,67 @@ function ContentView() {
 
   const currentPage = SITE_PAGES.find((p: any) => p.id === activePage);
 
+  // One-time migration of legacy per-field localStorage keys (`site_<page>_<section>_<field>`)
+  // to the server-backed store. Runs once per browser. We disambiguate keys
+  // (page/section/field IDs all may contain underscores) by matching against
+  // the known SITE_PAGES schema rather than splitting on underscores.
+  useEffect(() => {
+    const MIGRATED_FLAG = "site_content_migrated_v1";
+    if (localStorage.getItem(MIGRATED_FLAG)) return;
+
+    // Build a lookup: "<page>_<section>_<field>" -> [page, section, field]
+    const triples = new Map<string, [string, string, string]>();
+    SITE_PAGES.forEach((p: any) => {
+      p.sections.forEach((s: any) => {
+        s.fields.forEach((f: any) => {
+          triples.set(`${p.id}_${s.id}_${f.key}`, [p.id, s.id, f.key]);
+        });
+      });
+    });
+
+    const grouped: Record<string, Record<string, Record<string, string>>> = {};
+    const legacyKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith("site_") || k === "site_content_snapshot_v1") continue;
+      const triple = triples.get(k.slice(5));
+      if (!triple) continue;
+      const [page, section, field] = triple;
+      const v = localStorage.getItem(k);
+      if (v == null) continue;
+      if (!grouped[page]) grouped[page] = {};
+      if (!grouped[page][section]) grouped[page][section] = {};
+      grouped[page][section][field] = v;
+      legacyKeys.push(k);
+    }
+    if (legacyKeys.length === 0) {
+      localStorage.setItem(MIGRATED_FLAG, "1");
+      return;
+    }
+    (async () => {
+      try {
+        // Critical: wait for server hydration to complete BEFORE merging.
+        // Otherwise `getSiteSectionData` returns defaults and we'd overwrite
+        // server-side values an admin already saved on another device.
+        await loadSiteContentFromServer();
+        for (const [pageId, sections] of Object.entries(grouped)) {
+          for (const [secId, data] of Object.entries(sections)) {
+            // Server-authoritative merge: existing now reflects what's in
+            // the DB (post-hydration cache). Legacy local values overwrite
+            // only the specific fields they cover.
+            const existing = getSiteSectionData(pageId, secId);
+            await saveSiteSection(pageId, secId, { ...existing, ...data });
+          }
+        }
+        legacyKeys.forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(MIGRATED_FLAG, "1");
+        console.log(`[siteContent] Migrated ${legacyKeys.length} legacy field(s) to server`);
+      } catch (e) {
+        console.warn("[siteContent] Legacy migration failed (will retry next visit):", e);
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     if (!currentPage) return;
     const data: Record<string, Record<string, string>> = {};
@@ -3766,26 +3828,56 @@ function ContentView() {
     setSavedSections(prev => ({ ...prev, [sectionId]: false }));
   };
 
-  const handleSaveSection = (sectionId: string) => {
-    saveSiteSection(activePage, sectionId, sectionData[sectionId]);
-    setSavedSections(prev => ({ ...prev, [sectionId]: true }));
-    setTimeout(() => setSavedSections(prev => ({ ...prev, [sectionId]: false })), 2500);
+  const [savingSections, setSavingSections] = useState<Record<string, boolean>>({});
+  const [contentError, setContentError] = useState<string>("");
+
+  const handleSaveSection = async (sectionId: string) => {
+    setContentError("");
+    setSavingSections(prev => ({ ...prev, [sectionId]: true }));
+    try {
+      await saveSiteSection(activePage, sectionId, sectionData[sectionId]);
+      setSavedSections(prev => ({ ...prev, [sectionId]: true }));
+      setTimeout(() => setSavedSections(prev => ({ ...prev, [sectionId]: false })), 2500);
+    } catch (e: any) {
+      setContentError(e?.message || "Failed to save section");
+    } finally {
+      setSavingSections(prev => ({ ...prev, [sectionId]: false }));
+    }
   };
 
-  const handleResetSection = (sectionId: string) => {
-    const defaults = resetSiteSection(activePage, sectionId);
-    setSectionData(prev => ({ ...prev, [sectionId]: defaults }));
+  const handleResetSection = async (sectionId: string) => {
+    setContentError("");
+    setSavingSections(prev => ({ ...prev, [sectionId]: true }));
+    try {
+      const defaults = await resetSiteSection(activePage, sectionId);
+      setSectionData(prev => ({ ...prev, [sectionId]: defaults }));
+    } catch (e: any) {
+      setContentError(e?.message || "Failed to reset section");
+    } finally {
+      setSavingSections(prev => ({ ...prev, [sectionId]: false }));
+    }
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     if (!currentPage) return;
-    currentPage.sections.forEach((s: any) => {
-      saveSiteSection(activePage, s.id, sectionData[s.id]);
-    });
-    const allSaved: Record<string, boolean> = {};
-    currentPage.sections.forEach((s: any) => { allSaved[s.id] = true; });
-    setSavedSections(allSaved);
-    setTimeout(() => setSavedSections({}), 2500);
+    setContentError("");
+    const sections = currentPage.sections;
+    const allSaving: Record<string, boolean> = {};
+    sections.forEach((s: any) => { allSaving[s.id] = true; });
+    setSavingSections(allSaving);
+    try {
+      for (const s of sections) {
+        await saveSiteSection(activePage, s.id, sectionData[s.id]);
+      }
+      const allSaved: Record<string, boolean> = {};
+      sections.forEach((s: any) => { allSaved[s.id] = true; });
+      setSavedSections(allSaved);
+      setTimeout(() => setSavedSections({}), 2500);
+    } catch (e: any) {
+      setContentError(e?.message || "Failed to save all sections");
+    } finally {
+      setSavingSections({});
+    }
   };
 
   const toggleSection = (id: string) => {
@@ -3801,11 +3893,18 @@ function ContentView() {
         </div>
         <button
           onClick={handleSaveAll}
-          className="bg-white/5 backdrop-blur-md border border-primary text-primary px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 flex-shrink-0"
+          disabled={Object.values(savingSections).some(Boolean)}
+          className="bg-white/5 backdrop-blur-md border border-primary text-primary px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Save All Sections
+          {Object.values(savingSections).some(Boolean) ? "Saving..." : "Save All Sections"}
         </button>
       </div>
+
+      {contentError && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-sm font-sans">
+          {contentError}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1.5 mb-6 bg-[#06101e] border border-white/5 p-1.5">
         {SITE_PAGES.map((p: any) => (
@@ -3879,13 +3978,15 @@ function ContentView() {
                   <div className="flex gap-3 pt-5 mt-4 border-t border-white/5">
                     <button
                       onClick={() => handleSaveSection(section.id)}
-                      className="bg-white/5 backdrop-blur-md border border-primary text-primary px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300"
+                      disabled={!!savingSections[section.id]}
+                      className="bg-white/5 backdrop-blur-md border border-primary text-primary px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-white hover:border-white transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {isSaved ? "Saved ✓" : "Save Section"}
+                      {savingSections[section.id] ? "Saving..." : isSaved ? "Saved ✓" : "Save Section"}
                     </button>
                     <button
                       onClick={() => handleResetSection(section.id)}
-                      className="border border-white/10 text-white/40 px-5 py-2 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/60 transition-colors"
+                      disabled={!!savingSections[section.id]}
+                      className="border border-white/10 text-white/40 px-5 py-2 text-xs font-bold uppercase tracking-widest hover:border-white/30 hover:text-white/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Reset to Default
                     </button>

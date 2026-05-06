@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 
 type Filter = "All" | "Motor Yachts" | "Sailing Yachts";
 
@@ -21,23 +21,16 @@ type AccessRequest = {
 export default function Yachts() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [content, setContent] = useState(getSiteSectionData("yachts", "header"));
+  const content = useSiteSection("yachts", "header");
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [requests, setRequests] = useState<Record<string, RequestStatus>>({});
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<Filter>("All");
   const [requestError, setRequestError] = useState<string | null>(null);
-  const [filtersT, setFiltersT] = useState(getSiteSectionData("yachts", "filters"));
-  const [confT, setConfT] = useState(getSiteSectionData("yachts", "confidentiality"));
-  const [ctaT, setCtaT] = useState(getSiteSectionData("yachts", "cta"));
-
-  useEffect(() => {
-    setContent(getSiteSectionData("yachts", "header"));
-    setFiltersT(getSiteSectionData("yachts", "filters"));
-    setConfT(getSiteSectionData("yachts", "confidentiality"));
-    setCtaT(getSiteSectionData("yachts", "cta"));
-  }, []);
+  const filtersT = useSiteSection("yachts", "filters");
+  const confT = useSiteSection("yachts", "confidentiality");
+  const ctaT = useSiteSection("yachts", "cta");
 
   const loadRequests = useCallback(async () => {
     if (!user) { setRequests({}); return; }

@@ -5,7 +5,7 @@ import { Shield, EyeOff, Globe, TrendingUp, CheckCircle, ArrowRight, Anchor, Lay
 import { supabase } from "@/lib/supabase";
 import { Link } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 
 const ICONS = [EyeOff, Globe, TrendingUp, Shield];
 
@@ -13,21 +13,11 @@ export default function BoatOwners() {
   const { user, userProfile } = useAuth();
   const isOwner = user && (userProfile?.role === "owner" || userProfile?.role === "admin");
 
-  const [t, setT] = useState({
-    hero: getSiteSectionData("owners", "hero"),
-    benefits: getSiteSectionData("owners", "benefits"),
-    process: getSiteSectionData("owners", "process"),
-    form: getSiteSectionData("owners", "form"),
-  });
-
-  useEffect(() => {
-    setT({
-      hero: getSiteSectionData("owners", "hero"),
-      benefits: getSiteSectionData("owners", "benefits"),
-      process: getSiteSectionData("owners", "process"),
-      form: getSiteSectionData("owners", "form"),
-    });
-  }, []);
+  const heroT = useSiteSection("owners", "hero");
+  const benefitsT = useSiteSection("owners", "benefits");
+  const processT = useSiteSection("owners", "process");
+  const formT = useSiteSection("owners", "form");
+  const t = { hero: heroT, benefits: benefitsT, process: processT, form: formT };
 
   const benefits = [
     { icon: ICONS[0], title: t.benefits.item1_title, desc: t.benefits.item1_desc },

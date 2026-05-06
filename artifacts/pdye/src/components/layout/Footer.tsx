@@ -1,12 +1,12 @@
 import { Link } from "wouter";
 import { Mail, Phone, MapPin, Clock, MessageCircle } from "lucide-react";
-import { getSiteSectionData } from "@/lib/siteContent";
+import { useSiteSection } from "@/lib/siteContent";
 import { openCookieSettings } from "@/components/CookieConsent";
 
 export function Footer() {
-  const brand = getSiteSectionData("footer", "brand");
-  const contact = getSiteSectionData("footer", "contact");
-  const legal = getSiteSectionData("footer", "legal");
+  const brand = useSiteSection("footer", "brand");
+  const contact = useSiteSection("footer", "contact");
+  const legal = useSiteSection("footer", "legal");
 
   const rows = [
     contact.email && { icon: Mail, label: contact.email, href: `mailto:${contact.email}` },
