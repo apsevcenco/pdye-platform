@@ -3,6 +3,7 @@ import { Layout } from "@/components/layout/Layout";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowUpRight, BarChart3, ExternalLink } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const PageLayout: any = (CabinetLayout as any) || (Layout as any);
 
@@ -132,7 +133,12 @@ export default function AdminAnalytics() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/admin/analytics`, { credentials: "include" });
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) throw new Error("Not signed in");
+        const res = await fetch(`${API_BASE}/admin/analytics`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as Analytics;
         if (!cancelled) setData(json);
