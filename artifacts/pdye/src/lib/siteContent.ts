@@ -649,7 +649,7 @@ export const SITE_DEFAULTS: Record<string, Record<string, Record<string, string>
   },
   yachts: {
     header: {
-      heading: "Inventory / Off-Market Listings",
+      heading: "Off-Market Listings",
       subheading: "A curated selection of off-market and distressed vessels currently available through our confidential network.",
     },
     filters: {

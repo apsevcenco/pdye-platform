@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { getSiteSectionData } from "@/lib/siteContent";
 
-type Filter = "All" | "Motor Yachts" | "Sailing Yachts" | "Distressed Deals";
+type Filter = "All" | "Motor Yachts" | "Sailing Yachts";
 
 type AccessRequest = {
   id: string;
@@ -157,7 +157,6 @@ export default function Yachts() {
 
   const filtered = yachts.filter((y) => {
     if (activeFilter === "All") return true;
-    if (activeFilter === "Distressed Deals") return y.status === "Distressed Sale";
     if (activeFilter === "Motor Yachts") return ["Motor Yacht", "Sport Cruiser", "Superyacht", "Mega Yacht", "Explorer"].includes(y.type || "");
     if (activeFilter === "Sailing Yachts") return ["Sailing Yacht", "Catamaran"].includes(y.type || "");
     return true;
@@ -167,9 +166,8 @@ export default function Yachts() {
     "All": filtersT.all,
     "Motor Yachts": filtersT.motor,
     "Sailing Yachts": filtersT.sailing,
-    "Distressed Deals": filtersT.distressed,
   };
-  const filters: Filter[] = ["All", "Motor Yachts", "Sailing Yachts", "Distressed Deals"];
+  const filters: Filter[] = ["All", "Motor Yachts", "Sailing Yachts"];
 
   const PageLayout = user ? CabinetLayout : Layout;
 
