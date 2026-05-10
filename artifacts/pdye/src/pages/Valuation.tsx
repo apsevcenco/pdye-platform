@@ -6,6 +6,8 @@ import {
   Building2, Sliders, Gauge, Anchor, Users, AlertTriangle
 } from "lucide-react";
 import { useSiteSection } from "@/lib/siteContent";
+import { useCurrency } from "@/lib/currency";
+import { CurrencySelector } from "@/components/ui/CurrencySelector";
 
 // Two-level taxonomy.
 // Level 1 (Yacht Type / Class) — 4 clean classes. Everything else (Trawler,
@@ -181,6 +183,7 @@ export default function Valuation() {
   const heroT = useSiteSection("valuation", "hero");
   const formT = useSiteSection("valuation", "form");
   const t = { hero: heroT, formT };
+  const { formatPrice } = useCurrency();
 
   function setF(k: string, v: string) {
     setForm(p => {
@@ -630,7 +633,8 @@ const data = text ? JSON.parse(text) : {};
                 <div className="bg-[#0f1d33] border border-primary/25 p-8">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                     <p className="text-white/35 text-[9.5px] uppercase tracking-[0.22em] font-bold font-sans">{t.formT.result_label}</p>
-                    <div className="flex-shrink-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-shrink-0">
+                      <CurrencySelector compact />
                       <span className={`text-[10px] font-bold uppercase tracking-widest border px-3 py-1.5 block text-center ${
                         result.confidence === "high" ? "border-green-500/30 text-green-400 bg-green-500/5" :
                         result.confidence === "medium" ? "border-yellow-500/30 text-yellow-400 bg-yellow-500/5" :
@@ -645,20 +649,20 @@ const data = text ? JSON.parse(text) : {};
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
                     <div className="bg-primary/5 border border-primary/30 p-5">
                       <p className="text-primary/70 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Open market</p>
-                      <p className="font-display text-3xl text-primary leading-tight">{result.market_price || result.estimated_price}</p>
+                      <p className="font-display text-3xl text-primary leading-tight">{formatPrice(result.market_price || result.estimated_price)}</p>
                       <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Estimated sold price on the public market</p>
                     </div>
                     {result.distressed_price && (
                       <div className="bg-amber-500/5 border border-amber-500/25 p-5">
                         <p className="text-amber-400/80 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Discreet sale</p>
-                        <p className="font-display text-3xl text-amber-300 leading-tight">{result.distressed_price}</p>
+                        <p className="font-display text-3xl text-amber-300 leading-tight">{formatPrice(result.distressed_price)}</p>
                         <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Confidential / off-market sale (≈ −25%)</p>
                       </div>
                     )}
                     {result.quick_sale_price && (
                       <div className="bg-orange-500/5 border border-orange-500/25 p-5">
                         <p className="text-orange-400/80 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Quick sale</p>
-                        <p className="font-display text-3xl text-orange-300 leading-tight">{result.quick_sale_price}</p>
+                        <p className="font-display text-3xl text-orange-300 leading-tight">{formatPrice(result.quick_sale_price)}</p>
                         <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Forced / urgent liquidation (≈ −35%)</p>
                       </div>
                     )}
