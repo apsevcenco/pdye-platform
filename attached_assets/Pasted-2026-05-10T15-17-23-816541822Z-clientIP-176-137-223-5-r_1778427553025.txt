@@ -1,0 +1,50 @@
+2026-05-10T15:17:23.816541822Z clientIP="176.137.223.5" requestID="f20e0ea0-c96e-4336" responseTimeMS=204 responseBytes=1511 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:17:24.039089815Z clientIP="176.137.223.5" requestID="faffd2cd-8139-426f" responseTimeMS=426 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:17:29.173188887Z /opt/render/project/src/artifacts/api-server:
+2026-05-10T15:17:29.173215748Z [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @workspace/api-server@0.0.0 start: `node dist/index.cjs`
+2026-05-10T15:17:29.173220938Z Command failed with signal "SIGTERM"
+2026-05-10T15:21:23.402454668Z clientIP="176.137.223.5" requestID="0d8b9dc9-f387-43ca" responseTimeMS=3 responseBytes=1509 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/148.0.7778.100 Mobile/15E148 Safari/604.1"
+2026-05-10T15:21:23.600194938Z clientIP="176.137.223.5" requestID="c627f59a-611b-44ef" responseTimeMS=204 responseBytes=1732 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/148.0.7778.100 Mobile/15E148 Safari/604.1"
+2026-05-10T15:21:29.904167551Z ==> Detected service running on port 10000
+2026-05-10T15:21:30.22492188Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-05-10T15:27:00.261979947Z ==> Deploying...
+2026-05-10T15:27:00.482485931Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-05-10T15:27:13.024602978Z ==> Running 'pnpm --filter @workspace/api-server run start'
+2026-05-10T15:27:13.357843013Z ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-11.0.9.tgz
+2026-05-10T15:27:15.485933936Z clientIP="176.137.223.5" requestID="ec48a860-0a3f-4e94" responseTimeMS=4 responseBytes=1329 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/148.0.7778.100 Mobile/15E148 Safari/604.1"
+2026-05-10T15:27:15.694155176Z clientIP="176.137.223.5" requestID="d463a917-8bf9-451b" responseTimeMS=187 responseBytes=1732 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/148.0.7778.100 Mobile/15E148 Safari/604.1"
+2026-05-10T15:27:15.705979115Z $ node dist/index.cjs
+2026-05-10T15:27:16.491231756Z Server listening on port 10000
+2026-05-10T15:27:16.774228403Z [platform-nda] Migration complete
+2026-05-10T15:27:16.917419726Z [deal-legal] Migration complete
+2026-05-10T15:27:16.949652934Z [deal-commission] Migration complete
+2026-05-10T15:27:22.189453544Z ==> Your service is live 🎉
+2026-05-10T15:27:22.289182687Z clientIP="34.145.120.165" requestID="5334d311-fd54-4308" responseTimeMS=3 responseBytes=1458 userAgent="Go-http-client/2.0"
+2026-05-10T15:28:21.081202548Z /opt/render/project/src/artifacts/api-server:
+2026-05-10T15:28:21.081274894Z [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @workspace/api-server@0.0.0 start: `node dist/index.cjs`
+2026-05-10T15:28:21.081282285Z Command failed with signal "SIGTERM"
+2026-05-10T15:30:09.550813675Z clientIP="176.137.223.5" requestID="c5aed75a-0d4c-4f2e" responseTimeMS=3 responseBytes=1366 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/148.0.7778.100 Mobile/15E148 Safari/604.1"
+2026-05-10T15:30:09.809218738Z [yacht-listings] Migration complete
+2026-05-10T15:30:50.261669933Z clientIP="176.137.223.5" requestID="4f4d5945-eaf5-481e" responseTimeMS=68 responseBytes=1512 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:30:50.419930743Z [site-content] Migration complete
+2026-05-10T15:30:50.433721171Z [site-content] Migration complete
+2026-05-10T15:30:50.46258945Z clientIP="176.137.223.5" requestID="9e01a6c7-6966-400c" responseTimeMS=269 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:31:21.464796849Z clientIP="176.137.223.5" requestID="84f9f641-a920-44f7" responseTimeMS=3 responseBytes=1507 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:31:21.611980592Z clientIP="176.137.223.5" requestID="5f0bc910-063a-4def" responseTimeMS=161 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:31:44.491993886Z clientIP="176.137.223.5" requestID="91b9e3bc-7bd8-4165" responseTimeMS=94894 responseBytes=2584 userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/148.0.7778.100 Mobile/15E148 Safari/604.1"
+2026-05-10T15:31:44.660003631Z [valuation] Migration complete
+2026-05-10T15:31:44.664218703Z [valuation] Migration complete
+2026-05-10T15:32:25.340696182Z ==> Detected service running on port 10000
+2026-05-10T15:32:25.677011307Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-05-10T15:32:52.303651473Z clientIP="176.137.223.5" requestID="42ec6119-d3da-463d" responseTimeMS=4 responseBytes=1329 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:32:52.544332938Z clientIP="176.137.223.5" requestID="b7cf2621-15f1-4896" responseTimeMS=246 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:33:05.695686401Z clientIP="176.137.223.5" requestID="f69b3b9b-ec4a-4ae7" responseTimeMS=4 responseBytes=1507 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:33:05.85197249Z clientIP="176.137.223.5" requestID="1dbfa2b8-e615-4e4a" responseTimeMS=160 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:33:30.729653043Z clientIP="176.137.223.5" requestID="7c6d4b6d-7427-46af" responseTimeMS=2 responseBytes=1507 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:33:30.887080387Z clientIP="176.137.223.5" requestID="0fb757b4-0320-4b06" responseTimeMS=165 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:36:03.150794493Z clientIP="176.137.223.5" requestID="e4b88f9a-ee78-4cf8" responseTimeMS=4 responseBytes=1329 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:36:03.346146721Z clientIP="176.137.223.5" requestID="482a5ed7-d577-4490" responseTimeMS=179 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:36:14.725562301Z clientIP="176.137.223.5" requestID="05b80835-6174-4bdd" responseTimeMS=2 responseBytes=1507 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:36:14.889673229Z clientIP="176.137.223.5" requestID="afe90309-a992-42e6" responseTimeMS=160 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:38:20.19982847Z clientIP="176.137.223.5" requestID="0e5d83ec-7ee3-4f7f" responseTimeMS=2 responseBytes=1507 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+2026-05-10T15:38:20.380806204Z clientIP="176.137.223.5" requestID="6d6a8570-125c-4f57" responseTimeMS=190 responseBytes=1732 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
