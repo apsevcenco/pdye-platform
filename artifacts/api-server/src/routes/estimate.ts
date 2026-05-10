@@ -724,8 +724,10 @@ ${modeNote}
 
 Based on the 5 verified comparable listings, determine the fair market value of the target vessel.
 
-⚠ CRITICAL — ASKING vs SOLD price:
-Listing prices on broker sites are ASKING prices. Real CLOSING (sold) prices are typically 10–18% LOWER than asking for normal open-market sales. Your "estimated_price" MUST reflect a realistic SOLD price for a normal market transaction — apply roughly −15% adjustment from comparable asking prices. Briefly mention this asking-vs-sold adjustment in the reasoning.
+⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
+Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would be listed at on YachtWorld / RightBoat / TheYachtMarket today, alongside the comparables you found. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. Compute it as a weighted average of the comparable asking prices, biased toward the closest matches (same builder/model = highest weight, then same year, then same length/engine layout). Adjust up or down for the target vessel's specific spec advantages or disadvantages vs the cohort (newer/older, better/worse condition, more/fewer engines, refit history, etc.).
+
+The downstream system applies separate, well-documented discounts off this number to derive Discreet Sale (≈ −25%) and Quick Sale (≈ −35%) tiers, so your job is just the open-market headline.
 
 The price must reflect actual market evidence — not a theoretical estimate.
 

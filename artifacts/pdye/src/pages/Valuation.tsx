@@ -655,7 +655,7 @@ const data = text ? JSON.parse(text) : {};
                     <div className="bg-primary/5 border border-primary/30 p-5">
                       <p className="text-primary/70 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Open market</p>
                       <p className="font-display text-3xl text-primary leading-tight">{formatPrice(result.market_price || result.estimated_price)}</p>
-                      <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Estimated sold price on the public market</p>
+                      <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Open-market listing equivalent (asking price)</p>
                     </div>
                     {result.distressed_price && (
                       <div className="bg-amber-500/5 border border-amber-500/25 p-5">
