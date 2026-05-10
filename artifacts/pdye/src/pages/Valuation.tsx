@@ -28,6 +28,10 @@ interface Comparable {
 
 interface ValuationResult {
   estimated_price: string;
+  market_price?: string;
+  distressed_price?: string;
+  quick_sale_price?: string;
+  sanity_adjusted?: boolean;
   confidence: "high" | "medium" | "low";
   reasoning: string;
   comparables: Comparable[];
@@ -440,11 +444,8 @@ const data = text ? JSON.parse(text) : {};
 
                 {/* Price estimate card */}
                 <div className="bg-[#0f1d33] border border-primary/25 p-8">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
-                    <div>
-                      <p className="text-white/35 text-[9.5px] uppercase tracking-[0.22em] font-bold mb-3 font-sans">{t.formT.result_label}</p>
-                      <span className="font-display text-5xl text-primary">{result.estimated_price}</span>
-                    </div>
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                    <p className="text-white/35 text-[9.5px] uppercase tracking-[0.22em] font-bold font-sans">{t.formT.result_label}</p>
                     <div className="flex-shrink-0">
                       <span className={`text-[10px] font-bold uppercase tracking-widest border px-3 py-1.5 block text-center ${
                         result.confidence === "high" ? "border-green-500/30 text-green-400 bg-green-500/5" :
@@ -455,6 +456,38 @@ const data = text ? JSON.parse(text) : {};
                       </span>
                     </div>
                   </div>
+
+                  {/* Three-tier price tiles: open-market / discreet / quick sale */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                    <div className="bg-primary/5 border border-primary/30 p-5">
+                      <p className="text-primary/70 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Open market</p>
+                      <p className="font-display text-3xl text-primary leading-tight">{result.market_price || result.estimated_price}</p>
+                      <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Estimated sold price on the public market</p>
+                    </div>
+                    {result.distressed_price && (
+                      <div className="bg-amber-500/5 border border-amber-500/25 p-5">
+                        <p className="text-amber-400/80 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Discreet sale</p>
+                        <p className="font-display text-3xl text-amber-300 leading-tight">{result.distressed_price}</p>
+                        <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Confidential / off-market sale (≈ −25%)</p>
+                      </div>
+                    )}
+                    {result.quick_sale_price && (
+                      <div className="bg-orange-500/5 border border-orange-500/25 p-5">
+                        <p className="text-orange-400/80 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Quick sale</p>
+                        <p className="font-display text-3xl text-orange-300 leading-tight">{result.quick_sale_price}</p>
+                        <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Forced / urgent liquidation (≈ −35%)</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {result.sanity_adjusted && (
+                    <div className="border border-white/10 bg-white/3 px-4 py-2.5 mb-4">
+                      <p className="text-white/45 text-[10.5px] font-sans leading-snug">
+                        Note: the AI estimate fell outside the typical price-per-meter band for this vessel type and was adjusted to a realistic boundary. Treat as indicative.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="h-[1px] bg-white/6 mb-5" />
                   <p className="text-white/50 font-sans text-sm leading-relaxed">{result.reasoning}</p>
                 </div>

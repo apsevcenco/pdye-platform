@@ -1,7 +1,130 @@
 import { Router } from "express";
+import pg from "pg";
 import { strictLimiter } from "../middlewares/rateLimit";
 import { EstimateMarketPriceBody, ValuationBody } from "@workspace/api-zod";
 import { validateBody } from "../middlewares/validate";
+
+// ============================================================================
+// DB pool + valuation_requests table (fire-and-forget logging for ML dataset)
+// ============================================================================
+let pool: pg.Pool | null = null;
+function db(): pg.Pool {
+  if (!pool) {
+    const dbUrl = process.env["DATABASE_URL"];
+    if (!dbUrl) throw new Error("DATABASE_URL not set");
+    pool = new pg.Pool({ connectionString: dbUrl, max: 5 });
+    runValuationMigration().catch((e) =>
+      console.error("[valuation] Migration error:", e),
+    );
+  }
+  return pool;
+}
+
+let valuationMigrationDone = false;
+let valuationMigrationPromise: Promise<void> | null = null;
+async function runValuationMigration(): Promise<void> {
+  if (valuationMigrationDone) return;
+  if (valuationMigrationPromise) return valuationMigrationPromise;
+  valuationMigrationPromise = (async () => {
+    const client = await db().connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS valuation_requests (
+          id bigserial PRIMARY KEY,
+          input jsonb NOT NULL,
+          output jsonb NOT NULL,
+          ip text,
+          confidence text,
+          estimated_price_eur numeric,
+          sanity_adjusted boolean DEFAULT false,
+          created_at timestamptz DEFAULT now()
+        );
+      `);
+      valuationMigrationDone = true;
+      console.log("[valuation] Migration complete");
+    } catch (e: any) {
+      if (e?.code === "23505" || e?.code === "42P07") {
+        valuationMigrationDone = true;
+        console.log("[valuation] Migration complete (table already existed)");
+      } else {
+        throw e;
+      }
+    } finally {
+      client.release();
+    }
+  })().catch((e) => {
+    valuationMigrationPromise = null;
+    throw e;
+  });
+  return valuationMigrationPromise;
+}
+
+// ============================================================================
+// Price parsing & sanity check
+// Reasonable EUR-per-meter ranges for SOLD yachts by type, used to detect
+// AI hallucinations. Outside this range -> clamp to boundary, lower confidence.
+// ============================================================================
+const PRICE_PER_METER_EUR: Record<string, [number, number]> = {
+  "motor yacht": [12000, 250000],
+  "sailing yacht": [6000, 120000],
+  "catamaran": [10000, 180000],
+  "superyacht": [60000, 800000],
+  "explorer yacht": [25000, 400000],
+  "sport cruiser": [8000, 70000],
+  "trawler": [6000, 70000],
+  "classic yacht": [4000, 100000],
+  "gulet": [4000, 50000],
+  "flybridge": [10000, 100000],
+};
+const DEFAULT_PRICE_PER_METER: [number, number] = [4000, 300000];
+
+function parsePriceEur(s: unknown): number | null {
+  if (typeof s !== "string") return null;
+  let v = s.replace(/[^\d.,]/g, "");
+  if (!v) return null;
+  if (v.includes(".") && v.includes(",")) {
+    if (v.lastIndexOf(",") > v.lastIndexOf(".")) {
+      v = v.replace(/\./g, "").replace(",", ".");
+    } else {
+      v = v.replace(/,/g, "");
+    }
+  } else if (v.includes(",")) {
+    const parts = v.split(",");
+    if (parts.length > 2 || (parts[1] && parts[1].length === 3)) {
+      v = v.replace(/,/g, "");
+    } else {
+      v = v.replace(",", ".");
+    }
+  } else if (v.includes(".")) {
+    const parts = v.split(".");
+    if (parts.length > 2 || (parts[1] && parts[1].length === 3)) {
+      v = v.replace(/\./g, "");
+    }
+  }
+  const n = parseFloat(v);
+  return isFinite(n) && n > 0 ? n : null;
+}
+
+function formatEur(n: number): string {
+  return "€ " + Math.round(n).toLocaleString("en-US");
+}
+
+function sanityCheckPrice(
+  priceEur: number,
+  lengthMeters: number,
+  type: string,
+): { ok: boolean; clampedEur: number } {
+  const key = String(type || "").toLowerCase().trim();
+  const range = PRICE_PER_METER_EUR[key] || DEFAULT_PRICE_PER_METER;
+  const perMeter = priceEur / lengthMeters;
+  if (perMeter < range[0]) {
+    return { ok: false, clampedEur: range[0] * lengthMeters };
+  }
+  if (perMeter > range[1]) {
+    return { ok: false, clampedEur: range[1] * lengthMeters };
+  }
+  return { ok: true, clampedEur: priceEur };
+}
 
 const router = Router();
 
@@ -311,7 +434,12 @@ STEP 4 — VALUATION & OUTPUT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${modeNote}
 
-Based on the 5 verified comparable listings, determine the fair market value of the target vessel. The price must reflect actual market evidence — not a theoretical estimate.
+Based on the 5 verified comparable listings, determine the fair market value of the target vessel.
+
+⚠ CRITICAL — ASKING vs SOLD price:
+Listing prices on broker sites are ASKING prices. Real CLOSING (sold) prices are typically 10–18% LOWER than asking for normal open-market sales. Your "estimated_price" MUST reflect a realistic SOLD price for a normal market transaction — apply roughly −15% adjustment from comparable asking prices. Briefly mention this asking-vs-sold adjustment in the reasoning.
+
+The price must reflect actual market evidence — not a theoretical estimate.
 
 Return ONLY this JSON (absolutely no markdown, no text before or after):
 {
@@ -400,7 +528,90 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       }));
     }
 
-    res.json(result);
+    // ── Post-processing: sanity check + distressed scenarios ──────────────
+    const lengthRaw = parseFloat(
+      String(b.length ?? "").replace(/[^\d.]/g, "")
+    );
+    const lengthMeters =
+      isFinite(lengthRaw) && lengthRaw > 0
+        ? units === "imperial"
+          ? lengthRaw / 3.28084
+          : lengthRaw
+        : null;
+
+    let aiPriceEur = parsePriceEur(result.estimated_price);
+    let sanityAdjusted = false;
+    let confidence = String(result.confidence || "low") as
+      | "high"
+      | "medium"
+      | "low";
+
+    if (aiPriceEur && lengthMeters) {
+      const check = sanityCheckPrice(
+        aiPriceEur,
+        lengthMeters,
+        String(b.type || "")
+      );
+      if (!check.ok) {
+        aiPriceEur = check.clampedEur;
+        sanityAdjusted = true;
+        confidence = "low";
+      }
+    }
+
+    let marketPriceStr: string;
+    let distressedPriceStr = "";
+    let quickSalePriceStr = "";
+    let estimatedPriceEur: number | null = null;
+
+    if (aiPriceEur) {
+      estimatedPriceEur = Math.round(aiPriceEur);
+      marketPriceStr = formatEur(aiPriceEur);
+      distressedPriceStr = formatEur(aiPriceEur * 0.75);
+      quickSalePriceStr = formatEur(aiPriceEur * 0.65);
+    } else {
+      // Fallback: keep AI's original string if we couldn't parse
+      marketPriceStr = String(result.estimated_price || "");
+    }
+
+    const finalResult = {
+      ...result,
+      estimated_price: marketPriceStr,
+      market_price: marketPriceStr,
+      distressed_price: distressedPriceStr,
+      quick_sale_price: quickSalePriceStr,
+      estimated_price_eur: estimatedPriceEur,
+      currency: "EUR",
+      confidence,
+      sanity_adjusted: sanityAdjusted,
+    };
+
+    // Fire-and-forget: log every request for future ML training data.
+    // Never blocks the response.
+    void runValuationMigration()
+      .then(() =>
+        db().query(
+          `INSERT INTO valuation_requests
+             (input, output, ip, confidence, estimated_price_eur, sanity_adjusted)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            JSON.stringify(b),
+            JSON.stringify(finalResult),
+            req.ip || null,
+            confidence,
+            estimatedPriceEur,
+            sanityAdjusted,
+          ]
+        )
+      )
+      .catch((e) =>
+        console.error(
+          "[valuation] log save failed:",
+          e instanceof Error ? e.message : e
+        )
+      );
+
+    res.json(finalResult);
   } catch (err) {
     console.error("Valuation error:", err);
     res
