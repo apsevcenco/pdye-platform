@@ -1,0 +1,34 @@
+It looks like we don't have access to your repo, but we'll try to clone it anyway.
+==> Cloning from https://github.com/apsevcenco/pdye-platform
+==> Checking out commit b7f5968ec432d96a922b744d5e0753adbb0267ec in branch main
+==> Using Node.js version 24.14.1 (default)
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+==> Running build command 'corepack enable && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build'...
+! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-11.0.9.tgz
+Scope: all 8 workspace projects
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Progress: resolved 39, reused 0, downloaded 22, added 0
+artifacts/pdye                           | [WARN] deprecated @types/dompurify@3.2.0
+Progress: resolved 56, reused 0, downloaded 46, added 0
+Progress: resolved 143, reused 0, downloaded 128, added 0
+Progress: resolved 245, reused 0, downloaded 222, added 0
+Progress: resolved 358, reused 0, downloaded 327, added 0
+Progress: resolved 435, reused 0, downloaded 433, added 0
+[WARN] 1 deprecated subdependencies found: uuid@10.0.0
+Packages: +433
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 435, reused 0, downloaded 433, added 298
+Progress: resolved 435, reused 0, downloaded 433, added 433, done
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*|"") ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+. preinstall: Done
+dependencies:
++ @supabase/supabase-js 2.99.2 (2.105.4 is available)
+devDependencies:
++ prettier 3.8.1 (3.8.3 is available)
+Menu
++ typescript 5.9.3 (6.0.3 is available)
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.27.3
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+==> Build failed 😞
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+Need better ways to work with logs? Try

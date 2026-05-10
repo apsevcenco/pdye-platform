@@ -16,5 +16,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild",
+      "msw",
+      "unrs-resolver"
+    ]
   }
 }
