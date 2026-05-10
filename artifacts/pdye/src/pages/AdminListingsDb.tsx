@@ -35,10 +35,10 @@ type Comparable = {
   distance: number;
 };
 
-const SAMPLE_CSV = `source,source_url,builder,model,type,year,length_m,beam_m,price_eur,currency_orig,price_orig,region,listed_at,is_sold
-yachtworld,https://example.com/listing/1,Sunseeker,Manhattan 73,Motor Yacht,2018,22.5,5.6,1850000,EUR,1850000,Mediterranean,2024-09-15,false
-boats.com,https://example.com/listing/2,Princess,V70,Motor Yacht,2017,21.3,5.4,1620000,USD,1750000,Florida,2024-10-02,false
-yachtworld,https://example.com/listing/3,Azimut,72 Flybridge,Motor Yacht,2019,22.0,5.5,1980000,EUR,1980000,Italy,2024-11-20,true`;
+const SAMPLE_CSV = `source,source_url,builder,model,type,year,length_m,beam_m,price_eur,currency_orig,price_orig,region,listed_at,is_sold,engine_maker,hull_material,gross_tonnage,horse_power,condition,refit
+yachtworld,https://example.com/listing/1,Sunseeker,Manhattan 73,Motor Yacht,2018,22.5,5.6,1850000,EUR,1850000,Mediterranean,2024-09-15,false,MAN,GRP,98,1800,Excellent,2023
+boats.com,https://example.com/listing/2,Princess,V70,Motor Yacht,2017,21.3,5.4,1620000,USD,1750000,Florida,2024-10-02,false,Caterpillar,GRP,92,1700,Good,
+yachtworld,https://example.com/listing/3,Azimut,72 Flybridge,Motor Yacht,2019,22.0,5.5,1980000,EUR,1980000,Italy,2024-11-20,true,MAN,GRP,95,1900,Excellent,`;
 
 async function authHeader(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();

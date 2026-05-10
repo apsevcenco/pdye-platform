@@ -35,6 +35,41 @@ interface ValuationResult {
   confidence: "high" | "medium" | "low";
   reasoning: string;
   comparables: Comparable[];
+  completeness_score?: number;
+  completeness_filled?: number;
+  completeness_total?: number;
+  completeness_missing_critical?: string[];
+  internal_comparables_count?: number;
+}
+
+// Mirror of COMPLETENESS_WEIGHTS in artifacts/api-server/src/routes/estimate.ts.
+// Keep in sync. Used purely for the live indicator before submit; the server
+// recomputes authoritatively.
+const COMPLETENESS_WEIGHTS: Record<string, number> = {
+  type: 15, year: 15, length: 15, builder: 10,
+  engine_maker: 4, engine_model: 2, horse_power: 5, engines: 2, engine_count: 2,
+  gross_tonnage: 4, hull_material: 3, displacement: 3, beam: 2,
+  condition: 5, refit: 3,
+  draft: 1, fuel_type: 1, fuel_capacity: 2, max_speed: 2, cruise_speed: 1,
+  range: 2, cabins: 1, hull_type: 1, heads: 0, berths: 0, crew: 1, water_capacity: 0,
+};
+
+function computeCompletenessLocal(form: Record<string, string>, mode: string): { score: number; filled: number; total: number } {
+  let earned = 0, possible = 0, filled = 0, total = 0;
+  for (const [k, w] of Object.entries(COMPLETENESS_WEIGHTS)) {
+    if (k === "builder" && mode !== "builder") continue;
+    possible += w;
+    total++;
+    if ((form[k] || "").trim() !== "") {
+      earned += w;
+      filled++;
+    }
+  }
+  return {
+    score: possible > 0 ? Math.round((earned / possible) * 100) : 0,
+    filled,
+    total,
+  };
 }
 
 const CONFIDENCE_COLOR = { high: "text-green-400", medium: "text-yellow-400", low: "text-orange-400" };
@@ -423,6 +458,31 @@ const data = text ? JSON.parse(text) : {};
                     </div>
                   )}
 
+                  {/* Live completeness indicator — encourages users to fill more
+                      fields. Server recomputes this authoritatively on submit. */}
+                  {(() => {
+                    const c = computeCompletenessLocal(form, mode);
+                    const color = c.score >= 70 ? "bg-green-400" : c.score >= 50 ? "bg-yellow-400" : c.score >= 30 ? "bg-orange-400" : "bg-red-400";
+                    const labelColor = c.score >= 70 ? "text-green-400" : c.score >= 50 ? "text-yellow-400" : c.score >= 30 ? "text-orange-400" : "text-red-400";
+                    const hint =
+                      c.score >= 70 ? "Excellent — high-confidence valuation possible"
+                      : c.score >= 50 ? "Good — fill a few more for higher accuracy"
+                      : c.score >= 30 ? "Limited data — result will be indicative"
+                      : "Too thin — fill at least type, year and length";
+                    return (
+                      <div className="border border-white/10 bg-white/[0.02] p-4 mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white/45 text-[10px] uppercase tracking-[0.2em] font-bold font-sans">Profile completeness</span>
+                          <span className={`text-sm font-bold tabular-nums ${labelColor}`}>{c.score}% <span className="text-white/30 font-normal text-xs">({c.filled}/{c.total})</span></span>
+                        </div>
+                        <div className="w-full h-1.5 bg-white/8 overflow-hidden">
+                          <div className={`h-full transition-all ${color}`} style={{ width: `${c.score}%` }} />
+                        </div>
+                        <p className="text-white/35 text-[11px] font-sans mt-2 leading-snug">{hint}</p>
+                      </div>
+                    );
+                  })()}
+
                   <div className="pt-2">
                     <button type="submit" disabled={loading}
                       className="w-full bg-white/5 backdrop-blur-md border border-primary text-primary hover:bg-primary/10 hover:text-white hover:border-white font-bold uppercase tracking-[0.2em] py-4 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2.5 text-sm">
@@ -485,6 +545,32 @@ const data = text ? JSON.parse(text) : {};
                       <p className="text-white/45 text-[10.5px] font-sans leading-snug">
                         Note: the AI estimate fell outside the typical price-per-meter band for this vessel type and was adjusted to a realistic boundary. Treat as indicative.
                       </p>
+                    </div>
+                  )}
+
+                  {/* Data completeness + internal comparables badges */}
+                  {(result.completeness_score !== undefined || (result.internal_comparables_count ?? 0) > 0) && (
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      {result.completeness_score !== undefined && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest border border-white/10 bg-white/[0.02] text-white/55 px-3 py-1.5">
+                          Data completeness:&nbsp;
+                          <span className={
+                            result.completeness_score >= 70 ? "text-green-400" :
+                            result.completeness_score >= 50 ? "text-yellow-400" :
+                            result.completeness_score >= 30 ? "text-orange-400" : "text-red-400"
+                          }>
+                            {result.completeness_score}%
+                          </span>
+                          {result.completeness_filled !== undefined && result.completeness_total !== undefined && (
+                            <span className="text-white/30 ml-1.5 normal-case font-normal tracking-normal">({result.completeness_filled}/{result.completeness_total} fields)</span>
+                          )}
+                        </span>
+                      )}
+                      {(result.internal_comparables_count ?? 0) >= 3 && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest border border-primary/30 bg-primary/5 text-primary px-3 py-1.5">
+                          ✓ {result.internal_comparables_count} internal matches
+                        </span>
+                      )}
                     </div>
                   )}
 

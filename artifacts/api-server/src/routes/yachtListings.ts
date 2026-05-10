@@ -37,6 +37,12 @@ async function ensureSchema(): Promise<void> {
         scraped_at    timestamptz DEFAULT now(),
         created_at    timestamptz DEFAULT now()
       );
+      ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS engine_maker   text;
+      ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS hull_material  text;
+      ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS gross_tonnage  int;
+      ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS horse_power    int;
+      ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS condition      text;
+      ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS refit          int;
       CREATE INDEX IF NOT EXISTS idx_yl_type_year_len
         ON yacht_listings (type, year, length_m);
       CREATE INDEX IF NOT EXISTS idx_yl_source_url
@@ -77,13 +83,28 @@ export type Comparable = {
   type: string | null;
   year: number | null;
   length_m: number | null;
+  beam_m: number | null;
   price_eur: number | null;
   region: string | null;
   source: string | null;
   source_url: string | null;
   listed_at: string | null;
   is_sold: boolean | null;
+  engine_maker: string | null;
+  hull_material: string | null;
+  gross_tonnage: number | null;
+  horse_power: number | null;
   distance: number;
+};
+
+export type ComparableExtras = {
+  builder?: string | null;
+  engine_maker?: string | null;
+  hull_material?: string | null;
+  gross_tonnage?: number | null;
+  horse_power?: number | null;
+  beam_m?: number | null;
+  refit?: number | null;
 };
 
 /**
@@ -92,11 +113,17 @@ export type Comparable = {
  * Same-type filter is applied first; year/length windows widen progressively
  * if not enough matches found.
  */
+function strEq(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 export async function findComparables(
   type: string,
   year: number,
   lengthM: number,
-  k: number = 10
+  k: number = 10,
+  extras: ComparableExtras = {}
 ): Promise<Comparable[]> {
   await ensureSchema();
   const canonical = normalizeType(type);
@@ -119,8 +146,11 @@ export async function findComparables(
     try {
       const q = `
         SELECT builder, model, type, year, length_m::float8 AS length_m,
+               beam_m::float8 AS beam_m,
                price_eur::float8 AS price_eur, region, source, source_url,
-               listed_at::text AS listed_at, is_sold
+               listed_at::text AS listed_at, is_sold,
+               engine_maker, hull_material,
+               gross_tonnage, horse_power
         FROM yacht_listings
         WHERE price_eur IS NOT NULL
           AND price_eur > 0
@@ -140,11 +170,37 @@ export async function findComparables(
     const filtered = rows.filter((r) => normalizeType(r.type) === canonical);
 
     if (filtered.length >= 3 || w === windows[windows.length - 1]) {
-      // Score & sort
+      // Score & sort. Base distance from (length, year), then bonus
+      // reductions (and small penalties) for matches/mismatches on
+      // optional secondary attributes the user provided.
+      // Cap the total bonus reduction so we don't collapse every "vaguely
+      // similar" yacht to distance 0 and lose meaningful tie-breaking.
+      const MAX_BONUS = 0.8;
       const scored = filtered.map((r) => {
         const lenDiffPct = Math.abs(r.length_m - lengthM) / lengthM;
         const yrDiff = r.year ? Math.abs(r.year - year) : 5;
-        const distance = lenDiffPct * 2 + (yrDiff / 3);
+        const baseDistance = lenDiffPct * 2 + (yrDiff / 3);
+
+        let bonus = 0;
+        if (extras.builder && strEq(extras.builder, r.builder)) bonus += 0.4;
+        if (extras.engine_maker && strEq(extras.engine_maker, r.engine_maker)) bonus += 0.2;
+        if (extras.hull_material && strEq(extras.hull_material, r.hull_material)) bonus += 0.15;
+        if (extras.gross_tonnage && r.gross_tonnage) {
+          const d = Math.abs(r.gross_tonnage - extras.gross_tonnage) / extras.gross_tonnage;
+          if (d < 0.2) bonus += 0.15;
+        }
+        if (extras.horse_power && r.horse_power) {
+          const d = Math.abs(r.horse_power - extras.horse_power) / extras.horse_power;
+          if (d < 0.2) bonus += 0.15;
+        }
+        if (extras.beam_m && r.beam_m) {
+          const d = Math.abs(r.beam_m - extras.beam_m) / extras.beam_m;
+          if (d < 0.1) bonus += 0.1;
+        }
+        if (bonus > MAX_BONUS) bonus = MAX_BONUS;
+
+        let distance = baseDistance - bonus;
+        if (distance < 0) distance = 0;
         return { ...r, distance };
       });
       scored.sort((a, b) => a.distance - b.distance);
@@ -296,8 +352,9 @@ router.post("/admin/yacht-listings/import-csv", requireAdmin, async (req, res) =
           `INSERT INTO yacht_listings
              (source, source_url, builder, model, type, year, length_m, beam_m,
               price_eur, currency_orig, price_orig, region, listed_at, sold_at,
-              is_sold, raw)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+              is_sold, engine_maker, hull_material, gross_tonnage, horse_power,
+              condition, refit, raw)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
           [
             r.source?.trim() || null,
             r.source_url?.trim() || null,
@@ -314,6 +371,12 @@ router.post("/admin/yacht-listings/import-csv", requireAdmin, async (req, res) =
             toDate(r.listed_at),
             toDate(r.sold_at),
             toBool(r.is_sold),
+            r.engine_maker?.trim() || null,
+            r.hull_material?.trim() || null,
+            toInt(r.gross_tonnage),
+            toInt(r.horse_power),
+            r.condition?.trim() || null,
+            toInt(r.refit),
             JSON.stringify(r),
           ]
         );

@@ -37,8 +37,11 @@ async function runValuationMigration(): Promise<void> {
           confidence text,
           estimated_price_eur numeric,
           sanity_adjusted boolean DEFAULT false,
+          completeness_score int,
           created_at timestamptz DEFAULT now()
         );
+        ALTER TABLE valuation_requests
+          ADD COLUMN IF NOT EXISTS completeness_score int;
       `);
       valuationMigrationDone = true;
       console.log("[valuation] Migration complete");
@@ -326,6 +329,89 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
 // own pg pool but `findComparables` is safe to call at any time.
 import { findComparables, type Comparable } from "./yachtListings";
 
+// ============================================================================
+// Completeness scoring
+// Each spec field carries a weight reflecting its impact on valuation accuracy.
+// The final percent score is normalized to [0,100] via earned/possible, so the
+// raw sum of weights does not have to land on a round number — the math works
+// regardless. (Current sums: ~102 in builder mode, ~92 in specs mode.)
+// IMPORTANT: keep this map in sync with the duplicated weights in the frontend
+// `Valuation.tsx` (look for COMPLETENESS_WEIGHTS).
+// ============================================================================
+const COMPLETENESS_WEIGHTS: Record<string, number> = {
+  // Critical (45)
+  type: 15,
+  year: 15,
+  length: 15,
+  // Identity / brand (10)
+  builder: 10, // only counted in builder mode
+  // Engines (15)
+  engine_maker: 4,
+  engine_model: 2,
+  horse_power: 5,
+  engines: 2,
+  engine_count: 2,
+  // Hull / mass (12)
+  gross_tonnage: 4,
+  hull_material: 3,
+  displacement: 3,
+  beam: 2,
+  // Condition / refit (8)
+  condition: 5,
+  refit: 3,
+  // Performance / capacity (10)
+  draft: 1,
+  fuel_type: 1,
+  fuel_capacity: 2,
+  max_speed: 2,
+  cruise_speed: 1,
+  range: 2,
+  cabins: 1,
+  // Misc (negligible weight, total ≤ 0)
+  hull_type: 1,
+  heads: 0,
+  berths: 0,
+  crew: 1,
+  water_capacity: 0,
+};
+
+type CompletenessResult = {
+  score: number;          // 0–100
+  filled: number;         // count of filled fields
+  total: number;          // count of weighted fields
+  missing_critical: string[];
+};
+
+function computeCompleteness(
+  b: Record<string, unknown>,
+  mode: string
+): CompletenessResult {
+  let earned = 0;
+  let possible = 0;
+  let filled = 0;
+  let total = 0;
+  const missing: string[] = [];
+  const CRITICAL = ["type", "year", "length"];
+  for (const [k, w] of Object.entries(COMPLETENESS_WEIGHTS)) {
+    if (k === "builder" && mode !== "builder") continue;
+    possible += w;
+    total++;
+    const v = b[k];
+    const isFilled =
+      v !== undefined &&
+      v !== null &&
+      String(v).trim() !== "";
+    if (isFilled) {
+      earned += w;
+      filled++;
+    } else if (CRITICAL.includes(k)) {
+      missing.push(k);
+    }
+  }
+  const score = possible > 0 ? Math.round((earned / possible) * 100) : 0;
+  return { score, filled, total, missing_critical: missing };
+}
+
 function formatComparablesBlock(matches: Comparable[]): string {
   if (matches.length === 0) return "";
   const rows = matches.map((m, i) => {
@@ -349,6 +435,8 @@ router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req
   try {
     const b = req.body as Record<string, unknown>;
     const { mode, units } = b;
+    const modeStr = String(mode || "specs");
+    const completeness = computeCompleteness(b, modeStr);
 
     const unitNote =
       units === "imperial" ? " (imperial units)" : " (metric units)";
@@ -415,16 +503,43 @@ router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req
       // Convert ft -> m if user submitted imperial
       const lenMeters = units === "imperial" ? lenM * 0.3048 : lenM;
       if (b.type && lenMeters > 0) {
+        const beamRaw = parseFloat(String(b.beam || "0"));
+        const beamM = units === "imperial" ? beamRaw * 0.3048 : beamRaw;
         dbMatches = await findComparables(
           String(b.type),
           yearNum,
           lenMeters,
-          10
+          10,
+          {
+            builder: typeof b.builder === "string" ? b.builder : null,
+            engine_maker: typeof b.engine_maker === "string" ? b.engine_maker : null,
+            hull_material: typeof b.hull_material === "string" ? b.hull_material : null,
+            gross_tonnage: parseInt(String(b.gross_tonnage || "0")) || null,
+            horse_power: parseInt(String(b.horse_power || "0")) || null,
+            beam_m: beamM > 0 ? beamM : null,
+            refit: parseInt(String(b.refit || "0")) || null,
+          }
         );
       }
     } catch (e) {
       console.warn("[valuation] comparables lookup failed:", e instanceof Error ? e.message : e);
     }
+    // ---- Data completeness instruction ------------------------------------
+    // Tells AI exactly how complete the user's input is, so it calibrates
+    // confidence and reasoning honestly.
+    const completenessBlock = `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATA COMPLETENESS: ${completeness.score}% (${completeness.filled}/${completeness.total} fields)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The user filled ${completeness.filled} of ${completeness.total} possible specification fields (${completeness.score}% completeness).
+Use this to calibrate your confidence honestly:
+- < 30% → confidence MUST be "low" and reasoning MUST acknowledge the data is too thin for a precise estimate
+- 30–49% → confidence at most "medium"; reasoning should mention which specs are missing
+- 50–69% → confidence "medium"; "high" is acceptable only if comparable listings cluster tightly
+- ≥ 70% → "high" is acceptable when comparables agree
+ALWAYS mention completeness explicitly in your reasoning, e.g. "Based on ${completeness.score}% data completeness…".`;
+
     if (dbMatches.length >= 3) {
       dbBlock = `
 
@@ -442,7 +557,7 @@ You may still cross-reference with web search to refine, but the price you produ
 
 TARGET VESSEL SPECIFICATIONS:
 ${specs}
-${dbBlock}
+${completenessBlock}${dbBlock}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 1 — SEARCH INSTRUCTIONS
@@ -617,6 +732,17 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       }
     }
 
+    // ---- Confidence floor based on data completeness ----------------------
+    // Server-authoritative: even if the AI ignores the prompt instruction,
+    // we never let confidence exceed what the data supports.
+    const rank: Record<string, number> = { low: 0, medium: 1, high: 2 };
+    const cap = (max: "low" | "medium" | "high") => {
+      if (rank[confidence] > rank[max]) confidence = max;
+    };
+    if (completeness.score < 30) cap("low");
+    else if (completeness.score < 50) cap("medium");
+    else if (completeness.score < 70 && dbMatches.length < 3) cap("medium");
+
     let marketPriceStr: string;
     let distressedPriceStr = "";
     let quickSalePriceStr = "";
@@ -643,6 +769,10 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       confidence,
       sanity_adjusted: sanityAdjusted,
       internal_comparables_count: dbMatches.length,
+      completeness_score: completeness.score,
+      completeness_filled: completeness.filled,
+      completeness_total: completeness.total,
+      completeness_missing_critical: completeness.missing_critical,
     };
 
     // Fire-and-forget: log every request for future ML training data.
@@ -651,8 +781,8 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       .then(() =>
         db().query(
           `INSERT INTO valuation_requests
-             (input, output, ip, confidence, estimated_price_eur, sanity_adjusted)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+             (input, output, ip, confidence, estimated_price_eur, sanity_adjusted, completeness_score)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             JSON.stringify(b),
             JSON.stringify(finalResult),
@@ -660,6 +790,7 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
             confidence,
             estimatedPriceEur,
             sanityAdjusted,
+            completeness.score,
           ]
         )
       )
