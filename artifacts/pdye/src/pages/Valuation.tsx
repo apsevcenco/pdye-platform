@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import {
   Calculator, TrendingUp, ChevronRight, RotateCcw,
-  Building2, Sliders, Gauge, Anchor, Users
+  Building2, Sliders, Gauge, Anchor, Users, AlertTriangle
 } from "lucide-react";
 import { useSiteSection } from "@/lib/siteContent";
 
@@ -125,6 +125,23 @@ const EMPTY: Record<string, string> = {
   condition: "",
 };
 
+// Fields the user MUST fill (in addition to the always-required type/year/length)
+// unless they explicitly check "I don't have all the data". `builder` is added
+// dynamically when `mode === "builder"`.
+const REQUIRED_EXTRA = [
+  "beam", "draft",
+  "engine_maker", "engines", "engine_count", "horse_power",
+  "cabins", "heads", "crew",
+];
+const FIELD_LABELS: Record<string, string> = {
+  type: "Yacht Type", year: "Build Year", length: "Length",
+  beam: "Beam", draft: "Draft",
+  builder: "Builder / Manufacturer",
+  engine_maker: "Engine Manufacturer", engines: "Engine Configuration",
+  engine_count: "Engine Count", horse_power: "Total Horsepower",
+  cabins: "Guest Cabins", heads: "Heads (WC)", crew: "Crew",
+};
+
 export default function Valuation() {
   const [mode, setMode] = useState<Mode>("builder");
   const [units, setUnits] = useState<Units>("metric");
@@ -132,6 +149,7 @@ export default function Valuation() {
   const [result, setResult] = useState<ValuationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [bypassRequired, setBypassRequired] = useState(false);
   const heroT = useSiteSection("valuation", "hero");
   const formT = useSiteSection("valuation", "form");
   const t = { hero: heroT, formT };
@@ -173,6 +191,20 @@ export default function Valuation() {
       setError("Please fill in at least: Type, Year and Length.");
       return;
     }
+    if (!bypassRequired) {
+      const requiredAll = [
+        ...REQUIRED_EXTRA,
+        ...(mode === "builder" ? ["builder"] : []),
+      ];
+      const missing = requiredAll.filter(k => !(form[k] || "").trim());
+      if (missing.length > 0) {
+        setError(
+          `Missing required fields: ${missing.map(k => FIELD_LABELS[k] || k).join(", ")}. ` +
+          `Either fill them in or check the box below to proceed with an indicative estimate.`
+        );
+        return;
+      }
+    }
     setError("");
     setLoading(true);
     setResult(null);
@@ -183,7 +215,7 @@ export default function Valuation() {
 const res = await fetch(`${API_BASE}/valuation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, units, ...form }),
+        body: JSON.stringify({ mode, units, bypass_required: bypassRequired, ...form }),
       });
       const text = await res.text();
 const data = text ? JSON.parse(text) : {};
@@ -269,7 +301,7 @@ const data = text ? JSON.parse(text) : {};
 
                   {mode === "builder" && (
                     <div>
-                      <label className={lbl}>Builder / Manufacturer</label>
+                      <label className={lbl}>Builder / Manufacturer *</label>
                       <input value={form.builder} onChange={e => setF("builder", e.target.value)}
                         className={inp} placeholder="e.g. Ferretti, Sunseeker, Azimut, Benetti..." />
                     </div>
@@ -296,14 +328,14 @@ const data = text ? JSON.parse(text) : {};
                       </div>
                     </div>
                     <div>
-                      <label className={lbl}>Beam</label>
+                      <label className={lbl}>Beam *</label>
                       <div className="relative">
                         <input value={form.beam} onChange={e => setF("beam", e.target.value)} className={inpUnit} placeholder={M ? "e.g. 6.2" : "e.g. 20.3"} />
                         <UnitBadge unit={M ? "m" : "ft"} />
                       </div>
                     </div>
                     <div>
-                      <label className={lbl}>Draft</label>
+                      <label className={lbl}>Draft *</label>
                       <div className="relative">
                         <input value={form.draft} onChange={e => setF("draft", e.target.value)} className={inpUnit} placeholder={M ? "e.g. 1.8" : "e.g. 5.9"} />
                         <UnitBadge unit={M ? "m" : "ft"} />
@@ -343,19 +375,19 @@ const data = text ? JSON.parse(text) : {};
                   <SectionHead icon={Gauge} title="Propulsion & Performance" />
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="col-span-2">
-                      <label className={lbl}>Engine Configuration</label>
+                      <label className={lbl}>Engine Configuration *</label>
                       <select value={form.engines} onChange={e => setF("engines", e.target.value)} className={sel}>
                         <option value="">Select...</option>
                         {ENGINE_CONFIGS.map(e => <option key={e} value={e}>{e}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className={lbl}>Engine Count</label>
+                      <label className={lbl}>Engine Count *</label>
                       <input type="number" value={form.engine_count} onChange={e => setF("engine_count", e.target.value)}
                         min={1} max={8} className={inp} placeholder="e.g. 2" />
                     </div>
                     <div>
-                      <label className={lbl}>Total Horsepower</label>
+                      <label className={lbl}>Total Horsepower *</label>
                       <div className="relative">
                         <input type="number" value={form.horse_power} onChange={e => setF("horse_power", e.target.value)}
                           className={inpUnit} placeholder="e.g. 2400" />
@@ -365,7 +397,7 @@ const data = text ? JSON.parse(text) : {};
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="col-span-2">
-                      <label className={lbl}>Engine Manufacturer</label>
+                      <label className={lbl}>Engine Manufacturer *</label>
                       <input value={form.engine_maker} onChange={e => setF("engine_maker", e.target.value)}
                         className={inp} placeholder="e.g. MAN, MTU, Caterpillar, Volvo Penta, Cummins..." />
                     </div>
@@ -431,12 +463,12 @@ const data = text ? JSON.parse(text) : {};
                   <SectionHead icon={Users} title="Accommodation & Crew" />
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
-                      <label className={lbl}>Guest Cabins</label>
+                      <label className={lbl}>Guest Cabins *</label>
                       <input type="number" value={form.cabins} onChange={e => setF("cabins", e.target.value)}
                         min={0} max={20} className={inp} placeholder="e.g. 4" />
                     </div>
                     <div>
-                      <label className={lbl}>Heads (WC)</label>
+                      <label className={lbl}>Heads (WC) *</label>
                       <input type="number" value={form.heads} onChange={e => setF("heads", e.target.value)}
                         min={0} max={20} className={inp} placeholder="e.g. 4" />
                     </div>
@@ -446,15 +478,41 @@ const data = text ? JSON.parse(text) : {};
                         min={0} max={40} className={inp} placeholder="e.g. 8" />
                     </div>
                     <div>
-                      <label className={lbl}>Crew</label>
+                      <label className={lbl}>Crew *</label>
                       <input type="number" value={form.crew} onChange={e => setF("crew", e.target.value)}
                         min={0} max={50} className={inp} placeholder="e.g. 5" />
                     </div>
                   </div>
 
+                  {/* Prominent escape hatch — checkbox is yellow-bordered with
+                      icon so it's impossible to miss when an error blocks
+                      submission. Toggling it relaxes the required-fields rule
+                      and forces the result confidence to "low". */}
+                  <div className={`border-2 mt-4 transition-all ${bypassRequired ? "border-amber-400/60 bg-amber-400/10" : "border-amber-500/30 bg-amber-500/5"}`}>
+                    <label className="flex items-start gap-3 p-4 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={bypassRequired}
+                        onChange={e => setBypassRequired(e.target.checked)}
+                        className="mt-0.5 w-5 h-5 accent-amber-400 cursor-pointer flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <AlertTriangle size={15} className="text-amber-400 flex-shrink-0" strokeWidth={2.2} />
+                          <span className="text-amber-300 font-bold text-sm font-sans">
+                            I don't have all the data — proceed with an indicative estimate
+                          </span>
+                        </div>
+                        <p className="text-amber-200/60 text-[11.5px] font-sans leading-snug">
+                          Check this box only if you can't fill the required fields above (marked with *). The result will be flagged as <span className="font-bold">low confidence</span>, since we can't produce a precise valuation without core specs.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
                   {error && (
-                    <div className="border border-red-500/20 bg-red-500/5 px-4 py-3 mt-2">
-                      <p className="text-red-400 text-xs font-sans">{error}</p>
+                    <div className="border border-red-500/30 bg-red-500/5 px-4 py-3 mt-3">
+                      <p className="text-red-400 text-xs font-sans leading-relaxed">{error}</p>
                     </div>
                   )}
 

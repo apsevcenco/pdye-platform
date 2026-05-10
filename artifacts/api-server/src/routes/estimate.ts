@@ -743,6 +743,10 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
     else if (completeness.score < 50) cap("medium");
     else if (completeness.score < 70 && dbMatches.length < 3) cap("medium");
 
+    // If user opted out of providing full data via the "I don't have all data"
+    // checkbox, force confidence to "low" regardless of what the AI returned.
+    if (b.bypass_required === true) cap("low");
+
     let marketPriceStr: string;
     let distressedPriceStr = "";
     let quickSalePriceStr = "";

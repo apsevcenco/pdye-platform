@@ -51,6 +51,7 @@ export const ValuationBody = z
     ...yachtFieldsShape,
     mode: z.enum(["builder", "specs"]).optional(),
     units: z.enum(["metric", "imperial"]).optional(),
+    bypass_required: z.boolean().optional(),
   })
   .passthrough();
 
