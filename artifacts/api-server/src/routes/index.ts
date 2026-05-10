@@ -17,6 +17,7 @@ import legalPagesRouter from "./legalPages";
 import siteContentRouter from "./siteContent";
 import adminBadgeCountsRouter from "./adminBadgeCounts";
 import adminAnalyticsRouter from "./adminAnalytics";
+import yachtListingsRouter from "./yachtListings";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(legalPagesRouter);
 router.use(siteContentRouter);
 router.use(adminBadgeCountsRouter);
 router.use(adminAnalyticsRouter);
+router.use(yachtListingsRouter);
 
 export default router;

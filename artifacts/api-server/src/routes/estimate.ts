@@ -322,6 +322,29 @@ After searching, estimate the fair market value in EUR. Return ONLY this exact J
 // Public free valuation tool — advertised on the home page as
 // "No registration required". Rate-limited (strictLimiter) to deter
 // abuse, but intentionally NOT gated behind requireUser.
+// Lazy import to avoid circular init order: yachtListings.ts also opens its
+// own pg pool but `findComparables` is safe to call at any time.
+import { findComparables, type Comparable } from "./yachtListings";
+
+function formatComparablesBlock(matches: Comparable[]): string {
+  if (matches.length === 0) return "";
+  const rows = matches.map((m, i) => {
+    const parts: string[] = [];
+    if (m.builder) parts.push(m.builder);
+    if (m.model) parts.push(m.model);
+    if (m.year) parts.push(`${m.year}`);
+    if (m.length_m) parts.push(`${m.length_m}m`);
+    const head = parts.join(" ") || `Listing #${i + 1}`;
+    const price = m.price_eur
+      ? `€${Math.round(m.price_eur).toLocaleString("en-US")}`
+      : "n/a";
+    const status = m.is_sold ? "SOLD" : "asking";
+    const region = m.region ? `, ${m.region}` : "";
+    return `  ${i + 1}. ${head} — ${price} (${status}${region})`;
+  });
+  return rows.join("\n");
+}
+
 router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req, res) => {
   try {
     const b = req.body as Record<string, unknown>;
@@ -381,10 +404,45 @@ router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req
         ? "Factor in this builder's specific brand premium and reputation in the current market."
         : "Assess purely on technical specifications — do not infer or assume any brand.";
 
+    // ---- Internal comparables DB lookup -----------------------------------
+    // If we have ≥3 matches in our own listings DB, inject them as the
+    // PRIMARY reference data for the AI. This is more reliable than web
+    // search and grounds the valuation in real broker/sale data we control.
+    let dbMatches: Comparable[] = [];
+    let dbBlock = "";
+    try {
+      const lenM = parseFloat(String(b.length || "0"));
+      // Convert ft -> m if user submitted imperial
+      const lenMeters = units === "imperial" ? lenM * 0.3048 : lenM;
+      if (b.type && lenMeters > 0) {
+        dbMatches = await findComparables(
+          String(b.type),
+          yearNum,
+          lenMeters,
+          10
+        );
+      }
+    } catch (e) {
+      console.warn("[valuation] comparables lookup failed:", e instanceof Error ? e.message : e);
+    }
+    if (dbMatches.length >= 3) {
+      dbBlock = `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRIMARY REFERENCE DATA — INTERNAL LISTINGS DATABASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The following ${dbMatches.length} comparable yachts come from our own verified internal database (real broker listings and confirmed sales). USE THESE AS THE AUTHORITATIVE BASIS for your valuation. They override any conflicting web-search results.
+
+${formatComparablesBlock(dbMatches)}
+
+You may still cross-reference with web search to refine, but the price you produce MUST be consistent with this internal sample. If the spread inside this sample is narrow, set confidence to "high".`;
+    }
+
     const prompt = `You are a professional superyacht market appraiser with access to live yacht listing databases. Your task is to find REAL, CURRENTLY LISTED OR RECENTLY SOLD yachts that closely match the target vessel, and use them to determine its fair market value. Use web search iteratively — refine your queries as you learn more about this vessel's segment, and verify data on actual listing pages before using it.
 
 TARGET VESSEL SPECIFICATIONS:
 ${specs}
+${dbBlock}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 1 — SEARCH INSTRUCTIONS
@@ -584,6 +642,7 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       currency: "EUR",
       confidence,
       sanity_adjusted: sanityAdjusted,
+      internal_comparables_count: dbMatches.length,
     };
 
     // Fire-and-forget: log every request for future ML training data.

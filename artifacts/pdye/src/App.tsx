@@ -35,6 +35,7 @@ const AdminDealNda = lazy(() => import("./pages/AdminDealNda"));
 const AdminDealCommission = lazy(() => import("./pages/AdminDealCommission"));
 const AdminYachtReview = lazy(() => import("./pages/AdminYachtReview"));
 const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
+const AdminListingsDb = lazy(() => import("./pages/AdminListingsDb"));
 const AdminLegalPages = lazy(() => import("./pages/AdminLegalPages"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const LegalNotice = lazy(() => import("./pages/LegalNotice"));
@@ -193,6 +194,7 @@ function Router() {
         <Route path="/admin-legal" component={() => <ProtectedRoute component={AdminLegalPages} adminOnly />} />
         <Route path="/admin/yachts/:id" component={() => <ProtectedRoute component={AdminYachtReview} adminOnly />} />
         <Route path="/admin/analytics" component={() => <ProtectedRoute component={AdminAnalytics} adminOnly />} />
+        <Route path="/admin/listings-db" component={() => <ProtectedRoute component={AdminListingsDb} adminOnly />} />
 
         <Route component={NotFound} />
       </Switch>
