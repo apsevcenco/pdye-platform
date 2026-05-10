@@ -16,10 +16,5 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }
