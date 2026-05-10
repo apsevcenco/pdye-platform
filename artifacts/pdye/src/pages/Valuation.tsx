@@ -7,21 +7,31 @@ import {
 } from "lucide-react";
 import { useSiteSection } from "@/lib/siteContent";
 
-const YACHT_TYPES = ["Motor Yacht", "Sailing Yacht", "Catamaran", "Superyacht", "Explorer Yacht", "Sport Cruiser", "Trawler", "Classic Yacht", "Gulet", "Flybridge"];
-// Configuration / style options that depend on the chosen Yacht Type.
-// "Flybridge" appears as a yacht type and as a config option — that's intentional
-// (legacy listings used "Flybridge" as a top-level type).
+// Two-level taxonomy.
+// Level 1 (Yacht Type / Class) — 4 clean classes. Everything else (Trawler,
+// Gulet, Explorer, Flybridge, Sport Cruiser, Classic) lives inside Configuration
+// where it semantically belongs.
+const YACHT_TYPES = ["Motor Yacht", "Sailing Yacht", "Catamaran", "Superyacht"];
+// Level 2 (Configuration / Category) — depends on the chosen class.
 const CONFIG_OPTIONS: Record<string, string[]> = {
-  "Motor Yacht":    ["Flybridge", "Open / Express", "Hard Top", "Coupé", "Sport Yacht", "Sport Bridge", "Pilothouse", "Sedan", "Convertible (Sportfish)"],
-  "Sailing Yacht":  ["Sloop", "Ketch", "Cutter", "Schooner", "Yawl", "Cruiser-Racer", "Performance Cruiser", "Bluewater Cruiser"],
-  "Catamaran":      ["Sail Catamaran", "Power Catamaran"],
-  "Superyacht":     ["Tri-deck", "Quad-deck", "Explorer", "Sport", "Classic", "Sailing Superyacht"],
-  "Explorer Yacht": ["Long Range Cruiser", "Expedition", "Trawler Classic", "Ice-Class"],
-  "Sport Cruiser":  ["Open / Express", "Hard Top", "Coupé", "Sport Yacht", "Center Console"],
-  "Trawler":        ["Long Range Cruiser", "Expedition", "Trawler Classic", "Pilothouse"],
-  "Classic Yacht":  ["Sloop", "Ketch", "Schooner", "Motor Classic", "Restored Vintage"],
-  "Gulet":          ["Standard Gulet", "Luxury Gulet"],
-  "Flybridge":      ["Flybridge"],
+  "Motor Yacht": [
+    "Flybridge", "Open / Express", "Hard Top", "Coupé", "Sport Yacht",
+    "Sport Bridge", "Pilothouse", "Sedan", "Convertible (Sportfish)",
+    "Trawler", "Long Range / Explorer", "Motor Gulet", "Classic Motor",
+  ],
+  "Sailing Yacht": [
+    "Sloop", "Ketch", "Cutter", "Schooner", "Yawl",
+    "Cruiser-Racer", "Performance Cruiser", "Bluewater Cruiser",
+    "Classic Sailing", "Sailing Gulet",
+  ],
+  "Catamaran": [
+    "Sail Catamaran (Cruising)", "Sail Catamaran (Performance)",
+    "Power Catamaran", "Charter Catamaran",
+  ],
+  "Superyacht": [
+    "Tri-deck Motor", "Quad-deck Motor", "Explorer / Expedition",
+    "Sport Superyacht", "Classic Motor Superyacht", "Sailing Superyacht",
+  ],
 };
 const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
 const HULL_MATERIALS = ["GRP / Fiberglass", "Steel", "Aluminium", "Carbon Fibre", "Wood / Composite", "Ferro-Cement"];
@@ -151,7 +161,7 @@ const REQUIRED_EXTRA = [
   "cabins", "heads", "crew",
 ];
 const FIELD_LABELS: Record<string, string> = {
-  type: "Yacht Type", year: "Build Year", length: "Length",
+  type: "Yacht Class", year: "Build Year", length: "Length",
   configuration: "Configuration / Style",
   beam: "Beam", draft: "Draft",
   builder: "Builder / Manufacturer", model: "Model / Range",
@@ -312,11 +322,14 @@ const data = text ? JSON.parse(text) : {};
                   <SectionHead icon={Anchor} title="General Information" />
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="col-span-2">
-                      <label className={lbl}>Yacht Type *</label>
+                      <label className={lbl}>Yacht Class *</label>
                       <select value={form.type} onChange={e => setF("type", e.target.value)} required className={sel}>
-                        <option value="">Select type...</option>
+                        <option value="">Select class...</option>
                         {YACHT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
+                      <p className="text-white/30 text-[10px] font-sans mt-1.5 leading-relaxed">
+                        Step 1: pick the broad class. Specific style (Flybridge, Trawler, Sloop, Explorer...) comes next.
+                      </p>
                     </div>
                     <div>
                       <label className={lbl}>Build Year *</label>

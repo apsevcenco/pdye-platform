@@ -67,17 +67,65 @@ async function runValuationMigration(): Promise<void> {
 // Reasonable EUR-per-meter ranges for SOLD yachts by type, used to detect
 // AI hallucinations. Outside this range -> clamp to boundary, lower confidence.
 // ============================================================================
+// Sanity ranges keyed by `${class} / ${configuration}` (lowercased). Lookup
+// also falls back to class-only and to legacy single-word keys so old data
+// (yacht_listings rows / valuation_requests entries created before the
+// taxonomy cleanup) keep producing reasonable bounds.
 const PRICE_PER_METER_EUR: Record<string, [number, number]> = {
-  "motor yacht": [12000, 250000],
-  "sailing yacht": [6000, 120000],
-  "catamaran": [10000, 180000],
-  "superyacht": [60000, 800000],
+  // Motor Yacht configurations
+  "motor yacht / flybridge":               [12000, 80000],
+  "motor yacht / open / express":          [10000, 70000],
+  "motor yacht / hard top":                [11000, 75000],
+  "motor yacht / coupé":                   [12000, 90000],
+  "motor yacht / sport yacht":             [15000, 120000],
+  "motor yacht / sport bridge":            [14000, 100000],
+  "motor yacht / pilothouse":              [9000, 60000],
+  "motor yacht / sedan":                   [8000, 55000],
+  "motor yacht / convertible (sportfish)": [10000, 90000],
+  "motor yacht / trawler":                 [6000, 40000],
+  "motor yacht / long range / explorer":   [25000, 400000],
+  "motor yacht / motor gulet":             [4000, 30000],
+  "motor yacht / classic motor":           [5000, 100000],
+
+  // Sailing Yacht configurations
+  "sailing yacht / sloop":                 [6000, 60000],
+  "sailing yacht / ketch":                 [5000, 70000],
+  "sailing yacht / cutter":                [6000, 50000],
+  "sailing yacht / schooner":              [5000, 80000],
+  "sailing yacht / yawl":                  [5000, 60000],
+  "sailing yacht / cruiser-racer":         [8000, 100000],
+  "sailing yacht / performance cruiser":   [10000, 120000],
+  "sailing yacht / bluewater cruiser":     [8000, 90000],
+  "sailing yacht / classic sailing":       [4000, 100000],
+  "sailing yacht / sailing gulet":         [4000, 25000],
+
+  // Catamaran configurations
+  "catamaran / sail catamaran (cruising)":    [10000, 80000],
+  "catamaran / sail catamaran (performance)": [12000, 120000],
+  "catamaran / power catamaran":              [15000, 180000],
+  "catamaran / charter catamaran":            [8000, 60000],
+
+  // Superyacht configurations (24m+)
+  "superyacht / tri-deck motor":              [60000, 500000],
+  "superyacht / quad-deck motor":             [80000, 800000],
+  "superyacht / explorer / expedition":       [80000, 800000],
+  "superyacht / sport superyacht":            [70000, 600000],
+  "superyacht / classic motor superyacht":    [40000, 400000],
+  "superyacht / sailing superyacht":          [50000, 500000],
+
+  // Class-only fallbacks (used when configuration is missing)
+  "motor yacht":   [8000, 250000],
+  "sailing yacht": [5000, 120000],
+  "catamaran":     [8000, 180000],
+  "superyacht":    [40000, 800000],
+
+  // Legacy single-word fallbacks (pre-taxonomy data)
   "explorer yacht": [25000, 400000],
-  "sport cruiser": [8000, 70000],
-  "trawler": [6000, 70000],
-  "classic yacht": [4000, 100000],
-  "gulet": [4000, 50000],
-  "flybridge": [10000, 100000],
+  "sport cruiser":  [10000, 90000],
+  "trawler":        [6000, 40000],
+  "classic yacht":  [4000, 100000],
+  "gulet":          [4000, 30000],
+  "flybridge":      [12000, 80000],
 };
 const DEFAULT_PRICE_PER_METER: [number, number] = [4000, 300000];
 
@@ -116,9 +164,17 @@ function sanityCheckPrice(
   priceEur: number,
   lengthMeters: number,
   type: string,
+  configuration?: string,
 ): { ok: boolean; clampedEur: number } {
-  const key = String(type || "").toLowerCase().trim();
-  const range = PRICE_PER_METER_EUR[key] || DEFAULT_PRICE_PER_METER;
+  const t = String(type || "").toLowerCase().trim();
+  const c = String(configuration || "").toLowerCase().trim();
+  // Try `${class} / ${configuration}` first (most specific), then class
+  // alone, then the legacy single-word key, then the default. This keeps
+  // old data (where "Trawler" was a top-level type) working.
+  const range =
+    (c && PRICE_PER_METER_EUR[`${t} / ${c}`]) ||
+    PRICE_PER_METER_EUR[t] ||
+    DEFAULT_PRICE_PER_METER;
   const perMeter = priceEur / lengthMeters;
   if (perMeter < range[0]) {
     return { ok: false, clampedEur: range[0] * lengthMeters };
@@ -732,7 +788,8 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       const check = sanityCheckPrice(
         aiPriceEur,
         lengthMeters,
-        String(b.type || "")
+        String(b.type || ""),
+        String(b.configuration || "")
       );
       if (!check.ok) {
         aiPriceEur = check.clampedEur;
