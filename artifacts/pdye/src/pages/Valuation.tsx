@@ -59,6 +59,11 @@ interface ValuationResult {
   distressed_price?: string;
   quick_sale_price?: string;
   sanity_adjusted?: boolean;
+  sanity_ai_original_price_eur?: number | null;
+  sanity_band_low_eur?: number | null;
+  sanity_band_high_eur?: number | null;
+  sanity_band_label?: string | null;
+  sanity_per_meter_eur?: number | null;
   confidence: "high" | "medium" | "low";
   reasoning: string;
   comparables: Comparable[];
@@ -670,8 +675,27 @@ const data = text ? JSON.parse(text) : {};
 
                   {result.sanity_adjusted && (
                     <div className="border border-white/10 bg-white/3 px-4 py-2.5 mb-4">
-                      <p className="text-white/45 text-[10.5px] font-sans leading-snug">
-                        Note: the AI estimate fell outside the typical price-per-meter band for this vessel type and was adjusted to a realistic boundary. Treat as indicative.
+                      <p className="text-white/55 text-[10.5px] font-sans leading-snug">
+                        <span className="text-white/75 font-bold">Sanity adjustment applied.</span>{" "}
+                        {result.sanity_ai_original_price_eur && result.sanity_per_meter_eur ? (
+                          <>
+                            AI estimate was{" "}
+                            <span className="text-white/75">€ {result.sanity_ai_original_price_eur.toLocaleString("en-US")}</span>
+                            {" "}({"≈ €"}{(result.sanity_per_meter_eur / 1000).toFixed(0)}k/m).{" "}
+                          </>
+                        ) : (
+                          <>AI estimate was outside the typical band.{" "}</>
+                        )}
+                        {result.sanity_band_low_eur && result.sanity_band_high_eur && result.sanity_band_label ? (
+                          <>
+                            Clamped to the {result.sanity_band_label} band of{" "}
+                            <span className="text-white/75">
+                              € {result.sanity_band_low_eur.toLocaleString("en-US")} – € {result.sanity_band_high_eur.toLocaleString("en-US")}
+                            </span>
+                            .{" "}
+                          </>
+                        ) : null}
+                        Treat as indicative.
                       </p>
                     </div>
                   )}

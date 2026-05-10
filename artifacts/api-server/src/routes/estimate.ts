@@ -129,6 +129,31 @@ const PRICE_PER_METER_EUR: Record<string, [number, number]> = {
 };
 const DEFAULT_PRICE_PER_METER: [number, number] = [4000, 300000];
 
+// Premium-segment overrides: when a yacht reaches a certain length, the
+// per-meter economics change dramatically (build quality, equipment level,
+// brand premium). The default table above is calibrated for the volume market
+// (12-18m), and clips legitimate premium prices in larger boats. These
+// overrides apply when length >= minLength and replace the base range.
+const PREMIUM_PRICE_PER_METER_EUR: Record<
+  string,
+  { minLength: number; range: [number, number] }
+> = {
+  "motor yacht / flybridge":                  { minLength: 20, range: [60000, 250000] },
+  "motor yacht / open / express":             { minLength: 20, range: [55000, 220000] },
+  "motor yacht / hard top":                   { minLength: 20, range: [60000, 230000] },
+  "motor yacht / coupé":                      { minLength: 20, range: [70000, 250000] },
+  "motor yacht / sport yacht":                { minLength: 20, range: [70000, 280000] },
+  "motor yacht / sport bridge":               { minLength: 20, range: [70000, 250000] },
+  "motor yacht / convertible (sportfish)":    { minLength: 20, range: [60000, 250000] },
+  "motor yacht / pilothouse":                 { minLength: 20, range: [50000, 200000] },
+  "motor yacht / sedan":                      { minLength: 20, range: [45000, 180000] },
+  "sailing yacht / performance cruiser":      { minLength: 20, range: [50000, 250000] },
+  "sailing yacht / bluewater cruiser":        { minLength: 20, range: [40000, 200000] },
+  "catamaran / power catamaran":              { minLength: 18, range: [60000, 280000] },
+  "catamaran / sail catamaran (performance)": { minLength: 18, range: [50000, 220000] },
+  "catamaran / sail catamaran (cruising)":    { minLength: 18, range: [40000, 180000] },
+};
+
 function parsePriceEur(s: unknown): number | null {
   if (typeof s !== "string") return null;
   let v = s.replace(/[^\d.,]/g, "");
@@ -160,29 +185,54 @@ function formatEur(n: number): string {
   return "€ " + Math.round(n).toLocaleString("en-US");
 }
 
+interface SanityCheckResult {
+  ok: boolean;
+  clampedEur: number;
+  range: [number, number];
+  rangeKey: string;
+  isPremiumBand: boolean;
+  perMeter: number;
+}
+
 function sanityCheckPrice(
   priceEur: number,
   lengthMeters: number,
   type: string,
   configuration?: string,
-): { ok: boolean; clampedEur: number } {
+): SanityCheckResult {
   const t = String(type || "").toLowerCase().trim();
   const c = String(configuration || "").toLowerCase().trim();
-  // Try `${class} / ${configuration}` first (most specific), then class
-  // alone, then the legacy single-word key, then the default. This keeps
-  // old data (where "Trawler" was a top-level type) working.
-  const range =
-    (c && PRICE_PER_METER_EUR[`${t} / ${c}`]) ||
-    PRICE_PER_METER_EUR[t] ||
-    DEFAULT_PRICE_PER_METER;
+  const fullKey = c ? `${t} / ${c}` : t;
+  // Premium override applies when boat is large enough — large flybridges,
+  // sport yachts etc. follow different per-meter economics than 12-18m volume
+  // boats. Try premium first, then base table (specific → class → legacy →
+  // default), so old data (e.g. "Trawler" as top-level type) still works.
+  const premium = PREMIUM_PRICE_PER_METER_EUR[fullKey];
+  let range: [number, number];
+  let rangeKey: string;
+  let isPremiumBand = false;
+  if (premium && lengthMeters >= premium.minLength) {
+    range = premium.range;
+    rangeKey = `${fullKey} (≥${premium.minLength}m premium)`;
+    isPremiumBand = true;
+  } else if (c && PRICE_PER_METER_EUR[fullKey]) {
+    range = PRICE_PER_METER_EUR[fullKey];
+    rangeKey = fullKey;
+  } else if (PRICE_PER_METER_EUR[t]) {
+    range = PRICE_PER_METER_EUR[t];
+    rangeKey = t;
+  } else {
+    range = DEFAULT_PRICE_PER_METER;
+    rangeKey = "default";
+  }
   const perMeter = priceEur / lengthMeters;
   if (perMeter < range[0]) {
-    return { ok: false, clampedEur: range[0] * lengthMeters };
+    return { ok: false, clampedEur: range[0] * lengthMeters, range, rangeKey, isPremiumBand, perMeter };
   }
   if (perMeter > range[1]) {
-    return { ok: false, clampedEur: range[1] * lengthMeters };
+    return { ok: false, clampedEur: range[1] * lengthMeters, range, rangeKey, isPremiumBand, perMeter };
   }
-  return { ok: true, clampedEur: priceEur };
+  return { ok: true, clampedEur: priceEur, range, rangeKey, isPremiumBand, perMeter };
 }
 
 const router = Router();
@@ -779,6 +829,11 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
 
     let aiPriceEur = parsePriceEur(result.estimated_price);
     let sanityAdjusted = false;
+    let aiOriginalPriceEur: number | null = null;
+    let sanityBandLowEur: number | null = null;
+    let sanityBandHighEur: number | null = null;
+    let sanityBandLabel: string | null = null;
+    let sanityPerMeterEur: number | null = null;
     let confidence = String(result.confidence || "low") as
       | "high"
       | "medium"
@@ -792,6 +847,11 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
         String(b.configuration || "")
       );
       if (!check.ok) {
+        aiOriginalPriceEur = Math.round(aiPriceEur);
+        sanityPerMeterEur = Math.round(check.perMeter);
+        sanityBandLowEur = Math.round(check.range[0] * lengthMeters);
+        sanityBandHighEur = Math.round(check.range[1] * lengthMeters);
+        sanityBandLabel = check.rangeKey;
         aiPriceEur = check.clampedEur;
         sanityAdjusted = true;
         confidence = "low";
@@ -838,6 +898,11 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       currency: "EUR",
       confidence,
       sanity_adjusted: sanityAdjusted,
+      sanity_ai_original_price_eur: aiOriginalPriceEur,
+      sanity_band_low_eur: sanityBandLowEur,
+      sanity_band_high_eur: sanityBandHighEur,
+      sanity_band_label: sanityBandLabel,
+      sanity_per_meter_eur: sanityPerMeterEur,
       internal_comparables_count: dbMatches.length,
       completeness_score: completeness.score,
       completeness_filled: completeness.filled,
