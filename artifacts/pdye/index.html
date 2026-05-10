@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- Force the browser to always re-fetch index.html. Hashed JS/CSS bundles
+         under /assets/ keep their long cache lifetime (Vite versions them by
+         content hash), so this only invalidates the tiny HTML shell — meaning
+         users always get the freshest bundle references after a deploy
+         without needing a hard refresh. -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>Private Distressed Yacht Exchange</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
