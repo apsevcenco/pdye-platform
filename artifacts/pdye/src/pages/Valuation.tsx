@@ -8,6 +8,21 @@ import {
 import { useSiteSection } from "@/lib/siteContent";
 
 const YACHT_TYPES = ["Motor Yacht", "Sailing Yacht", "Catamaran", "Superyacht", "Explorer Yacht", "Sport Cruiser", "Trawler", "Classic Yacht", "Gulet", "Flybridge"];
+// Configuration / style options that depend on the chosen Yacht Type.
+// "Flybridge" appears as a yacht type and as a config option — that's intentional
+// (legacy listings used "Flybridge" as a top-level type).
+const CONFIG_OPTIONS: Record<string, string[]> = {
+  "Motor Yacht":    ["Flybridge", "Open / Express", "Hard Top", "Coupé", "Sport Yacht", "Sport Bridge", "Pilothouse", "Sedan", "Convertible (Sportfish)"],
+  "Sailing Yacht":  ["Sloop", "Ketch", "Cutter", "Schooner", "Yawl", "Cruiser-Racer", "Performance Cruiser", "Bluewater Cruiser"],
+  "Catamaran":      ["Sail Catamaran", "Power Catamaran"],
+  "Superyacht":     ["Tri-deck", "Quad-deck", "Explorer", "Sport", "Classic", "Sailing Superyacht"],
+  "Explorer Yacht": ["Long Range Cruiser", "Expedition", "Trawler Classic", "Ice-Class"],
+  "Sport Cruiser":  ["Open / Express", "Hard Top", "Coupé", "Sport Yacht", "Center Console"],
+  "Trawler":        ["Long Range Cruiser", "Expedition", "Trawler Classic", "Pilothouse"],
+  "Classic Yacht":  ["Sloop", "Ketch", "Schooner", "Motor Classic", "Restored Vintage"],
+  "Gulet":          ["Standard Gulet", "Luxury Gulet"],
+  "Flybridge":      ["Flybridge"],
+};
 const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
 const HULL_MATERIALS = ["GRP / Fiberglass", "Steel", "Aluminium", "Carbon Fibre", "Wood / Composite", "Ferro-Cement"];
 const HULL_TYPES = ["Monohull", "Catamaran", "Trimaran", "SWATH", "Semi-Displacement", "Planing"];
@@ -46,7 +61,7 @@ interface ValuationResult {
 // Keep in sync. Used purely for the live indicator before submit; the server
 // recomputes authoritatively.
 const COMPLETENESS_WEIGHTS: Record<string, number> = {
-  type: 15, year: 15, length: 15, builder: 10,
+  type: 15, year: 15, length: 15, builder: 10, model: 8, configuration: 6,
   engine_maker: 4, engine_model: 2, horse_power: 5, engines: 2, engine_count: 2,
   gross_tonnage: 4, hull_material: 3, displacement: 3, beam: 2,
   condition: 5, refit: 3,
@@ -57,7 +72,7 @@ const COMPLETENESS_WEIGHTS: Record<string, number> = {
 function computeCompletenessLocal(form: Record<string, string>, mode: string): { score: number; filled: number; total: number } {
   let earned = 0, possible = 0, filled = 0, total = 0;
   for (const [k, w] of Object.entries(COMPLETENESS_WEIGHTS)) {
-    if (k === "builder" && mode !== "builder") continue;
+    if ((k === "builder" || k === "model") && mode !== "builder") continue;
     possible += w;
     total++;
     if ((form[k] || "").trim() !== "") {
@@ -114,7 +129,7 @@ function conv(val: string, factor: number, dec = 1): string {
 }
 
 const EMPTY: Record<string, string> = {
-  type: "", builder: "", year: "", refit: "",
+  type: "", configuration: "", builder: "", model: "", year: "", refit: "",
   engine_maker: "", engine_model: "",
   length: "", beam: "", draft: "", displacement: "", gross_tonnage: "",
   hull_material: "", hull_type: "",
@@ -126,17 +141,20 @@ const EMPTY: Record<string, string> = {
 };
 
 // Fields the user MUST fill (in addition to the always-required type/year/length)
-// unless they explicitly check "I don't have all the data". `builder` is added
-// dynamically when `mode === "builder"`.
+// unless they explicitly check "I don't have all the data". `builder` and
+// `model` are added dynamically when `mode === "builder"` (no point asking for
+// model when we don't even know the manufacturer).
 const REQUIRED_EXTRA = [
+  "configuration",
   "beam", "draft",
   "engine_maker", "engines", "engine_count", "horse_power",
   "cabins", "heads", "crew",
 ];
 const FIELD_LABELS: Record<string, string> = {
   type: "Yacht Type", year: "Build Year", length: "Length",
+  configuration: "Configuration / Style",
   beam: "Beam", draft: "Draft",
-  builder: "Builder / Manufacturer",
+  builder: "Builder / Manufacturer", model: "Model / Range",
   engine_maker: "Engine Manufacturer", engines: "Engine Configuration",
   engine_count: "Engine Count", horse_power: "Total Horsepower",
   cabins: "Guest Cabins", heads: "Heads (WC)", crew: "Crew",
@@ -154,7 +172,15 @@ export default function Valuation() {
   const formT = useSiteSection("valuation", "form");
   const t = { hero: heroT, formT };
 
-  function setF(k: string, v: string) { setForm(p => ({ ...p, [k]: v })); }
+  function setF(k: string, v: string) {
+    setForm(p => {
+      const next = { ...p, [k]: v };
+      // Clear configuration when type changes — old value (e.g. "Sloop") may
+      // not exist in the new type's option list (e.g. Motor Yacht).
+      if (k === "type" && v !== p.type) next.configuration = "";
+      return next;
+    });
+  }
 
   function toggleUnits() {
     const toImp = units === "metric";
@@ -192,9 +218,14 @@ export default function Valuation() {
       return;
     }
     if (!bypassRequired) {
+      // Only require `configuration` when the chosen yacht type actually has
+      // a configuration dropdown rendered for it (defensive — every type in
+      // CONFIG_OPTIONS today has options, but if we ever add a new yacht type
+      // without a config list, the form must still be submittable).
+      const hasConfig = !!form.type && Array.isArray((CONFIG_OPTIONS as any)[form.type]);
       const requiredAll = [
-        ...REQUIRED_EXTRA,
-        ...(mode === "builder" ? ["builder"] : []),
+        ...REQUIRED_EXTRA.filter(k => k !== "configuration" || hasConfig),
+        ...(mode === "builder" ? ["builder", "model"] : []),
       ];
       const missing = requiredAll.filter(k => !(form[k] || "").trim());
       if (missing.length > 0) {
@@ -299,11 +330,33 @@ const data = text ? JSON.parse(text) : {};
                     </div>
                   </div>
 
-                  {mode === "builder" && (
+                  {/* Configuration / Style — appears as soon as a yacht type
+                      is chosen, with options that depend on the type. */}
+                  {form.type && CONFIG_OPTIONS[form.type] && (
                     <div>
-                      <label className={lbl}>Builder / Manufacturer *</label>
-                      <input value={form.builder} onChange={e => setF("builder", e.target.value)}
-                        className={inp} placeholder="e.g. Ferretti, Sunseeker, Azimut, Benetti..." />
+                      <label className={lbl}>Configuration / Style *</label>
+                      <select value={form.configuration} onChange={e => setF("configuration", e.target.value)} className={sel}>
+                        <option value="">Select configuration...</option>
+                        {CONFIG_OPTIONS[form.type].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <p className="text-white/30 text-[10px] font-sans mt-1.5 leading-relaxed">
+                        Same length and year, different configuration = very different price (e.g. Flybridge vs Open).
+                      </p>
+                    </div>
+                  )}
+
+                  {mode === "builder" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className={lbl}>Builder / Manufacturer *</label>
+                        <input value={form.builder} onChange={e => setF("builder", e.target.value)}
+                          className={inp} placeholder="e.g. Ferretti, Sunseeker, Azimut..." />
+                      </div>
+                      <div>
+                        <label className={lbl}>Model / Range *</label>
+                        <input value={form.model} onChange={e => setF("model", e.target.value)}
+                          className={inp} placeholder="e.g. Predator 60, Manhattan 66, F62..." />
+                      </div>
                     </div>
                   )}
 

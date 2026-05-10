@@ -343,8 +343,10 @@ const COMPLETENESS_WEIGHTS: Record<string, number> = {
   type: 15,
   year: 15,
   length: 15,
-  // Identity / brand (10)
-  builder: 10, // only counted in builder mode
+  // Identity / brand (24)
+  builder: 10,         // only counted in builder mode
+  model: 8,            // only counted in builder mode (no builder ⇒ no model)
+  configuration: 6,    // always counted (Flybridge / Open / Sloop / etc.)
   // Engines (15)
   engine_maker: 4,
   engine_model: 2,
@@ -393,7 +395,7 @@ function computeCompleteness(
   const missing: string[] = [];
   const CRITICAL = ["type", "year", "length"];
   for (const [k, w] of Object.entries(COMPLETENESS_WEIGHTS)) {
-    if (k === "builder" && mode !== "builder") continue;
+    if ((k === "builder" || k === "model") && mode !== "builder") continue;
     possible += w;
     total++;
     const v = b[k];
@@ -443,7 +445,9 @@ router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req
 
     const specs = [
       b.type && `Type: ${b.type}`,
+      b.configuration && `Configuration / style: ${b.configuration}`,
       mode === "builder" && b.builder ? `Builder: ${b.builder}` : null,
+      mode === "builder" && b.model ? `Model: ${b.model}` : null,
       b.year && `Build year: ${b.year}`,
       b.refit && `Refit year: ${b.refit}`,
       b.condition && `Condition: ${b.condition}`,
@@ -512,6 +516,8 @@ router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req
           10,
           {
             builder: typeof b.builder === "string" ? b.builder : null,
+            model: typeof b.model === "string" ? b.model : null,
+            configuration: typeof b.configuration === "string" ? b.configuration : null,
             engine_maker: typeof b.engine_maker === "string" ? b.engine_maker : null,
             hull_material: typeof b.hull_material === "string" ? b.hull_material : null,
             gross_tonnage: parseInt(String(b.gross_tonnage || "0")) || null,
@@ -572,10 +578,13 @@ Perform multiple targeted web searches on the following platforms. Search each o
 - YachtCharterFleet / YachtSales
 
 Use search queries like:
-- "[type] for sale [year range] [length]"
-- "[builder] [model] for sale [year]"
+- "[builder] [model] for sale [year]" — this is the STRONGEST query when both are known
+- "[builder] [model] [configuration] for sale" (e.g. "Sunseeker Manhattan flybridge for sale")
+- "[type] [configuration] for sale [year range] [length]" (e.g. "motor yacht flybridge 22m 2018")
 - "[length]m [type] [year] for sale EUR"
 - "[engine maker] [engine model] yacht for sale"
+
+CRITICAL: when builder + model are provided, those define the vessel uniquely. A "Sunseeker Predator 60" and a "Sunseeker Manhattan 60" are different products with different prices (Sport vs Flybridge). Configuration / style (Flybridge / Open / Coupé / Sloop / etc.) is similarly price-defining — never substitute one configuration for another in your comparables.
 
 If your initial searches don't return strong matches, refine your queries (try different builders in the same tier, adjust length range, switch language, search broker websites directly).
 

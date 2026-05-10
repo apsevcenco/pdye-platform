@@ -24,6 +24,7 @@ type Stats = {
 type Comparable = {
   builder: string | null;
   model: string | null;
+  configuration: string | null;
   type: string | null;
   year: number | null;
   length_m: number | null;
@@ -35,10 +36,10 @@ type Comparable = {
   distance: number;
 };
 
-const SAMPLE_CSV = `source,source_url,builder,model,type,year,length_m,beam_m,price_eur,currency_orig,price_orig,region,listed_at,is_sold,engine_maker,hull_material,gross_tonnage,horse_power,condition,refit
-yachtworld,https://example.com/listing/1,Sunseeker,Manhattan 73,Motor Yacht,2018,22.5,5.6,1850000,EUR,1850000,Mediterranean,2024-09-15,false,MAN,GRP,98,1800,Excellent,2023
-boats.com,https://example.com/listing/2,Princess,V70,Motor Yacht,2017,21.3,5.4,1620000,USD,1750000,Florida,2024-10-02,false,Caterpillar,GRP,92,1700,Good,
-yachtworld,https://example.com/listing/3,Azimut,72 Flybridge,Motor Yacht,2019,22.0,5.5,1980000,EUR,1980000,Italy,2024-11-20,true,MAN,GRP,95,1900,Excellent,`;
+const SAMPLE_CSV = `source,source_url,builder,model,configuration,type,year,length_m,beam_m,price_eur,currency_orig,price_orig,region,listed_at,is_sold,engine_maker,hull_material,gross_tonnage,horse_power,condition,refit
+yachtworld,https://example.com/listing/1,Sunseeker,Manhattan 73,Flybridge,Motor Yacht,2018,22.5,5.6,1850000,EUR,1850000,Mediterranean,2024-09-15,false,MAN,GRP,98,1800,Excellent,2023
+boats.com,https://example.com/listing/2,Princess,V70,Open / Express,Motor Yacht,2017,21.3,5.4,1620000,USD,1750000,Florida,2024-10-02,false,Caterpillar,GRP,92,1700,Good,
+yachtworld,https://example.com/listing/3,Azimut,72 Flybridge,Flybridge,Motor Yacht,2019,22.0,5.5,1980000,EUR,1980000,Italy,2024-11-20,true,MAN,GRP,95,1900,Excellent,`;
 
 async function authHeader(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -218,7 +219,7 @@ export default function AdminListingsDb() {
           </h2>
           <p className="text-white/50 text-xs font-sans mb-4">
             Required columns: <span className="text-primary font-mono">type, year, length_m, price_eur</span>.
-            Optional: source, source_url, builder, model, beam_m, currency_orig, price_orig, region, listed_at, sold_at, is_sold.
+            Optional: source, source_url, builder, model, configuration, beam_m, currency_orig, price_orig, region, listed_at, sold_at, is_sold, engine_maker, hull_material, gross_tonnage, horse_power, condition, refit.
             Prices in EUR. Length in meters. Dates as YYYY-MM-DD.
           </p>
 

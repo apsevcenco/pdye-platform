@@ -6,6 +6,8 @@ const yachtFieldsShape = {
   name: z.string().max(200).optional(),
   type: z.string().max(120).optional(),
   builder: z.string().max(200).optional(),
+  model: z.string().max(200).optional(),
+  configuration: z.string().max(120).optional(),
   year: stringOrNumber.optional(),
   refit: stringOrNumber.optional(),
   condition: z.string().max(200).optional(),

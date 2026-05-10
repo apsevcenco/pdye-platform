@@ -43,6 +43,7 @@ async function ensureSchema(): Promise<void> {
       ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS horse_power    int;
       ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS condition      text;
       ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS refit          int;
+      ALTER TABLE yacht_listings ADD COLUMN IF NOT EXISTS configuration  text;
       CREATE INDEX IF NOT EXISTS idx_yl_type_year_len
         ON yacht_listings (type, year, length_m);
       CREATE INDEX IF NOT EXISTS idx_yl_source_url
@@ -94,11 +95,14 @@ export type Comparable = {
   hull_material: string | null;
   gross_tonnage: number | null;
   horse_power: number | null;
+  configuration: string | null;
   distance: number;
 };
 
 export type ComparableExtras = {
   builder?: string | null;
+  model?: string | null;
+  configuration?: string | null;
   engine_maker?: string | null;
   hull_material?: string | null;
   gross_tonnage?: number | null;
@@ -150,7 +154,7 @@ export async function findComparables(
                price_eur::float8 AS price_eur, region, source, source_url,
                listed_at::text AS listed_at, is_sold,
                engine_maker, hull_material,
-               gross_tonnage, horse_power
+               gross_tonnage, horse_power, configuration
         FROM yacht_listings
         WHERE price_eur IS NOT NULL
           AND price_eur > 0
@@ -175,7 +179,9 @@ export async function findComparables(
       // optional secondary attributes the user provided.
       // Cap the total bonus reduction so we don't collapse every "vaguely
       // similar" yacht to distance 0 and lose meaningful tie-breaking.
-      const MAX_BONUS = 0.8;
+      // Raised to 1.0 to accommodate model (+0.20) and configuration (+0.10)
+      // bonuses on top of the existing builder/engine/hull/etc bonuses.
+      const MAX_BONUS = 1.0;
       const scored = filtered.map((r) => {
         const lenDiffPct = Math.abs(r.length_m - lengthM) / lengthM;
         const yrDiff = r.year ? Math.abs(r.year - year) : 5;
@@ -183,6 +189,25 @@ export async function findComparables(
 
         let bonus = 0;
         if (extras.builder && strEq(extras.builder, r.builder)) bonus += 0.4;
+        // Model is the second-strongest signal after builder+length: a
+        // Sunseeker Predator 60 is priced very differently from a Sunseeker
+        // Manhattan 60. Match strategy:
+        //   * exact (case-insensitive) match → full bonus
+        //   * substring match → bonus only if both sides are ≥ 4 chars long,
+        //     otherwise tiny tokens like "60" or "X" would fire on every
+        //     listing whose model contains that fragment.
+        if (extras.model && r.model) {
+          const a = String(extras.model).trim().toLowerCase();
+          const b = String(r.model).trim().toLowerCase();
+          if (a && b) {
+            if (a === b) {
+              bonus += 0.2;
+            } else if (a.length >= 4 && b.length >= 4 && (a.includes(b) || b.includes(a))) {
+              bonus += 0.2;
+            }
+          }
+        }
+        if (extras.configuration && strEq(extras.configuration, r.configuration)) bonus += 0.1;
         if (extras.engine_maker && strEq(extras.engine_maker, r.engine_maker)) bonus += 0.2;
         if (extras.hull_material && strEq(extras.hull_material, r.hull_material)) bonus += 0.15;
         if (extras.gross_tonnage && r.gross_tonnage) {
@@ -213,8 +238,10 @@ export async function findComparables(
 // ---------------------------------------------------------------------------
 // CSV parsing — minimal RFC-4180-ish, handles quoted fields with commas.
 // Required columns (case-insensitive): type, year, length_m, price_eur.
-// Optional: source, source_url, builder, model, beam_m, currency_orig,
-//           price_orig, region, listed_at, sold_at, is_sold.
+// Optional: source, source_url, builder, model, configuration, beam_m,
+//           currency_orig, price_orig, region, listed_at, sold_at, is_sold,
+//           engine_maker, hull_material, gross_tonnage, horse_power,
+//           condition, refit.
 // ---------------------------------------------------------------------------
 function parseCsvLine(line: string): string[] {
   const out: string[] = [];
@@ -353,8 +380,8 @@ router.post("/admin/yacht-listings/import-csv", requireAdmin, async (req, res) =
              (source, source_url, builder, model, type, year, length_m, beam_m,
               price_eur, currency_orig, price_orig, region, listed_at, sold_at,
               is_sold, engine_maker, hull_material, gross_tonnage, horse_power,
-              condition, refit, raw)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+              condition, refit, configuration, raw)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
           [
             r.source?.trim() || null,
             r.source_url?.trim() || null,
@@ -377,6 +404,7 @@ router.post("/admin/yacht-listings/import-csv", requireAdmin, async (req, res) =
             toInt(r.horse_power),
             r.condition?.trim() || null,
             toInt(r.refit),
+            r.configuration?.trim() || null,
             JSON.stringify(r),
           ]
         );
