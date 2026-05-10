@@ -43,7 +43,7 @@ function parsePriceString(price: string): { amount: number; from: Currency } | n
   else if (str.includes("£") || /gbp/i.test(str)) { from = "GBP"; str = str.replace(/£/g, "").replace(/gbp/gi, ""); }
   // Detect magnitude suffix (k/m/b/t) BEFORE stripping commas, while still attached to the number.
   // After symbol removal we may still have "5.2M" or "5,200,000".
-  const suffixMatch = str.match(/([kmbt])\b?$/i);
+  const suffixMatch = str.match(/([kmbt])$/i);
   let multiplier = 1;
   if (suffixMatch) {
     const ch = suffixMatch[1].toLowerCase();

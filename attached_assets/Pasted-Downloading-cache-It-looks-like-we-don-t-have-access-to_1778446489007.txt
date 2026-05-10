@@ -1,0 +1,49 @@
+Downloading cache...
+==> It looks like we don't have access to your repo, but we'll try to clone it anyway.
+==> Cloning from https://github.com/apsevcenco/pdye-platform
+==> Checking out commit c00af27924fb8b5acfc45fcbb98ff4a1a384bd3d in branch main
+==> Downloaded 140MB in 2s. Extraction took 5s.
+==> Installing dependencies with pnpm...
+==> Using Node.js version 22.18.0 via /opt/render/project/src/.node-version
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+Scope: all 8 workspace projects
+dependencies:
++ @supabase/supabase-js 2.99.2
+devDependencies:
++ prettier 3.8.1
++ typescript 5.9.3
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*|"") ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+. preinstall: Done
+Done in 5.1s
+==> Running build command 'corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm --filter @workspace/pdye run build'...
+Scope: all 8 workspace projects
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*|"") ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+. preinstall: Done
+Done in 2s
+> @workspace/pdye@0.0.0 build /opt/render/project/src/artifacts/pdye
+> vite build --config vite.config.ts
+vite v7.3.1 building client environment for production...
+transforming...
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 2116 modules transformed.
+✗ Build failed in 3.67s
+error during build:
+Invalid regular expression: /([kmbt])\b?$/i: Nothing to repeat
+    at new RegExp (<anonymous>)
+    at Array.literalRegExp (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16242:22)
+    at convertNode (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16436:28)
+    at convertNodeList (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16447:38)
+    at Array.callExpression (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:15936:26)
+    at convertNode (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16436:28)
+    at Array.variableDeclarator (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16408:49)
+    at convertNode (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16436:28)
+    at convertNodeList (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16447:38)
+    at Array.variableDeclaration (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:16402:29)
+/opt/render/project/src/artifacts/pdye:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/pdye@0.0.0 build: `vite build --config vite.config.ts`
+Exit status 1
+==> Build failed 😞
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Using Node.js version 22.18.0 via /opt/render/project/src/.node-version
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+Need better ways to work with logs? Try theRender CLI, Render MCP Server, o
