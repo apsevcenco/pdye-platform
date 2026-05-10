@@ -34,13 +34,27 @@ const CurrencyContext = createContext<CurrencyContextType | null>(null);
 
 function parsePriceString(price: string): { amount: number; from: Currency } | null {
   if (!price) return null;
-  const str = price.replace(/\s/g, "").replace(/,/g, "").replace(/'/g, "");
+  // Detect currency by symbol OR by 3-letter code (case-insensitive).
+  // Examples handled: "€ 5,200,000", "$5.2M", "GBP 4,750,000", "EUR 5200k", "5'200'000"
+  let str = price.replace(/\s/g, "").replace(/'/g, "");
   let from: Currency = "EUR";
-  let numStr = str;
-  if (str.includes("€")) { from = "EUR"; numStr = str.replace(/€/g, ""); }
-  else if (str.includes("$")) { from = "USD"; numStr = str.replace(/\$/g, ""); }
-  else if (str.includes("£")) { from = "GBP"; numStr = str.replace(/£/g, ""); }
-  const amount = parseFloat(numStr);
+  if (str.includes("€") || /eur/i.test(str)) { from = "EUR"; str = str.replace(/€/g, "").replace(/eur/gi, ""); }
+  else if (str.includes("$") || /usd/i.test(str)) { from = "USD"; str = str.replace(/\$/g, "").replace(/usd/gi, ""); }
+  else if (str.includes("£") || /gbp/i.test(str)) { from = "GBP"; str = str.replace(/£/g, "").replace(/gbp/gi, ""); }
+  // Detect magnitude suffix (k/m/b/t) BEFORE stripping commas, while still attached to the number.
+  // After symbol removal we may still have "5.2M" or "5,200,000".
+  const suffixMatch = str.match(/([kmbt])\b?$/i);
+  let multiplier = 1;
+  if (suffixMatch) {
+    const ch = suffixMatch[1].toLowerCase();
+    multiplier = ch === "k" ? 1_000 : ch === "m" ? 1_000_000 : ch === "b" ? 1_000_000_000 : 1_000_000_000_000;
+    str = str.slice(0, suffixMatch.index);
+  }
+  // Now safe to remove thousand separators.
+  str = str.replace(/,/g, "");
+  // Strip any remaining non-numeric/non-decimal characters defensively.
+  str = str.replace(/[^\d.]/g, "");
+  const amount = parseFloat(str) * multiplier;
   if (isNaN(amount) || amount <= 0) return null;
   return { amount, from };
 }

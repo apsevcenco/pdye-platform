@@ -778,6 +778,11 @@ ${modeNote}
 
 Based on your knowledge of comparable vessels sold or listed on YachtWorld, RightBoat, Boat24 and similar platforms, provide 5 real comparable examples that closely match the target vessel (same type, ±3 years, ±15% length, similar engines if specified).
 
+⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
+Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would currently be listed at on YachtWorld / RightBoat / TheYachtMarket alongside the comparables. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. Compute it as a weighted average of the comparable asking prices, biased toward the closest matches (same builder/model = highest weight, then same year, then same length/engine layout). Adjust up or down for the target's spec advantages or disadvantages vs the cohort. The downstream system applies separate discounts to derive Discreet Sale (≈ −25%) and Quick Sale (≈ −35%) tiers, so do NOT bake those into your number.
+
+All prices (estimated_price and each comparable's price) MUST be returned in canonical EUR format: "€ X,XXX,XXX" (e.g. "€ 5,200,000"). Do NOT use shorthand like "€ 5.2M", "5200K", or currency codes like "EUR 5200000".
+
 Return ONLY valid JSON, no markdown:
 {
   "estimated_price": "€ X,XXX,XXX",
