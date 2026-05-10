@@ -754,6 +754,7 @@ RULES:
 - If you cannot find 5 real matches within the strict criteria, widen year range by ±1 year and search again
 - Set confidence to "low" if you had to widen search criteria significantly
 - DO NOT include vessel names, owner names, flag, or registration country
+- DO NOT include brokerage / broker / listing-agent / dealer names anywhere in the output (not in "builder", not in "model", not in "note", not in "reasoning"). The "builder" field MUST contain ONLY the shipyard name (e.g. "Sunseeker", "Azimut", "Princess") — NEVER prefixes/suffixes like "(listed by …)", "via …", "broker …", or names of platforms (YachtWorld, RightBoat, boats.com, TheYachtMarket, etc.). The "note" may reference geography only at country level (e.g. "US market", "Mediterranean") if relevant.
 - DO NOT invent pricing — every price must come from a real listing or confirmed sale`;
 
     let result: Record<string, unknown>;
@@ -800,7 +801,7 @@ Return ONLY valid JSON, no markdown:
     }
   ]
 }
-Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owner names or flag.`;
+Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owner names or flag. DO NOT include brokerage / broker / listing-agent / dealer / platform names anywhere — "builder" must contain ONLY the shipyard name (e.g. "Sunseeker"), never "(listed by …)" or similar.`;
 
       const raw = await aiChat([
         {
