@@ -80,8 +80,7 @@ const COMPLETENESS_WEIGHTS: Record<string, number> = {
   engine_maker: 4, engine_model: 2, horse_power: 5, engines: 2, engine_count: 2,
   gross_tonnage: 4, hull_material: 3, displacement: 3, beam: 2,
   condition: 5, refit: 3,
-  draft: 1, max_speed: 2,
-  range: 2, cabins: 1, heads: 0, berths: 0, crew: 1,
+  draft: 1, range: 2, cabins: 1, heads: 0, berths: 0, crew: 1,
 };
 
 function computeCompletenessLocal(form: Record<string, string>, mode: string): { score: number; filled: number; total: number } {
@@ -149,7 +148,7 @@ const EMPTY: Record<string, string> = {
   length: "", beam: "", draft: "", displacement: "", gross_tonnage: "",
   hull_material: "",
   engines: "", engine_count: "", horse_power: "",
-  max_speed: "", range: "",
+  range: "",
   cabins: "", heads: "", berths: "", crew: "",
   condition: "",
 };
@@ -213,7 +212,6 @@ export default function Valuation() {
       beam:           toImp ? mToFt(p.beam)           : ftToM(p.beam),
       draft:          toImp ? mToFt(p.draft)          : ftToM(p.draft),
       displacement:   toImp ? tToLT(p.displacement)   : ltToT(p.displacement),
-      max_speed:      toImp ? kToNm(p.max_speed)      : nmToK(p.max_speed),
       range:          toImp ? kToNm(p.range)           : nmToK(p.range),
     }));
     setUnits(toImp ? "imperial" : "metric");
@@ -469,20 +467,12 @@ const data = text ? JSON.parse(text) : {};
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="col-span-2">
+                    <div className="col-span-2 sm:col-span-4">
                       <label className={lbl}>Range</label>
                       <div className="relative">
                         <input value={form.range} onChange={e => setF("range", e.target.value)}
                           className={inpUnit} placeholder={M ? "e.g. 1200" : "e.g. 648"} />
                         <UnitBadge unit="nm" />
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <label className={lbl}>Max Speed</label>
-                      <div className="relative">
-                        <input value={form.max_speed} onChange={e => setF("max_speed", e.target.value)}
-                          className={inpUnit} placeholder="e.g. 28" />
-                        <UnitBadge unit="kts" />
                       </div>
                     </div>
                   </div>
