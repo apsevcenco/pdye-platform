@@ -318,6 +318,8 @@ function YachtsView() {
     cabins: "", heads: "", berths: "", crew: "",
     location: "", price: "", market_price: "",
     image: "", description: "",
+    // VAT / Tax status — mandatory for new admin listings. Stored in yachts.vat_status.
+    vat_status: "",
   };
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState("");
@@ -542,6 +544,10 @@ function YachtsView() {
       setFormError("Vessel name and asking price are required.");
       return;
     }
+    if (!form.vat_status) {
+      setFormError("Tax Status (Tax Paid / Tax Not Paid) is required.");
+      return;
+    }
     setSaving(true);
     setFormError("");
     const num = (v: string) => v ? parseInt(v) : null;
@@ -578,6 +584,7 @@ function YachtsView() {
       location: str(form.location),
       price: form.price,
       market_price: str(form.market_price),
+      vat_status: str(form.vat_status),
       image: str(form.image) || (formPhotos[0] ?? ""),
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
@@ -670,6 +677,7 @@ function YachtsView() {
       market_price: yacht.market_price || "",
       image: yacht.image || "",
       description: yacht.description || "",
+      vat_status: (yacht as Yacht & { vat_status?: string }).vat_status || "",
     });
     setFormPhotos(yacht.photos || []);
     setFormDocs(Array.isArray(yacht.documents) ? yacht.documents : []);
@@ -723,6 +731,7 @@ function YachtsView() {
       location: str(form.location),
       price: form.price,
       market_price: str(form.market_price),
+      vat_status: str(form.vat_status),
       image: str(form.image) || (formPhotos[0] ?? null),
       description: str(form.description),
       photos: formPhotos.length > 0 ? formPhotos : null,
@@ -913,6 +922,14 @@ function YachtsView() {
               <div>
                 <label className={labelCls}>Flag / Registration</label>
                 <input className={inputCls} placeholder="e.g. Cayman Islands" value={form.flag} onChange={e => setF("flag", e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Tax Status *</label>
+                <select className={inputCls} value={form.vat_status} onChange={e => setF("vat_status", e.target.value)} required>
+                  <option value="">Select...</option>
+                  <option value="paid">Tax Paid</option>
+                  <option value="not_paid">Tax Not Paid</option>
+                </select>
               </div>
               {/* Private listing toggle */}
               <div className="lg:col-span-2">

@@ -519,9 +519,15 @@ export default function YachtDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-8">
             <div>
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 {yacht.flag && <span className="flex items-center gap-1.5 text-white/40 text-xs font-sans tracking-widest uppercase"><Flag size={11} />{yacht.flag}</span>}
                 {yacht.location && <span className="flex items-center gap-1.5 text-white/40 text-xs font-sans tracking-widest uppercase"><MapPin size={11} />{yacht.location}</span>}
+                {(yacht as Yacht & { vat_status?: string }).vat_status === "paid" && (
+                  <span className="border border-green-500/30 bg-green-500/5 text-green-400 text-[10px] font-bold tracking-widest uppercase px-2.5 py-1">Tax Paid</span>
+                )}
+                {(yacht as Yacht & { vat_status?: string }).vat_status === "not_paid" && (
+                  <span className="border border-amber-500/30 bg-amber-500/5 text-amber-400 text-[10px] font-bold tracking-widest uppercase px-2.5 py-1">Tax Not Paid</span>
+                )}
               </div>
               <h1 className="font-display text-5xl md:text-6xl text-white mb-2">{yacht.name}</h1>
               <p className="text-white/50 font-sans tracking-wide text-lg">

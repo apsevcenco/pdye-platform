@@ -34,6 +34,8 @@ type FormState = {
   cabins: string; heads: string; berths: string; crew: string;
   location: string; price: string; market_price: string;
   image: string; description: string;
+  // VAT / Tax status — mandatory for new listings. Stored in yachts.vat_status.
+  vat_status: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -47,9 +49,14 @@ const EMPTY_FORM: FormState = {
   cabins: "", heads: "", berths: "", crew: "",
   location: "", price: "", market_price: "",
   image: "", description: "",
+  vat_status: "",
 };
 
 const STATUSES = ["Available", "Under Offer", "Distressed Sale", "Off-Market", "Confidential"];
+const VAT_OPTIONS_FORM: { value: string; label: string }[] = [
+  { value: "paid", label: "Tax Paid" },
+  { value: "not_paid", label: "Tax Not Paid" },
+];
 
 export default function AddYacht() {
   const { user, userProfile, loading } = useAuth();
@@ -161,6 +168,9 @@ export default function AddYacht() {
         market_price: data.market_price || "",
         image: data.image || "",
         description: data.description || "",
+        // Hydrate vat_status so the broker doesn't have to re-pick it every
+        // edit — without this the mandatory check below would refuse to save.
+        vat_status: data.vat_status || "",
       });
       setIsPrivate(!!data.is_private);
       if (data.photos && Array.isArray(data.photos) && data.photos.length > 0) setPhotos(data.photos);
@@ -369,6 +379,10 @@ export default function AddYacht() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { setErr("Yacht name is required."); return; }
+    if (!form.vat_status) {
+      setErr("Please indicate the Tax Status (Tax Paid / Tax Not Paid).");
+      return;
+    }
     if (!user) { setErr("You must be signed in to save a yacht."); return; }
     setSaving(true); setErr("");
 
@@ -407,6 +421,7 @@ export default function AddYacht() {
       location: str(form.location),
       price: form.price || null,
       market_price: str(form.market_price),
+      vat_status: str(form.vat_status),
       image: str(form.image) || (photos[0] ?? null),
       description: str(form.description),
       photos: photos.length > 0 ? photos : null,
@@ -553,6 +568,13 @@ export default function AddYacht() {
                 <div>
                   <label className={labelCls}>Flag / Registration</label>
                   <input className={inputCls} placeholder="e.g. Cayman Islands" value={form.flag} onChange={e => setF("flag", e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Tax Status *</label>
+                  <select className={inputCls} value={form.vat_status} onChange={e => setF("vat_status", e.target.value)} required>
+                    <option value="">Select...</option>
+                    {VAT_OPTIONS_FORM.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
                 </div>
                 <div className="lg:col-span-2">
                   <label className={labelCls}>Access Control</label>

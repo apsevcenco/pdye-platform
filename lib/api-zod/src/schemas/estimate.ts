@@ -36,6 +36,18 @@ const yachtFieldsShape = {
   location: z.string().max(200).optional(),
   flag: z.string().max(120).optional(),
   price: stringOrNumber.optional(),
+  // Market context — region of intended sale and VAT/tax status.
+  // Both feed directly into the AI prompt to constrain comparables.
+  sale_region: z
+    .enum([
+      "mediterranean",
+      "northern_europe",
+      "north_america_caribbean",
+      "asia_pacific_me",
+      "global",
+    ])
+    .optional(),
+  vat_status: z.enum(["paid", "not_paid"]).optional(),
 };
 
 export const EstimateMarketPriceBody = z
@@ -48,14 +60,47 @@ export const EstimateMarketPriceBody = z
   })
   .passthrough();
 
+// VAT/Tax cohort filter is only commercially relevant for the EU-adjacent
+// markets where free-circulation status changes the buyer's effective price.
+// For US/Caribbean and APAC/ME we don't ask for it (and don't require it).
+// Keep this set in sync with VAT_RELEVANT_REGIONS in
+// artifacts/pdye/src/pages/Valuation.tsx.
+const VAT_RELEVANT_SALE_REGIONS = new Set([
+  "mediterranean",
+  "northern_europe",
+  "global",
+]);
+
 export const ValuationBody = z
   .object({
     ...yachtFieldsShape,
+    // sale_region is ALWAYS required at the API boundary — there is no
+    // sensible default ("global" is a deliberate user choice, not a fallback).
+    sale_region: z
+      .enum([
+        "mediterranean",
+        "northern_europe",
+        "north_america_caribbean",
+        "asia_pacific_me",
+        "global",
+      ]),
     mode: z.enum(["builder", "specs"]).optional(),
     units: z.enum(["metric", "imperial"]).optional(),
     bypass_required: z.boolean().optional(),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((val, ctx) => {
+    // Conditionally require vat_status: only when the chosen sale_region is in
+    // a VAT-relevant market. Mirrors the UI's conditional render.
+    if (VAT_RELEVANT_SALE_REGIONS.has(val.sale_region) && !val.vat_status) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["vat_status"],
+        message:
+          "vat_status is required when sale_region is mediterranean, northern_europe, or global",
+      });
+    }
+  });
 
 export type EstimateMarketPriceBody = z.infer<typeof EstimateMarketPriceBody>;
 export type ValuationBody = z.infer<typeof ValuationBody>;

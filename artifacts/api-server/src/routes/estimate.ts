@@ -342,6 +342,30 @@ function cleanReasoning(text: unknown): string {
     .trim();
 }
 
+// ─── Region taxonomy ──────────────────────────────────────────────────────
+// Human-readable labels + the explicit list of countries / brokerage hubs
+// the AI is allowed to use as comparable sources for each region. Keep this
+// in sync with SALE_REGIONS in artifacts/pdye/src/pages/Valuation.tsx.
+const REGION_LABELS: Record<string, string> = {
+  mediterranean: "Mediterranean (FR, IT, ES, MC, GR, HR, TR, MT)",
+  northern_europe: "Northern Europe incl. UK (UK, NL, DE, DK, NO, SE, FI, BE)",
+  north_america_caribbean: "North America & Caribbean (US, CA, BS, KY, BVI, USVI, ATG)",
+  asia_pacific_me: "Asia-Pacific & Middle East (AE, SG, HK, TH, AU, NZ, JP, CN)",
+  global: "Global (no regional restriction)",
+};
+const REGION_GUIDANCE: Record<string, string> = {
+  mediterranean:
+    "Restrict comparables to vessels currently asking, listed in, or recently sold inside the Mediterranean basin (France incl. French Riviera, Italy, Spain incl. Balearics, Monaco, Greece, Croatia, Turkey, Malta). Mediterranean asking prices typically run 5–15% above US asking prices for equivalent tonnage; do NOT cross-substitute US-located listings into a Mediterranean valuation.",
+  northern_europe:
+    "Restrict comparables to vessels asking, listed, or recently sold in Northern Europe (UK, Netherlands, Germany, Denmark, Norway, Sweden, Finland, Belgium). UK & NL brokerages (Sunseeker, Princess, Burgess, Edmiston UK, De Valk) are the primary reference. Do NOT substitute Mediterranean or US listings into the cohort.",
+  north_america_caribbean:
+    "Restrict comparables to vessels asking, listed, or recently sold in the United States, Canada, or the Caribbean (Bahamas, Cayman, BVI, USVI, Antigua, St Maarten). USD-denominated listings are expected — convert to EUR at the current spot rate. Do NOT cross-substitute Mediterranean or Northern European listings; US asking prices are typically 5–15% lower than Med asking for equivalent tonnage.",
+  asia_pacific_me:
+    "Restrict comparables to vessels asking, listed, or recently sold in the UAE (Dubai, Abu Dhabi), Saudi, Qatar, Singapore, Hong Kong, Thailand (Phuket), Australia, New Zealand, Japan, or China. This region trades thinner volumes — if you cannot find 5 region-matched comparables after 2 search refinements, you may include up to 2 Mediterranean comparables AND mark confidence as 'low'.",
+  global:
+    "No regional restriction — accept comparables from any major brokerage market (Med, Northern Europe, US/Caribbean, APAC/ME). Note in the reasoning which markets your comparables came from.",
+};
+
 function briefYacht(y: Record<string, unknown>): string {
   return [
     y.name,
@@ -582,6 +606,9 @@ router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req
       b.heads && `Heads (WC): ${b.heads}`,
       b.berths && `Total berths: ${b.berths}`,
       b.crew && `Crew capacity: ${b.crew}`,
+      b.sale_region && `Intended sale region: ${REGION_LABELS[String(b.sale_region)] || b.sale_region}`,
+      b.vat_status &&
+        `VAT / Tax status: ${b.vat_status === "paid" ? "VAT PAID (EU free circulation)" : "VAT NOT PAID (offshore / not in EU free circulation)"}`,
     ]
       .filter(Boolean)
       .join("\n");
@@ -601,6 +628,53 @@ router.post("/valuation", strictLimiter, validateBody(ValuationBody), async (req
       mode === "builder"
         ? "Factor in this builder's specific brand premium and reputation in the current market."
         : "Assess purely on technical specifications — do not infer or assume any brand.";
+
+    // ─── Region & VAT cohort blocks ────────────────────────────────────────
+    // Both are passed to BOTH the main and fallback prompts so the AI is
+    // forced to filter its comparable cohort before averaging. We do NOT
+    // apply a percentage haircut after the fact — cohort filtering is the
+    // ONLY mechanism (a 5m sailboat that's "VAT-paid" is in a structurally
+    // different market from a 5m sailboat that isn't).
+    const regionKey = typeof b.sale_region === "string" ? b.sale_region : "";
+    const vatKey = typeof b.vat_status === "string" ? b.vat_status : "";
+
+    const regionBlock = regionKey
+      ? `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGIONAL COHORT FILTER — ${(REGION_LABELS[regionKey] || regionKey).toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The user is valuing this vessel for sale in: ${REGION_LABELS[regionKey] || regionKey}.
+
+${REGION_GUIDANCE[regionKey] || ""}
+
+This is NOT advisory — it is a HARD FILTER on which listings you may use as comparables. A vessel located in Florida is NOT a comparable for a Mediterranean valuation, even if its specs match perfectly. Search with region-specific queries (e.g. "[builder] [model] for sale Monaco|France|Italy|Spain" for Mediterranean; "[builder] [model] for sale Florida|California|Newport" for North America). In your reasoning, explicitly state the regional market your final price reflects (e.g. "Based on 5 Mediterranean asking prices…").`
+      : "";
+
+    const vatBlock = vatKey
+      ? `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VAT / TAX STATUS COHORT FILTER — ${vatKey === "paid" ? "VAT PAID (EU FREE CIRCULATION)" : "VAT NOT PAID (OFFSHORE / NOT IN EU FREE CIRCULATION)"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The target vessel is ${vatKey === "paid" ? "VAT PAID — i.e. it has cleared EU import VAT and trades in free circulation inside the EU customs union" : "NOT VAT PAID — i.e. it is offshore-flagged or otherwise not in EU free circulation, so an EU buyer would owe import VAT (typically ~17–22% depending on jurisdiction) on top of the asking price"}.
+
+These are STRUCTURALLY DIFFERENT markets — not a percentage discount. Match comparables to the target's VAT status:
+- Listings on EU brokerages (yachtworld.it, yachtall.com, de Valk NL, Berthon UK, Camper & Nicholsons EU) almost always state "VAT paid" or "VAT not paid" in the spec sheet — read it.
+- Common indicators of VAT NOT PAID: vessel currently in non-EU waters (Caribbean, US, Turkey non-EU territory, UAE, Singapore), flagged Cayman / Marshall Islands / BVI / Jersey / Isle of Man with no "EU VAT paid" line.
+- Common indicators of VAT PAID: vessel currently in EU waters with EU flag (FR, IT, ES, NL, DE, MT) AND listing explicitly states "VAT paid" or "EU VAT paid".
+
+When selecting comparables, ${vatKey === "paid" ? "USE ONLY listings explicitly tagged 'VAT paid' / 'EU VAT paid'. Listings with no VAT info or tagged 'VAT not paid' must NOT be used as comparables — their asking prices reflect a structurally different market and would distort the estimate." : "USE ONLY listings explicitly tagged 'VAT not paid' / 'offshore' / 'ex-VAT'. Listings tagged 'VAT paid' must NOT be used — their asking prices already include the ~20% VAT and would inflate your estimate."}
+
+This is a HARD COHORT FILTER, not a percentage adjustment. Do NOT take an opposite-VAT-status listing and "adjust it" by ±VAT — those are different markets with different liquidity, different buyer pools, and different ask-to-sale spreads.
+
+If after 2 search refinements you cannot find at least 4 same-VAT-status comparables, you must:
+  1. Set overall confidence to "low",
+  2. State explicitly in the "reasoning" field that the cohort was thin (e.g. "Only 3 ${vatKey === "paid" ? "VAT-paid" : "VAT-not-paid"} comparables found in the target region"), and
+  3. Use whatever same-VAT-status comparables you did find — do NOT pad the cohort with opposite-VAT-status listings.
+
+Mention the VAT status of your cohort explicitly in the "reasoning" field (e.g. "${vatKey === "paid" ? "All comparables are VAT-paid EU listings" : "All comparables are offshore / non-VAT-paid listings"}").`
+      : "";
 
     // ---- Internal comparables DB lookup -----------------------------------
     // If we have ≥3 matches in our own listings DB, inject them as the
@@ -669,7 +743,7 @@ You may still cross-reference with web search to refine, but the price you produ
 
 TARGET VESSEL SPECIFICATIONS:
 ${specs}
-${completenessBlock}${dbBlock}
+${completenessBlock}${regionBlock}${vatBlock}${dbBlock}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 1 — SEARCH INSTRUCTIONS
@@ -774,6 +848,7 @@ RULES:
 
 TARGET VESSEL:
 ${specs}
+${regionBlock}${vatBlock}
 
 ${modeNote}
 
@@ -916,6 +991,9 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       completeness_filled: completeness.filled,
       completeness_total: completeness.total,
       completeness_missing_critical: completeness.missing_critical,
+      sale_region: regionKey || null,
+      sale_region_label: regionKey ? REGION_LABELS[regionKey] || regionKey : null,
+      vat_status: vatKey || null,
     };
 
     // Fire-and-forget: log every request for future ML training data.

@@ -36,6 +36,24 @@ const CONFIG_OPTIONS: Record<string, string[]> = {
   ],
 };
 const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
+
+// Regional sale taxonomy. Mirrors REGION_LABELS in
+// artifacts/api-server/src/routes/estimate.ts — keep in sync.
+const SALE_REGIONS: { value: string; label: string }[] = [
+  { value: "mediterranean", label: "Mediterranean (FR · IT · ES · MC · GR · HR · TR · MT)" },
+  { value: "northern_europe", label: "Northern Europe incl. UK (UK · NL · DE · DK · NO · SE · FI · BE)" },
+  { value: "north_america_caribbean", label: "North America & Caribbean (US · CA · BS · KY · BVI · USVI)" },
+  { value: "asia_pacific_me", label: "Asia-Pacific & Middle East (AE · SG · HK · TH · AU · NZ · JP · CN)" },
+  { value: "global", label: "Global — no regional restriction" },
+];
+
+// Regions where EU VAT/Tax status is commercially relevant. For US/Caribbean
+// and APAC/ME the field would only confuse the user, so we hide it.
+const VAT_RELEVANT_REGIONS = new Set(["mediterranean", "northern_europe", "global"]);
+const VAT_OPTIONS: { value: string; label: string }[] = [
+  { value: "paid", label: "Tax Paid (EU free circulation)" },
+  { value: "not_paid", label: "Tax Not Paid (offshore / not in EU free circulation)" },
+];
 const HULL_MATERIALS = ["GRP / Fiberglass", "Steel", "Aluminium", "Carbon Fibre", "Wood / Composite", "Ferro-Cement"];
 const ENGINE_CONFIGS = ["Single diesel", "Twin diesel", "Triple diesel", "Quad diesel", "IPS drives", "Sail (auxiliary)", "Electric / Hybrid", "Waterjet"];
 type Mode = "builder" | "specs";
@@ -70,6 +88,9 @@ interface ValuationResult {
   completeness_total?: number;
   completeness_missing_critical?: string[];
   internal_comparables_count?: number;
+  sale_region?: string | null;
+  sale_region_label?: string | null;
+  vat_status?: "paid" | "not_paid" | null;
 }
 
 // Mirror of COMPLETENESS_WEIGHTS in artifacts/api-server/src/routes/estimate.ts.
@@ -151,6 +172,9 @@ const EMPTY: Record<string, string> = {
   range: "",
   cabins: "", heads: "", berths: "", crew: "",
   condition: "",
+  // Market context — region is always required (no default; user must pick).
+  // VAT/Tax is required only when the chosen region is EU/Med/Global.
+  sale_region: "", vat_status: "",
 };
 
 // Fields the user MUST fill (in addition to the always-required type/year/length)
@@ -171,6 +195,7 @@ const FIELD_LABELS: Record<string, string> = {
   engine_maker: "Engine Manufacturer", engines: "Engine Configuration",
   engine_count: "Engine Count", horse_power: "Total Horsepower",
   cabins: "Guest Cabins", heads: "Heads (WC)", crew: "Crew",
+  sale_region: "Sale Region", vat_status: "Tax Status",
 };
 
 export default function Valuation() {
@@ -225,6 +250,17 @@ export default function Valuation() {
     e.preventDefault();
     if (!form.type || !form.year || !form.length) {
       setError("Please fill in at least: Type, Year and Length.");
+      return;
+    }
+    // Sale region is ALWAYS required (no default — forces a deliberate choice).
+    // The bypass-required toggle does NOT bypass it.
+    if (!form.sale_region) {
+      setError("Please select the intended Sale Region — this drives the comparable cohort the AI is allowed to use.");
+      return;
+    }
+    // Tax status is required when region is VAT-relevant (Med / N. Europe / Global).
+    if (VAT_RELEVANT_REGIONS.has(form.sale_region) && !form.vat_status) {
+      setError("Please indicate the Tax Status (Tax Paid / Tax Not Paid) — these are structurally different markets in Europe.");
       return;
     }
     if (!bypassRequired) {
@@ -381,6 +417,44 @@ const data = text ? JSON.parse(text) : {};
                         {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
+                  </div>
+
+                  {/* MARKET CONTEXT — sale region (always required) + VAT/Tax
+                      status (required only when region is EU/Med/Global). Both
+                      feed straight into the AI prompt as hard cohort filters,
+                      not as percentage adjustments. */}
+                  <SectionHead icon={TrendingUp} title="Market Context" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={lbl}>Sale Region *</label>
+                      <select value={form.sale_region} onChange={e => {
+                        const v = e.target.value;
+                        setForm(p => ({
+                          ...p,
+                          sale_region: v,
+                          // Clear vat_status when region becomes irrelevant for VAT.
+                          vat_status: VAT_RELEVANT_REGIONS.has(v) ? p.vat_status : "",
+                        }));
+                      }} required className={sel}>
+                        <option value="">Select region...</option>
+                        {SALE_REGIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </select>
+                      <p className="text-white/30 text-[10px] font-sans mt-1.5 leading-relaxed">
+                        Drives which brokerage market the AI samples. Med vs US asking prices typically differ by 5–15% for equivalent tonnage.
+                      </p>
+                    </div>
+                    {VAT_RELEVANT_REGIONS.has(form.sale_region) && (
+                      <div>
+                        <label className={lbl}>Tax Status *</label>
+                        <select value={form.vat_status} onChange={e => setF("vat_status", e.target.value)} required className={sel}>
+                          <option value="">Select status...</option>
+                          {VAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        <p className="text-white/30 text-[10px] font-sans mt-1.5 leading-relaxed">
+                          Tax-paid vs not-paid are structurally different EU markets — not a discount line.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* DIMENSIONS */}
@@ -665,6 +739,21 @@ const data = text ? JSON.parse(text) : {};
                       {(result.internal_comparables_count ?? 0) >= 3 && (
                         <span className="text-[10px] font-bold uppercase tracking-widest border border-primary/30 bg-primary/5 text-primary px-3 py-1.5">
                           ✓ {result.internal_comparables_count} internal matches
+                        </span>
+                      )}
+                      {result.sale_region_label && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest border border-white/10 bg-white/[0.02] text-white/60 px-3 py-1.5">
+                          Region:&nbsp;<span className="text-white/85">{result.sale_region_label.split(" (")[0]}</span>
+                        </span>
+                      )}
+                      {result.vat_status === "paid" && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest border border-green-500/30 bg-green-500/5 text-green-400 px-3 py-1.5">
+                          Tax Paid
+                        </span>
+                      )}
+                      {result.vat_status === "not_paid" && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest border border-amber-500/30 bg-amber-500/5 text-amber-400 px-3 py-1.5">
+                          Tax Not Paid
                         </span>
                       )}
                     </div>
