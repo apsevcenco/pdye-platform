@@ -342,6 +342,28 @@ function cleanReasoning(text: unknown): string {
     .trim();
 }
 
+// ─── Condition taxonomy ──────────────────────────────────────────────────
+// Server-authoritative multiplier applied AFTER the AI returns its
+// Excellent-baseline price. Single source of truth — the AI is explicitly
+// told NOT to factor condition into its number, so the multiplier here is
+// the ONLY place condition affects the final price (no double-counting).
+//
+// Bands sit in the middle of consensus broker/surveyor practice (HMY,
+// BoatUS valuation guide, IYBA appraisers). To change a band, edit only
+// this table — no other code or prompt copy needs to move.
+const CONDITION_MULTIPLIERS: Record<string, number> = {
+  "New": 1.05,
+  "Excellent": 1.00,
+  "Good": 0.93,
+  "Fair": 0.83,
+  "Needs Refit": 0.70,
+  "Project": 0.50,
+};
+function conditionMultiplierFor(condition: string | undefined | null): number {
+  if (!condition) return 1.00;
+  return CONDITION_MULTIPLIERS[condition.trim()] ?? 1.00;
+}
+
 // ─── Region taxonomy ──────────────────────────────────────────────────────
 // Human-readable labels + the explicit list of countries / brokerage hubs
 // the AI is allowed to use as comparable sources for each region. Keep this
@@ -799,9 +821,12 @@ ${modeNote}
 Based on the 5 verified comparable listings, determine the fair market value of the target vessel.
 
 ⚠ CRITICAL — OPEN MARKET LISTING EQUIVALENT:
-Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would be listed at on YachtWorld / RightBoat / TheYachtMarket today, alongside the comparables you found. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. Compute it as a weighted average of the comparable asking prices, biased toward the closest matches (same builder/model = highest weight, then same year, then same length/engine layout). Adjust up or down for the target vessel's specific spec advantages or disadvantages vs the cohort (newer/older, better/worse condition, more/fewer engines, refit history, etc.).
+Your "estimated_price" represents the OPEN-MARKET LISTING EQUIVALENT — i.e. the price this vessel would be listed at on YachtWorld / RightBoat / TheYachtMarket today, alongside the comparables you found. This is the ASKING-price equivalent, NOT the discounted sold price. Do NOT subtract a generic asking→sold haircut. Compute it as a weighted average of the comparable asking prices, biased toward the closest matches (same builder/model = highest weight, then same year, then same length/engine layout). Adjust up or down for the target vessel's specific spec advantages or disadvantages vs the cohort (newer/older, more/fewer engines, refit history, hull material, etc.).
 
-The downstream system applies separate, well-documented discounts off this number to derive Discreet Sale (≈ −25%) and Quick Sale (≈ −35%) tiers, so your job is just the open-market headline.
+⚠ CRITICAL — DO NOT FACTOR CONDITION INTO YOUR PRICE:
+The "Condition" field (New / Excellent / Good / Fair / Needs Refit / Project) in the target specs is informational ONLY. The downstream system applies a separate, deterministic multiplier off your number to handle condition. Therefore: PRICE THE TARGET AS IF IT WERE IN "EXCELLENT" CONDITION regardless of what the Condition field says. Do not discount or premium-adjust your number for condition. Do not mention a condition adjustment in your "reasoning" — it will be added by the system. (You may still mention condition of the comparables, e.g. "comp #2 was a Fair-condition listing at €X, so I weighted it lower" — that is comp normalisation, not target adjustment.)
+
+The downstream system applies separate, well-documented discounts off this number to derive Discreet Sale (≈ −20%) and Quick Sale (≈ −30%) tiers, so your job is just the open-market Excellent-condition headline.
 
 The price must reflect actual market evidence — not a theoretical estimate.
 
@@ -809,7 +834,7 @@ Return ONLY this JSON (absolutely no markdown, no text before or after):
 {
   "estimated_price": "€ X,XXX,XXX",
   "confidence": "high|medium|low",
-  "reasoning": "3–4 sentences: cite the comparable listings found, explain how the target vessel's specs compare to them (better/worse condition, newer/older, more/fewer engines etc.), and justify the final price.",
+  "reasoning": "3–4 sentences: cite the comparable listings found, explain how the target vessel's specs compare to them (newer/older, more/fewer engines, refit history, hull material etc.) — but DO NOT mention condition adjustment for the target (system handles that) — and justify the final Excellent-baseline price.",
   "comparables": [
     {
       "builder": "Exact builder name from listing",
@@ -956,6 +981,26 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
     // checkbox, force confidence to "low" regardless of what the AI returned.
     if (b.bypass_required === true) cap("low");
 
+    // ── Condition adjustment (deterministic, server-authoritative) ─────────
+    // AI was instructed to price as if Excellent. We apply the multiplier
+    // here so condition is reflected exactly once. If condition is empty
+    // (user opted out via the bypass-checkbox), multiplier = 1.00 and we
+    // cap confidence so the user sees the gap.
+    const conditionRaw =
+      typeof b.condition === "string" ? b.condition.trim() : "";
+    const conditionMultiplier = conditionMultiplierFor(conditionRaw);
+    const conditionAdjustmentPct = Math.round(
+      (conditionMultiplier - 1) * 100
+    );
+    const aiPriceBeforeConditionEur = aiPriceEur ? Math.round(aiPriceEur) : null;
+    if (aiPriceEur && conditionMultiplier !== 1.0) {
+      aiPriceEur = aiPriceEur * conditionMultiplier;
+    }
+    if (!conditionRaw) {
+      // Missing condition signal → cap confidence so the user sees the gap.
+      cap("medium");
+    }
+
     let marketPriceStr: string;
     let distressedPriceStr = "";
     let quickSalePriceStr = "";
@@ -964,18 +1009,16 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
     if (aiPriceEur) {
       estimatedPriceEur = Math.round(aiPriceEur);
       marketPriceStr = formatEur(aiPriceEur);
-      // Distressed scenario discounts (off the AI-derived market price):
+      // Distressed scenario discounts (off the condition-adjusted price):
       //   distressed (−20%) — motivated/forced seller, 2–4 month timeline,
-      //                       sits in the middle of the industry distressed
-      //                       band (Burgess / Fraser / HMY data: 18–28%).
+      //                       middle of industry distressed band (18–28%).
       //   quick_sale (−30%) — receiver / fire sale, 30–60 day disposal,
-      //                       middle of the industry fire-sale band (30–40%).
-      // We deliberately do NOT surface these % to the end user — the labels
-      // describe the SCENARIO, the price speaks for itself.
-      distressedPriceStr = formatEur(aiPriceEur * 0.80);
-      quickSalePriceStr = formatEur(aiPriceEur * 0.70);
+      //                       middle of industry fire-sale band (30–40%).
+      // Percentages deliberately NOT surfaced in the UI labels.
+      distressedPriceStr = formatEur(aiPriceEur * 0.8);
+      quickSalePriceStr = formatEur(aiPriceEur * 0.7);
     } else {
-      // Fallback: keep AI's original string if we couldn't parse
+      // Fallback: keep AI's original string if we couldn't parse.
       marketPriceStr = String(result.estimated_price || "");
     }
 
@@ -1002,6 +1045,12 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
       sale_region: regionKey || null,
       sale_region_label: regionKey ? REGION_LABELS[regionKey] || regionKey : null,
       vat_status: vatKey || null,
+      // Condition adjustment audit fields. Frontend uses these to render the
+      // "Condition adjustment: Fair (−17%)" line under market price.
+      condition: conditionRaw || null,
+      condition_multiplier: conditionMultiplier,
+      condition_adjustment_pct: conditionAdjustmentPct,
+      condition_baseline_eur: aiPriceBeforeConditionEur,
     };
 
     // Fire-and-forget: log every request for future ML training data.

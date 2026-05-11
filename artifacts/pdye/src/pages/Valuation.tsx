@@ -91,6 +91,13 @@ interface ValuationResult {
   sale_region?: string | null;
   sale_region_label?: string | null;
   vat_status?: "paid" | "not_paid" | null;
+  // Condition adjustment audit fields. Server multiplies the AI's
+  // Excellent-baseline price by `condition_multiplier`. Frontend renders the
+  // applied % so the user understands why the headline price moved.
+  condition?: string | null;
+  condition_multiplier?: number;
+  condition_adjustment_pct?: number;
+  condition_baseline_eur?: number | null;
 }
 
 // Mirror of COMPLETENESS_WEIGHTS in artifacts/api-server/src/routes/estimate.ts.
@@ -186,6 +193,11 @@ const REQUIRED_EXTRA = [
   "beam", "draft",
   "engine_maker", "engines", "engine_count", "horse_power",
   "cabins", "heads", "crew",
+  // Condition is required by default — second-strongest price driver after
+  // length and year. The bypass-checkbox ("I don't have all the data") still
+  // disables it, in which case the server applies a 1.00 multiplier and caps
+  // confidence to medium so the user sees the gap.
+  "condition",
 ];
 const FIELD_LABELS: Record<string, string> = {
   type: "Yacht Class", year: "Build Year", length: "Length",
@@ -196,6 +208,7 @@ const FIELD_LABELS: Record<string, string> = {
   engine_count: "Engine Count", horse_power: "Total Horsepower",
   cabins: "Guest Cabins", heads: "Heads (WC)", crew: "Crew",
   sale_region: "Sale Region", vat_status: "Tax Status",
+  condition: "Condition",
 };
 
 export default function Valuation() {
@@ -690,6 +703,18 @@ const data = text ? JSON.parse(text) : {};
                       </div>
                     )}
                   </div>
+
+                  {/* Condition adjustment notice — only shown when a non-zero
+                      multiplier was applied (skip for Excellent / unspecified). */}
+                  {result.condition && (result.condition_adjustment_pct ?? 0) !== 0 && (
+                    <div className="border border-white/10 bg-white/3 px-4 py-2.5 mb-4">
+                      <p className="text-white/55 text-[10.5px] font-sans leading-snug">
+                        <span className="text-white/75 font-bold">Condition adjustment:</span>{" "}
+                        {result.condition} ({(result.condition_adjustment_pct ?? 0) > 0 ? "+" : ""}
+                        {result.condition_adjustment_pct}%) applied off the Excellent-condition baseline.
+                      </p>
+                    </div>
+                  )}
 
                   {result.sanity_adjusted && (
                     <div className="border border-white/10 bg-white/3 px-4 py-2.5 mb-4">
