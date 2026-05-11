@@ -679,14 +679,14 @@ const data = text ? JSON.parse(text) : {};
                       <div className="bg-amber-500/5 border border-amber-500/25 p-5">
                         <p className="text-amber-400/80 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Discreet sale</p>
                         <p className="font-display text-3xl text-amber-300 leading-tight">{formatPrice(result.distressed_price)}</p>
-                        <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Confidential / off-market sale (≈ −25%)</p>
+                        <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Confidential / off-market sale</p>
                       </div>
                     )}
                     {result.quick_sale_price && (
                       <div className="bg-orange-500/5 border border-orange-500/25 p-5">
                         <p className="text-orange-400/80 text-[9px] uppercase tracking-[0.2em] font-bold mb-2 font-sans">Quick sale</p>
                         <p className="font-display text-3xl text-orange-300 leading-tight">{formatPrice(result.quick_sale_price)}</p>
-                        <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Forced / urgent liquidation (≈ −35%)</p>
+                        <p className="text-white/30 text-[10px] mt-2 font-sans leading-snug">Forced / urgent liquidation</p>
                       </div>
                     )}
                   </div>

@@ -964,8 +964,16 @@ Comparables array must have EXACTLY 5 entries. DO NOT include vessel names, owne
     if (aiPriceEur) {
       estimatedPriceEur = Math.round(aiPriceEur);
       marketPriceStr = formatEur(aiPriceEur);
-      distressedPriceStr = formatEur(aiPriceEur * 0.75);
-      quickSalePriceStr = formatEur(aiPriceEur * 0.65);
+      // Distressed scenario discounts (off the AI-derived market price):
+      //   distressed (−20%) — motivated/forced seller, 2–4 month timeline,
+      //                       sits in the middle of the industry distressed
+      //                       band (Burgess / Fraser / HMY data: 18–28%).
+      //   quick_sale (−30%) — receiver / fire sale, 30–60 day disposal,
+      //                       middle of the industry fire-sale band (30–40%).
+      // We deliberately do NOT surface these % to the end user — the labels
+      // describe the SCENARIO, the price speaks for itself.
+      distressedPriceStr = formatEur(aiPriceEur * 0.80);
+      quickSalePriceStr = formatEur(aiPriceEur * 0.70);
     } else {
       // Fallback: keep AI's original string if we couldn't parse
       marketPriceStr = String(result.estimated_price || "");
