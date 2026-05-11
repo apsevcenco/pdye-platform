@@ -37,9 +37,7 @@ const CONFIG_OPTIONS: Record<string, string[]> = {
 };
 const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs Refit", "Project"];
 const HULL_MATERIALS = ["GRP / Fiberglass", "Steel", "Aluminium", "Carbon Fibre", "Wood / Composite", "Ferro-Cement"];
-const HULL_TYPES = ["Monohull", "Catamaran", "Trimaran", "SWATH", "Semi-Displacement", "Planing"];
 const ENGINE_CONFIGS = ["Single diesel", "Twin diesel", "Triple diesel", "Quad diesel", "IPS drives", "Sail (auxiliary)", "Electric / Hybrid", "Waterjet"];
-const FUEL_TYPES = ["Diesel", "Petrol / Gasoline", "Electric", "Hybrid", "LNG", "HFO"];
 type Mode = "builder" | "specs";
 type Units = "metric" | "imperial";
 
@@ -82,8 +80,8 @@ const COMPLETENESS_WEIGHTS: Record<string, number> = {
   engine_maker: 4, engine_model: 2, horse_power: 5, engines: 2, engine_count: 2,
   gross_tonnage: 4, hull_material: 3, displacement: 3, beam: 2,
   condition: 5, refit: 3,
-  draft: 1, fuel_type: 1, fuel_capacity: 2, max_speed: 2, cruise_speed: 1,
-  range: 2, cabins: 1, hull_type: 1, heads: 0, berths: 0, crew: 1, water_capacity: 0,
+  draft: 1, max_speed: 2,
+  range: 2, cabins: 1, heads: 0, berths: 0, crew: 1,
 };
 
 function computeCompletenessLocal(form: Record<string, string>, mode: string): { score: number; filled: number; total: number } {
@@ -149,10 +147,9 @@ const EMPTY: Record<string, string> = {
   type: "", configuration: "", builder: "", model: "", year: "", refit: "",
   engine_maker: "", engine_model: "",
   length: "", beam: "", draft: "", displacement: "", gross_tonnage: "",
-  hull_material: "", hull_type: "",
-  engines: "", engine_count: "", horse_power: "", fuel_type: "",
-  fuel_capacity: "", water_capacity: "",
-  max_speed: "", cruise_speed: "", range: "",
+  hull_material: "",
+  engines: "", engine_count: "", horse_power: "",
+  max_speed: "", range: "",
   cabins: "", heads: "", berths: "", crew: "",
   condition: "",
 };
@@ -216,10 +213,7 @@ export default function Valuation() {
       beam:           toImp ? mToFt(p.beam)           : ftToM(p.beam),
       draft:          toImp ? mToFt(p.draft)          : ftToM(p.draft),
       displacement:   toImp ? tToLT(p.displacement)   : ltToT(p.displacement),
-      fuel_capacity:  toImp ? lToG(p.fuel_capacity)   : gToL(p.fuel_capacity),
-      water_capacity: toImp ? lToG(p.water_capacity)  : gToL(p.water_capacity),
       max_speed:      toImp ? kToNm(p.max_speed)      : nmToK(p.max_speed),
-      cruise_speed:   toImp ? kToNm(p.cruise_speed)   : nmToK(p.cruise_speed),
       range:          toImp ? kToNm(p.range)           : nmToK(p.range),
     }));
     setUnits(toImp ? "imperial" : "metric");
@@ -429,18 +423,11 @@ const data = text ? JSON.parse(text) : {};
                       <input type="number" value={form.gross_tonnage} onChange={e => setF("gross_tonnage", e.target.value)}
                         className={inp} placeholder="GT" />
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <label className={lbl}>Hull Material</label>
                       <select value={form.hull_material} onChange={e => setF("hull_material", e.target.value)} className={sel}>
                         <option value="">Select...</option>
                         {HULL_MATERIALS.map(h => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </div>
-                    <div className="col-span-2">
-                      <label className={lbl}>Hull Type</label>
-                      <select value={form.hull_type} onChange={e => setF("hull_type", e.target.value)} className={sel}>
-                        <option value="">Select...</option>
-                        {HULL_TYPES.map(h => <option key={h} value={h}>{h}</option>)}
                       </select>
                     </div>
                   </div>
@@ -482,30 +469,7 @@ const data = text ? JSON.parse(text) : {};
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div>
-                      <label className={lbl}>Fuel Type</label>
-                      <select value={form.fuel_type} onChange={e => setF("fuel_type", e.target.value)} className={sel}>
-                        <option value="">Select...</option>
-                        {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={lbl}>Fuel Capacity</label>
-                      <div className="relative">
-                        <input value={form.fuel_capacity} onChange={e => setF("fuel_capacity", e.target.value)}
-                          className={inpUnit} placeholder={M ? "e.g. 12000" : "e.g. 3170"} />
-                        <UnitBadge unit={M ? "L" : "gal"} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={lbl}>Water Capacity</label>
-                      <div className="relative">
-                        <input value={form.water_capacity} onChange={e => setF("water_capacity", e.target.value)}
-                          className={inpUnit} placeholder={M ? "e.g. 3000" : "e.g. 792"} />
-                        <UnitBadge unit={M ? "L" : "gal"} />
-                      </div>
-                    </div>
-                    <div>
+                    <div className="col-span-2">
                       <label className={lbl}>Range</label>
                       <div className="relative">
                         <input value={form.range} onChange={e => setF("range", e.target.value)}
@@ -513,21 +477,11 @@ const data = text ? JSON.parse(text) : {};
                         <UnitBadge unit="nm" />
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div>
+                    <div className="col-span-2">
                       <label className={lbl}>Max Speed</label>
                       <div className="relative">
                         <input value={form.max_speed} onChange={e => setF("max_speed", e.target.value)}
                           className={inpUnit} placeholder="e.g. 28" />
-                        <UnitBadge unit="kts" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={lbl}>Cruise Speed</label>
-                      <div className="relative">
-                        <input value={form.cruise_speed} onChange={e => setF("cruise_speed", e.target.value)}
-                          className={inpUnit} placeholder="e.g. 22" />
                         <UnitBadge unit="kts" />
                       </div>
                     </div>
